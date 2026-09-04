@@ -1,0 +1,24 @@
+{
+  "name": "calcflow",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @calcflow/web",
+    "build": "npm run build --workspace @calcflow/web",
+    "preview": "npm run preview --workspace @calcflow/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build --force"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

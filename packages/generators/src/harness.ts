@@ -1,0 +1,251 @@
+import { equivalent, evaluate, freeVars, parse, stripPlusC, tryParse, type Expr } from '@calcflow/engine';
+import { ruleById } from './rules.js';
+import { build } from './registry.js';
+import type { Generator, Problem, Verification } from './types.js';
+
+/**
+ * The thing that keeps generators honest. For every generator, a few hundred
+ * instances across its whole declared region get checked against invariants the
+ * generator cannot satisfy by being self-consistently wrong — in particular the
+ * numeric `verify` hook, which re-derives the answer from the prompt.
+ */
+
+export interface Failure {
+  generatorId: string;
+  steps: number;
+  difficulty: number;
+  seed: string;
+  reason: string;
+}
+
+export interface FuzzOptions {
+  /** Instances per generator, spread over its supported grid. */
+  instances?: number;
+}
+
+export function fuzz(generator: Generator, opts: FuzzOptions = {}): Failure[] {
+  const instances = opts.instances ?? 500;
+  const failures: Failure[] = [];
+  const [s0, s1] = generator.supports.steps;
+  const [d0, d1] = generator.supports.difficulty;
+
+  for (let i = 0; i < instances; i += 1) {
+    const steps = s0 + (i % (s1 - s0 + 1));
+    const difficulty = d0 + (Math.floor(i / (s1 - s0 + 1)) % (d1 - d0 + 1));
+    const seed = `fuzz-${i}`;
+    let problem: Problem;
+    try {
+      problem = build(generator, seed, steps, difficulty);
+    } catch (err) {
+      failures.push({ generatorId: generator.id, steps, difficulty, seed, reason: `threw: ${String(err)}` });
+      continue;
+    }
+    for (const reason of checkProblem(problem, generator)) {
+      failures.push({ generatorId: generator.id, steps, difficulty, seed, reason });
+    }
+    if (failures.length > 20) break;
+  }
+  return failures;
+}
+
+export function checkProblem(problem: Problem, generator: Generator): string[] {
+  const problems: string[] = [];
+  const push = (m: string) => problems.push(m);
+
+  if (problem.answers.length === 0) push('no answers declared');
+
+  for (const [i, spec] of problem.answers.entries()) {
+    if (!spec.tex.trim()) push(`answer ${i} is empty`);
+    const parsed = tryParse(spec.tex);
+    if (!parsed) {
+      push(`answer ${i} does not parse: ${spec.tex}`);
+      continue;
+    }
+    if (!finiteSomewhere(parsed)) push(`answer ${i} never evaluates to a finite number: ${spec.tex}`);
+    // A generator that hands back the question is a degenerate parameter set.
+    if (normalise(spec.tex) === normalise(problem.prompt)) push(`answer ${i} is identical to the prompt`);
+  }
+
+  for (const id of problem.ruleIds) {
+    if (!ruleById(id)) push(`ruleId "${id}" has no rule card`);
+  }
+
+  // Every checkable solution line must be equivalent to the answer, for a
+  // value-preserving generator. A lying hint fails the build.
+  if (generator.invariant === 'value-preserving') {
+    const parsedAnswer = tryParse(problem.answers[0]!.tex);
+    const upToConstant = problem.answers[0]!.upToConstant ?? false;
+    // The constant of integration is not a variable to sample over — drop it
+    // from both sides so the chain compares like with like.
+    const reference = parsedAnswer ? stripPlusC(parsedAnswer) : null;
+    if (reference) {
+      for (const s of problem.solution) {
+        if (s.display) continue;
+        const parsedLine = tryParse(s.expr);
+        if (!parsedLine) {
+          push(`solution step "${s.ruleLabel}" does not parse: ${s.expr}`);
+          continue;
+        }
+        const line = stripPlusC(parsedLine);
+        if (!equivalent(line, reference, { mode: upToConstant ? 'constant-difference' : 'value' })) {
+          push(`solution step "${s.ruleLabel}" is not equivalent to the answer: ${s.expr}`);
+        }
+      }
+    }
+  } else {
+    // For equations, every checkable line must have the declared root as a solution.
+    for (const s of problem.solution) {
+      if (s.display) continue;
+      if (!s.expr.includes('=')) continue;
+      const reason = rootSatisfies(s.expr, problem);
+      if (reason) push(`solution step "${s.ruleLabel}": ${reason}`);
+    }
+  }
+
+  if (problem.verify) {
+    const reason = runVerification(problem.verify, problem);
+    if (reason) push(reason);
+  }
+
+  return problems;
+}
+
+/** Independent numeric checks — the ones that catch a wrong answer, not just an inconsistent one. */
+function runVerification(v: Verification, problem: Problem): string | null {
+  const answerTex = problem.answers[0]!.tex;
+  const answer = tryParse(answerTex);
+  if (!answer) return `answer does not parse: ${answerTex}`;
+
+  switch (v.kind) {
+    case 'identity': {
+      const source = tryParse(v.of);
+      if (!source) return `verify.of does not parse: ${v.of}`;
+      return equivalent(source, answer)
+        ? null
+        : `answer ${answerTex} is not equal to the prompt ${v.of}`;
+    }
+    case 'derivative': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      return matchesNumerically(
+        (b) => numericDerivative(f, v.wrt, b),
+        (b) => evaluate(answer, b),
+        varsOf(f, answer),
+      )
+        ? null
+        : `answer ${answerTex} is not the derivative of ${v.of}`;
+    }
+    case 'antiderivative': {
+      const integrand = tryParse(v.of);
+      if (!integrand) return `verify.of does not parse: ${v.of}`;
+      // Strip the constant before differentiating.
+      const bare = parse(answerTex.replace(/\s*\+\s*C\s*$/, ''));
+      return matchesNumerically(
+        (b) => numericDerivative(bare, v.wrt, b),
+        (b) => evaluate(integrand, b),
+        varsOf(integrand, bare),
+      )
+        ? null
+        : `d/d${v.wrt} of ${answerTex} is not ${v.of}`;
+    }
+    case 'definite-integral': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      const numeric = simpson(f, v.wrt, v.from, v.to);
+      const declared = evaluate(answer);
+      return Math.abs(numeric - declared) <= 1e-6 * Math.max(1, Math.abs(declared))
+        ? null
+        : `answer ${answerTex} (${declared}) does not match the integral of ${v.of} (${numeric})`;
+    }
+    case 'root':
+      return rootSatisfies(v.equation, problem);
+  }
+}
+
+/** Every declared answer must satisfy the equation. */
+function rootSatisfies(equation: string, problem: Problem): string | null {
+  const parts = equation.split('=');
+  if (parts.length !== 2) return `equation "${equation}" does not have exactly one =`;
+  const lhs = tryParse(parts[0]!);
+  const rhs = tryParse(parts[1]!);
+  if (!lhs || !rhs) return `equation "${equation}" does not parse`;
+
+  for (const spec of problem.answers) {
+    const root = tryParse(spec.tex);
+    if (!root) return `answer ${spec.tex} does not parse`;
+    const value = evaluate(root);
+    if (!Number.isFinite(value)) return `answer ${spec.tex} is not a finite value`;
+    const bindings = { x: value };
+    const l = evaluate(lhs, bindings);
+    const r = evaluate(rhs, bindings);
+    if (!Number.isFinite(l) || !Number.isFinite(r)) return `equation is undefined at x = ${value}`;
+    if (Math.abs(l - r) > 1e-6 * Math.max(1, Math.abs(l), Math.abs(r))) {
+      return `x = ${spec.tex} (${value}) does not satisfy ${equation}`;
+    }
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ numerics
+
+function varsOf(...exprs: Expr[]): string[] {
+  return Array.from(new Set(exprs.flatMap(freeVars)));
+}
+
+/** Central difference, Richardson-extrapolated for accuracy. */
+function numericDerivative(f: Expr, wrt: string, bindings: Record<string, number>): number {
+  const x = bindings[wrt]!;
+  const h = Math.max(1e-4, Math.abs(x) * 1e-4);
+  const at = (v: number) => evaluate(f, { ...bindings, [wrt]: v });
+  const d1 = (at(x + h) - at(x - h)) / (2 * h);
+  const d2 = (at(x + h / 2) - at(x - h / 2)) / h;
+  return (4 * d2 - d1) / 3;
+}
+
+function simpson(f: Expr, wrt: string, a: number, b: number, n = 2000): number {
+  const h = (b - a) / n;
+  let total = evaluate(f, { [wrt]: a }) + evaluate(f, { [wrt]: b });
+  for (let i = 1; i < n; i += 1) {
+    total += (i % 2 ? 4 : 2) * evaluate(f, { [wrt]: a + i * h });
+  }
+  return (total * h) / 3;
+}
+
+/**
+ * Compares two numeric functions over a spread of points. The tolerance is loose
+ * because one side is a finite difference — this is checking for an algebra
+ * mistake, not for floating-point drift.
+ */
+function matchesNumerically(
+  left: (b: Record<string, number>) => number,
+  right: (b: Record<string, number>) => number,
+  vars: string[],
+): boolean {
+  let agreed = 0;
+  let seen = 0;
+  for (let i = 0; i < 40 && agreed < 12; i += 1) {
+    const bindings: Record<string, number> = {};
+    for (const v of vars) bindings[v] = 0.3 + ((i * 0.37) % 2.2);
+    const l = left(bindings);
+    const r = right(bindings);
+    if (!Number.isFinite(l) || !Number.isFinite(r)) continue;
+    seen += 1;
+    if (Math.abs(l - r) > 1e-4 * Math.max(1, Math.abs(l), Math.abs(r))) return false;
+    agreed += 1;
+  }
+  return seen > 0 && agreed >= Math.min(6, seen);
+}
+
+function finiteSomewhere(e: Expr): boolean {
+  const vars = freeVars(e);
+  for (let i = 0; i < 32; i += 1) {
+    const bindings: Record<string, number> = {};
+    for (const v of vars) bindings[v] = 0.3 + i * 0.11;
+    if (Number.isFinite(evaluate(e, bindings))) return true;
+  }
+  return false;
+}
+
+function normalise(tex: string): string {
+  return tex.replace(/[\s{}]/g, '').replace(/\\left|\\right/g, '');
+}
