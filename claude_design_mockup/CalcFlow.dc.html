@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { margin: 0; background: #100e0c; }
+  a { color: #f5a524; text-decoration: none; }
+  a:hover { color: #ffc266; }
+  .katex { font-size: 1em; }
+  @keyframes cfpulse { 0% { box-shadow: 0 0 0 0 rgba(63,178,127,.5) } 100% { box-shadow: 0 0 0 14px rgba(63,178,127,0) } }
+  @keyframes cfshake { 0%,100% { transform: translateX(0) } 20% { transform: translateX(-6px) } 40% { transform: translateX(6px) } 60% { transform: translateX(-4px) } 80% { transform: translateX(4px) } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+</style>
+</helmet>
+
+<div style="font-family: Geist, system-ui, sans-serif; color: #f2ede6; background: #100e0c; padding: 72px; display: flex; flex-direction: column; gap: 96px; min-width: 3400px;">
+
+  <div style="display: flex; align-items: flex-end; gap: 40px; border-bottom: 1px solid #2a2521; padding-bottom: 28px;">
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font-family: 'Geist Mono', monospace; font-size: 13px; letter-spacing: .16em; color: #f5a524;">CALCFLOW · MOCKUP v1</div>
+      <div style="font-size: 44px; font-weight: 600; letter-spacing: -.02em;">Practice app for the RU HBO-minor Mathematics Practice Book</div>
+      <div style="font-size: 17px; color: #a39a90; max-width: 780px; text-wrap: pretty;">Ten screens, dark-first, warm amber accent. Tab S11 landscape at 1440×900 and S23 Ultra portrait at 412×915. The tablet practice canvas is live — draw with a pen, mouse or finger, toggle the eraser, two-finger tap to undo.</div>
+    </div>
+    <div style="display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; max-width: 520px;">
+      <div style="border: 1px solid #332e29; background: #1d1a17; border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e; letter-spacing: .1em;">SURFACES</div>
+        <div style="display: flex; gap: 6px;">
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #141210; border: 1px solid #332e29;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #1d1a17; border: 1px solid #332e29;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #262220; border: 1px solid #332e29;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #302a26; border: 1px solid #443c36;"></div>
+        </div>
+      </div>
+      <div style="border: 1px solid #332e29; background: #1d1a17; border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e; letter-spacing: .1em;">SEMANTIC</div>
+        <div style="display: flex; gap: 6px;">
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #f5a524;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #3fb27f;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #e5484d;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: #b98a3c;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 1 : home + practice tablet -->
+  <div style="display: flex; gap: 72px; align-items: flex-start;">
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">01</span>
+        <span style="font-size: 19px; font-weight: 500;">Home / session setup</span>
+        <span style="font-size: 14px; color: #6e665e;">Tab S11 · landscape</span>
+      </div>
+
+      <div style="width: 1480px; padding: 20px; background: #080706; border-radius: 34px; box-shadow: 0 50px 90px -30px #000, inset 0 0 0 1px #241f1c;">
+        <div style="width: 1440px; height: 900px; background: #141210; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column;">
+
+          <div style="height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e;">
+            <span>09:14</span>
+            <span style="display: flex; gap: 14px;"><span>offline</span><span>84%</span></span>
+          </div>
+
+          <div style="flex: 1; display: flex; flex-direction: column; padding: 26px 44px 40px; gap: 26px; min-height: 0;">
+            <div style="display: flex; align-items: flex-end; gap: 20px;">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="font-size: 32px; font-weight: 600; letter-spacing: -.02em;">Ready to practice</div>
+                <div style="font-size: 15px; color: #a39a90;">Nine chapters live. Every problem is generated on-device.</div>
+              </div>
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; background: #1d1a17; border: 1px solid #332e29; border-radius: 999px; padding: 9px 16px;">
+                <i data-lucide="flame" style="width: 15px; height: 15px; color: #f5a524;"></i>
+                <span style="font-size: 14px; color: #d8d0c6;">11-day streak</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; background: #1d1a17; border: 1px solid #332e29; border-radius: 999px; padding: 9px 16px; color: #d8d0c6; cursor: pointer;"><i data-lucide="bar-chart-3" style="width: 16px; height: 16px; color: #f5a524;"></i><span style="font-size: 14px;">Stats</span></div>
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: #1d1a17; border: 1px solid #332e29; display: grid; place-items: center; color: #a39a90;"><i data-lucide="settings" style="width: 17px; height: 17px;"></i></div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">CHAPTERS</div>
+                <div style="height: 1px; flex: 1; background: #241f1c;"></div>
+                <div style="font-size: 13px; color: #a39a90;">7 selected</div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+                <sc-for list="{{ chapters }}" as="ch" hint-placeholder-count="9">
+                  <div onClick="{{ ch.toggle }}" style="display: flex; align-items: center; gap: 13px; padding: 14px 16px; border-radius: 14px; cursor: pointer; background: {{ ch.bg }}; border: 1px solid {{ ch.border }};">
+                    <div style="position: relative; width: 34px; height: 34px; flex: none;">
+                      <svg width="34" height="34" viewBox="0 0 34 34" style="display: block; transform: rotate(-90deg);">
+                        <circle cx="17" cy="17" r="14" fill="none" stroke="#332e29" stroke-width="3"></circle>
+                        <circle cx="17" cy="17" r="14" fill="none" stroke="{{ ch.ring }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ ch.dash }}"></circle>
+                      </svg>
+                      <div style="position: absolute; inset: 0; display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-size: 11px; color: #d8d0c6;">{{ ch.n }}</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                      <div style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ ch.title }}</div>
+                      <div style="font-size: 12px; color: #6e665e;">{{ ch.pct }}% mastery</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 18px; align-items: stretch;">
+              <div style="flex: 1; background: #1d1a17; border: 1px solid #332e29; border-radius: 18px; padding: 24px 26px; display: flex; flex-direction: column; gap: 26px;">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                  <div style="display: flex; align-items: baseline; gap: 10px;">
+                    <div style="font-size: 15px; font-weight: 500;">Steps</div>
+                    <div style="font-size: 13px; color: #6e665e;">how many operations are chained</div>
+                    <div style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 20px; color: #f5a524;">{{ stepsVal }}</div>
+                  </div>
+                  <div style="padding: 0 11px;">
+                    <div onPointerDown="{{ stepsDown }}" onPointerMove="{{ stepsMove }}" onPointerUp="{{ sliderUp }}" onPointerCancel="{{ sliderUp }}" style="position: relative; height: 34px; cursor: pointer; touch-action: none;">
+                      <div style="position: absolute; left: 0; right: 0; top: 15px; height: 4px; border-radius: 999px; background: #332e29;"></div>
+                      <div style="position: absolute; left: 0; top: 15px; height: 4px; border-radius: 999px; background: #f5a524; width: {{ stepsFill }};"></div>
+                      <sc-for list="{{ stepsTicks }}" as="t" hint-placeholder-count="5">
+                        <div style="position: absolute; top: 13px; width: 8px; height: 8px; margin-left: -4px; border-radius: 999px; left: {{ t.left }}; background: {{ t.bg }};"></div>
+                      </sc-for>
+                      <div style="position: absolute; top: 6px; width: 22px; height: 22px; margin-left: -11px; border-radius: 999px; background: #f5a524; box-shadow: 0 3px 10px rgba(0,0,0,.55); transition: left .12s ease; left: {{ stepsPos }}; transform: scale({{ stepsScale }});"></div>
+                    </div>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                  <div style="display: flex; align-items: baseline; gap: 10px;">
+                    <div style="font-size: 15px; font-weight: 500;">Difficulty</div>
+                    <div style="font-size: 13px; color: #6e665e;">how ugly the numbers get</div>
+                    <div style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 20px; color: #f5a524;">{{ diffVal }}</div>
+                  </div>
+                  <div style="padding: 0 11px;">
+                    <div onPointerDown="{{ diffDown }}" onPointerMove="{{ diffMove }}" onPointerUp="{{ sliderUp }}" onPointerCancel="{{ sliderUp }}" style="position: relative; height: 34px; cursor: pointer; touch-action: none;">
+                      <div style="position: absolute; left: 0; right: 0; top: 15px; height: 4px; border-radius: 999px; background: #332e29;"></div>
+                      <div style="position: absolute; left: 0; top: 15px; height: 4px; border-radius: 999px; background: #f5a524; width: {{ diffFill }};"></div>
+                      <sc-for list="{{ diffTicks }}" as="t" hint-placeholder-count="5">
+                        <div style="position: absolute; top: 13px; width: 8px; height: 8px; margin-left: -4px; border-radius: 999px; left: {{ t.left }}; background: {{ t.bg }};"></div>
+                      </sc-for>
+                      <div style="position: absolute; top: 6px; width: 22px; height: 22px; margin-left: -11px; border-radius: 999px; background: #f5a524; box-shadow: 0 3px 10px rgba(0,0,0,.55); transition: left .12s ease; left: {{ diffPos }}; transform: scale({{ diffScale }});"></div>
+                    </div>
+                  </div>
+                </div>
+                <div style="background: #141210; border: 1px solid #2a2521; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e; letter-spacing: .1em;">SAMPLE</div>
+                  <div style="font-size: 20px;"><span data-tex="\frac{d}{dx}\ \ln\!\left(a+\sqrt{x}\right)"></span></div>
+                  <div style="margin-left: auto; font-size: 13px; color: #a39a90;">14 generators cover this cell</div>
+                </div>
+              </div>
+
+              <div style="width: 380px; flex: none; display: flex; flex-direction: column; gap: 18px;">
+                <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">MODE</div>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <sc-for list="{{ modes }}" as="m" hint-placeholder-count="3">
+                      <div onClick="{{ m.pick }}" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; cursor: pointer; background: {{ m.bg }}; border: 1px solid {{ m.border }};">
+                        <div style="width: 16px; height: 16px; border-radius: 999px; border: 2px solid {{ m.ring }}; display: grid; place-items: center;">
+                          <div style="width: 7px; height: 7px; border-radius: 999px; background: {{ m.dot }};"></div>
+                        </div>
+                        <div style="font-size: 14px; font-weight: 500;">{{ m.label }}</div>
+                        <div style="margin-left: auto; font-size: 12px; color: #6e665e;">{{ m.meta }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 18px; padding: 16px 20px; display: flex; align-items: center; gap: 14px;">
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <div style="font-size: 14px; font-weight: 500;">Adaptive difficulty</div>
+                    <div style="font-size: 12px; color: #6e665e;">needs 50 attempts per chapter</div>
+                  </div>
+                  <div onClick="{{ toggleAdaptive }}" style="margin-left: auto; width: 46px; height: 27px; border-radius: 999px; background: {{ adaptiveBg }}; border: 1px solid {{ adaptiveBorder }}; position: relative; cursor: pointer;">
+                    <div style="position: absolute; top: 2px; left: {{ adaptiveX }}; width: 21px; height: 21px; border-radius: 999px; background: {{ adaptiveKnob }}; transition: left .16s ease;"></div>
+                  </div>
+                </div>
+                <div onClick="{{ startSession }}" style="margin-top: auto; background: #f5a524; color: #1a1206; border-radius: 16px; height: 68px; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 19px; font-weight: 600; cursor: pointer;" style-hover="background: #ffb63f">
+                  Start set of 10
+                  <i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ specNotes }}" hint-placeholder-val="{{ true }}">
+        <div style="max-width: 1480px; font-size: 14px; color: #6e665e; text-wrap: pretty;">Chips are selectable; both sliders and the mode radio are live. Handle scales to 1.15 on grab and the value readout crossfades. Streak sits quietly in the corner — no XP, no badges.</div>
+      </sc-if>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">02</span>
+        <span style="font-size: 19px; font-weight: 500;">Practice — tablet landscape</span>
+        <span style="font-size: 14px; color: #6e665e;">live canvas · canvas left, controls right</span>
+      </div>
+
+      <div style="width: 1480px; padding: 20px; background: #080706; border-radius: 34px; box-shadow: 0 50px 90px -30px #000, inset 0 0 0 1px #241f1c;">
+        <div style="width: 1440px; height: 900px; background: #141210; border-radius: 18px; overflow: hidden; display: flex; position: relative;">
+
+          <div style="width: 62%; flex: none; display: flex; position: relative; background: #171512;">
+            <div style="width: 62px; flex: none; background: #1d1a17; border-right: 1px solid #2a2521; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px;">
+              <div onClick="{{ pickPen1 }}" title="Thin pen" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: {{ tPen1.bg }}; color: {{ tPen1.fg }}; border: 1px solid {{ tPen1.border }};"><i data-lucide="pencil" style="width: 17px; height: 17px;"></i></div>
+              <div onClick="{{ pickPen2 }}" title="Thick pen" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: {{ tPen2.bg }}; color: {{ tPen2.fg }}; border: 1px solid {{ tPen2.border }};"><i data-lucide="pen-tool" style="width: 17px; height: 17px;"></i></div>
+              <div onClick="{{ pickEraser }}" title="Eraser" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: {{ tEraser.bg }}; color: {{ tEraser.fg }}; border: 1px solid {{ tEraser.border }};"><i data-lucide="eraser" style="width: 17px; height: 17px;"></i></div>
+              <div style="width: 28px; height: 1px; background: #332e29; margin: 3px 0;"></div>
+              <div onClick="{{ undo }}" title="Undo" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="undo-2" style="width: 17px; height: 17px;"></i></div>
+              <div onClick="{{ redo }}" title="Redo" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="redo-2" style="width: 17px; height: 17px;"></i></div>
+              <div onClick="{{ askClear }}" title="Clear" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="trash-2" style="width: 17px; height: 17px;"></i></div>
+              <div style="margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+              <div onClick="{{ pickType }}" title="Type LaTeX" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: {{ tType.bg }}; color: {{ tType.fg }}; border: 1px solid {{ tType.border }};"><i data-lucide="type" style="width: 17px; height: 17px;"></i></div>
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 9px; color: #6e665e; letter-spacing: .06em;">TEX</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                  <div onClick="{{ togglePenOnly }}" title="Pen-only" style="width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; cursor: pointer; background: {{ penOnlyBg }}; color: {{ penOnlyFg }}; border: 1px solid {{ penOnlyBorder }};"><i data-lucide="hand" style="width: 16px; height: 16px;"></i></div>
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 9px; color: #6e665e; letter-spacing: .06em;">PEN</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="flex: 1; position: relative; min-width: 0;">
+              <canvas ref="{{ canvasRef }}" onPointerDown="{{ onDown }}" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}" onPointerCancel="{{ onUp }}" style="display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair;"></canvas>
+              <div style="position: absolute; right: 8px; top: 16px; bottom: 16px; width: 4px; border-radius: 999px; background: #241f1c;">
+                <div style="position: absolute; left: 0; width: 4px; border-radius: 999px; background: #4a423a; top: {{ scrollTop }}; height: {{ scrollLen }};"></div>
+              </div>
+              <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); background: #302a26; border: 1px solid #443c36; color: #f2ede6; border-radius: 999px; padding: 9px 20px; font-size: 14px; box-shadow: 0 12px 30px -8px #000;">{{ toast }}</div>
+              </sc-if>
+              <sc-if value="{{ typeMode }}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; inset: 0;">
+                  <div style="position: absolute; left: 46px; top: 120px; display: flex; align-items: center; gap: 10px;">
+                    <div style="background: rgba(29,26,23,.9); border: 1px solid #332e29; border-radius: 10px; padding: 8px 14px; font-size: 22px;"><span data-tex="f'(x)=\frac{1}{a+\sqrt{x}}\cdot\frac{d}{dx}\!\left(a+\sqrt{x}\right)"></span></div>
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 9px; color: #6e665e; letter-spacing: .08em; border: 1px solid #332e29; border-radius: 5px; padding: 2px 5px;">TYPED</div>
+                  </div>
+                  <div style="position: absolute; left: 46px; top: 200px; display: flex; align-items: center; gap: 10px;">
+                    <div style="background: rgba(29,26,23,.9); border: 1px solid #f5a524; border-radius: 10px; padding: 8px 14px; font-size: 22px; display: flex; align-items: center; gap: 3px; box-shadow: 0 0 0 4px rgba(245,165,36,.1);">
+                      <span data-tex="=\frac{1}{2\sqrt{x}\left(a+\sqrt{x}\right)}"></span>
+                      <span style="width: 2px; height: 26px; background: #f5a524;"></span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <div style="width: 32px; height: 32px; border-radius: 9px; background: #f5a524; color: #1a1206; display: grid; place-items: center;"><i data-lucide="check" style="width: 16px; height: 16px;"></i></div>
+                      <div style="width: 32px; height: 32px; border-radius: 9px; background: #262220; border: 1px solid #443c36; color: #a39a90; display: grid; place-items: center;"><i data-lucide="x" style="width: 15px; height: 15px;"></i></div>
+                    </div>
+                  </div>
+                  <div style="position: absolute; left: 18px; right: 18px; bottom: 54px; background: #211d1a; border: 1px solid #443c36; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 16px 40px -16px #000;">
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #f5a524; letter-spacing: .1em; flex: none;">LATEX</div>
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #d8d0c6; white-space: nowrap; overflow: hidden;">=\frac{1}{2\sqrt{x}(a+\sqrt{x})}</div>
+                    <div style="width: 1px; height: 18px; background: #f5a524; flex: none;"></div>
+                    <div style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 10px; color: #6e665e; letter-spacing: .06em; flex: none;">TAP A LINE TO PLACE · ✓ COMMITS</div>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="position: absolute; left: 18px; bottom: 18px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #453e37; letter-spacing: .08em;">{{ canvasHint }}</div>
+            </div>
+          </div>
+
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #141210; border-left: 1px solid #2a2521;">
+            <div style="padding: 22px 26px 0; display: flex; align-items: center; gap: 12px;">
+              <div style="font-family: 'Geist Mono', monospace; font-size: 14px; background: #1d1a17; border: 1px solid #332e29; border-radius: 999px; padding: 7px 14px; color: #d8d0c6;">7 / 10</div>
+              <div style="font-size: 13px; color: #f5a524; background: rgba(245,165,36,.1); border: 1px solid rgba(245,165,36,.28); border-radius: 999px; padding: 6px 12px;">Ch 9 · Chain rule</div>
+              <div style="margin-left: auto; display: flex; gap: 4px;">
+                <sc-for list="{{ pips }}" as="p" hint-placeholder-count="10">
+                  <div style="width: 7px; height: 7px; border-radius: 999px; background: {{ p.bg }};"></div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding: 20px 26px 22px; display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0;">
+              <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 18px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .14em; color: #6e665e;">DIFFERENTIATE</div>
+                <div style="font-size: 34px; color: #f2ede6;"><span data-tex="f(x)=\ln\!\left(a+\sqrt{x}\right)"></span></div>
+                <div style="font-size: 13px; color: #6e665e; display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap;"><span data-tex="a" style="font-size: 14px;"></span><span>is a positive constant. Give</span><span data-tex="f'(x)" style="font-size: 14px;"></span><span>in exact, fully simplified form.</span></div>
+              </div>
+
+              <div onClick="{{ openHints }}" style="display: flex; align-items: center; gap: 12px; background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; padding: 14px 18px; cursor: pointer;" style-hover="border-color: #f5a524">
+                <i data-lucide="lightbulb" style="width: 17px; height: 17px; color: #f5a524;"></i>
+                <span style="font-size: 15px; font-weight: 500;">Stuck? Show a hint</span>
+                <span style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e;">4 RUNGS</span>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .14em; color: #6e665e;">YOUR ANSWER</div>
+                <div style="background: #0e0d0b; border: 1px solid {{ fieldBorder }}; border-radius: 14px; min-height: 74px; display: flex; align-items: center; padding: 0 20px;">
+                  <div style="font-size: 26px; color: #f2ede6;"><span data-tex="{{ answerTex }}"></span></div>
+                  <div style="width: 2px; height: 30px; background: #f5a524; margin-left: 4px;"></div>
+                  <div onClick="{{ backspace }}" style="margin-left: auto; color: #a39a90; cursor: pointer; padding: 8px; display: grid; place-items: center;"><i data-lucide="delete" style="width: 19px; height: 19px;"></i></div>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .14em; color: #6e665e;">KEYBOARD</div>
+                  
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+                  <sc-for list="{{ keys }}" as="k" hint-placeholder-count="36">
+                    <div onClick="{{ k.tap }}" style="height: 37px; border-radius: 10px; display: grid; place-items: center; cursor: pointer; font-size: 15px; background: {{ k.bg }}; color: {{ k.fg }}; border: 1px solid {{ k.border }}; user-select: none;" style-hover="border-color: #f5a524">{{ k.label }}</div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="margin-top: auto; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .14em; color: #6e665e;">HOW SURE ARE YOU?</div>
+                <div style="display: flex; gap: 8px;">
+                  <sc-for list="{{ confidences }}" as="c" hint-placeholder-count="3">
+                    <div onClick="{{ c.pick }}" style="flex: 1; height: 46px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; font-size: 14px; font-weight: 500; background: {{ c.bg }}; color: {{ c.fg }}; border: 1px solid {{ c.border }};">{{ c.label }}</div>
+                  </sc-for>
+                </div>
+                <div onClick="{{ submit }}" style="height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; font-weight: 600; cursor: pointer; background: {{ submitBg }}; color: {{ submitFg }};">{{ submitLabel }}</div>
+              </div>
+            </div>
+          </div>
+
+          <sc-if value="{{ ruleOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeRule }}" style="position: absolute; inset: 0; background: rgba(8,7,6,.66); display: grid; place-items: center; z-index: 8;">
+              <div style="width: 560px; background: #302a26; border: 1px solid #443c36; border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 40px 80px -20px #000;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #f5a524; letter-spacing: .12em;">CH 9 · RULE CARD</div>
+                  <div style="font-size: 21px; font-weight: 600;">Chain rule</div>
+                  <div style="margin-left: auto; width: 32px; height: 32px; border-radius: 9px; background: #262220; border: 1px solid #443c36; display: grid; place-items: center; color: #a39a90; cursor: pointer;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></div>
+                </div>
+                <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; padding: 26px; display: grid; place-items: center; font-size: 26px;"><span data-tex="\frac{d}{dx}f(g(x))=f'(g(x))\cdot g'(x)"></span></div>
+                <div style="font-size: 14px; color: #d8d0c6; line-height: 1.6; text-wrap: pretty;">Differentiate the outer function at the inner one, then multiply by the derivative of the inner function. Work outside-in, and keep the inner expression untouched in the first factor.</div>
+                <div style="display: flex; gap: 10px; align-items: center; background: #211d1a; border: 1px solid #3a332e; border-radius: 12px; padding: 14px 16px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e; letter-spacing: .1em;">HERE</div>
+                  <div style="font-size: 19px;"><span data-tex="\frac{d}{dx}\ln\!\left(a+\sqrt{x}\right)=\frac{1}{a+\sqrt{x}}\cdot\frac{1}{2\sqrt{x}}"></span></div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ clearAsk }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0; background: rgba(8,7,6,.62); display: grid; place-items: center; z-index: 5;">
+              <div style="width: 400px; background: #302a26; border: 1px solid #443c36; border-radius: 18px; padding: 26px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 30px 70px -20px #000;">
+                <div style="font-size: 19px; font-weight: 600;">Clear the canvas?</div>
+                <div style="font-size: 14px; color: #a39a90; line-height: 1.55; text-wrap: pretty;">Every stroke on this problem goes. Undo can still bring them back until you move on.</div>
+                <div style="display: flex; gap: 10px; margin-top: 6px;">
+                  <div onClick="{{ cancelClear }}" style="flex: 1; height: 48px; border-radius: 12px; background: #262220; border: 1px solid #443c36; display: grid; place-items: center; font-size: 15px; cursor: pointer;">Cancel</div>
+                  <div onClick="{{ confirmClear }}" style="flex: 1; height: 48px; border-radius: 12px; background: #f5a524; color: #1a1206; display: grid; place-items: center; font-size: 15px; font-weight: 600; cursor: pointer;">Clear</div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hintsOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0 0 0 auto; width: 38%; background: #262220; border-left: 1px solid #443c36; box-shadow: -30px 0 60px -20px rgba(0,0,0,.6); display: flex; flex-direction: column;">
+              <div style="padding: 22px 26px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #3a332e;">
+                <div style="font-size: 18px; font-weight: 600;">Hints</div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e;">RUNG {{ rungLabel }} / 4</div>
+                <div onClick="{{ closeHints }}" style="margin-left: auto; width: 32px; height: 32px; border-radius: 9px; background: #302a26; display: grid; place-items: center; cursor: pointer; color: #a39a90;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></div>
+              </div>
+              <div style="flex: 1; overflow-y: auto; padding: 20px 26px; display: flex; flex-direction: column; gap: 12px;">
+                <sc-for list="{{ rungs }}" as="r" hint-placeholder-count="4">
+                  <div style="background: {{ r.bg }}; border: 1px solid {{ r.border }}; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: {{ r.numColor }};">{{ r.num }}</div>
+                      <div style="font-size: 14px; font-weight: 500; color: {{ r.titleColor }};">{{ r.title }}</div>
+                      <div style="margin-left: auto; font-size: 12px; color: #6e665e;">{{ r.state }}</div>
+                    </div>
+                    <sc-if value="{{ r.open }}" hint-placeholder-val="{{ true }}">
+                      <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="font-size: 14px; color: #d8d0c6; line-height: 1.55; text-wrap: pretty;">{{ r.body }}</div>
+                        <sc-if value="{{ r.tex }}" hint-placeholder-val="{{ true }}">
+                          <div style="background: #141210; border: 1px solid #332e29; border-radius: 10px; padding: 14px 16px; font-size: 20px;"><span data-tex="{{ r.tex }}"></span></div>
+                        </sc-if>
+                        <sc-if value="{{ r.link }}" hint-placeholder-val="{{ false }}">
+                          <div onClick="{{ openRule }}" style="font-size: 13px; color: #f5a524; cursor: pointer; align-self: flex-start; border-bottom: 1px solid rgba(245,165,36,.4);">{{ r.link }} →</div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ moreRungs }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ nextRung }}" style="display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 12px; border: 1px dashed #4a423a; color: #f5a524; font-size: 14px; font-weight: 500; cursor: pointer;">{{ nextRungLabel }}</div>
+                </sc-if>
+              </div>
+              <div style="border-top: 1px solid #3a332e; padding: 18px 26px 22px; display: flex; flex-direction: column; gap: 12px; background: #211d1a;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="font-size: 14px; font-weight: 500;">Am I still on track?</div>
+                  <div style="font-size: 12px; color: #6e665e;">type any line from your working</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <div style="flex: 1; background: #0e0d0b; border: 1px solid #332e29; border-radius: 11px; height: 48px; display: flex; align-items: center; padding: 0 16px; font-size: 18px;"><span data-tex="\frac{1}{a+\sqrt{x}}\cdot\frac{1}{2\sqrt{x}}"></span></div>
+                  <div onClick="{{ checkLine }}" style="width: 108px; border-radius: 11px; background: #302a26; border: 1px solid #443c36; display: grid; place-items: center; font-size: 14px; cursor: pointer;">Check</div>
+                </div>
+                <sc-if value="{{ onTrack }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; align-items: center; gap: 10px; background: rgba(63,178,127,.1); border: 1px solid rgba(63,178,127,.3); border-radius: 11px; padding: 11px 14px;">
+                    <i data-lucide="check" style="width: 16px; height: 16px; color: #3fb27f;"></i>
+                    <span style="font-size: 13px; color: #9fd9bd;">Equivalent to a valid intermediate line — keep going.</span>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <sc-if value="{{ specNotes }}" hint-placeholder-val="{{ true }}">
+        <div style="max-width: 1480px; font-size: 14px; color: #6e665e; text-wrap: pretty;">Nothing on this page scrolls; only the canvas pans, and the hint panel scrolls internally. Try it: draw, tap the eraser and cross out a stroke, then two-finger tap (or hit the rail's undo) — the toast confirms the gesture landed. Hint panel enters as a 220 ms spring from the right with rungs staggered at 40 ms.</div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- ROW 2 : phone screens -->
+  <sc-if value="{{ phoneScreens }}" hint-placeholder-val="{{ true }}">
+    <div style="display: flex; gap: 64px; align-items: flex-start;">
+
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; align-items: baseline; gap: 12px;">
+          <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">03</span>
+          <span style="font-size: 19px; font-weight: 500;">Practice — phone portrait</span>
+        </div>
+        <div style="width: 440px; padding: 14px; background: #080706; border-radius: 46px; box-shadow: 0 40px 80px -30px #000, inset 0 0 0 1px #241f1c;">
+          <div style="width: 412px; height: 915px; background: #141210; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="height: 30px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e;"><span>09:22</span><span>offline · 81%</span></div>
+            <div style="padding: 12px 16px 0; display: flex; align-items: center; gap: 10px;">
+              <div style="font-family: 'Geist Mono', monospace; font-size: 12px; background: #1d1a17; border: 1px solid #332e29; border-radius: 999px; padding: 5px 11px; color: #d8d0c6;">7 / 10</div>
+              <div style="font-size: 11px; color: #f5a524; background: rgba(245,165,36,.1); border: 1px solid rgba(245,165,36,.28); border-radius: 999px; padding: 4px 10px;">Ch 9 · Chain rule</div>
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; background: #1d1a17; border: 1px solid #332e29; border-radius: 999px; padding: 5px 11px;"><i data-lucide="lightbulb" style="width: 13px; height: 13px; color: #f5a524;"></i><span style="font-size: 11px; color: #d8d0c6;">Hint</span></div>
+            </div>
+            <div style="margin: 12px 16px; background: #1d1a17; border: 1px solid #332e29; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; flex: none;">
+              <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .14em; color: #6e665e;">DIFFERENTIATE</div>
+              <div style="font-size: 24px;"><span data-tex="f(x)=\ln\!\left(a+\sqrt{x}\right)"></span></div>
+            </div>
+            <div style="margin: 0 16px; flex: 1; min-height: 0; position: relative; background: #171512; border: 1px solid #2a2521; border-radius: 16px; overflow: hidden;">
+              <div style="position: absolute; inset: 0; background: repeating-linear-gradient(#171512 0 39px, #201d19 39px 40px);"></div>
+              <div style="position: absolute; left: 14px; top: 14px; display: flex; gap: 6px;">
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: #f5a524; color: #1a1206; display: grid; place-items: center;"><i data-lucide="pen-tool" style="width: 15px; height: 15px;"></i></div>
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: #262220; border: 1px solid #332e29; color: #a39a90; display: grid; place-items: center;"><i data-lucide="eraser" style="width: 15px; height: 15px;"></i></div>
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: #262220; border: 1px solid #332e29; color: #a39a90; display: grid; place-items: center;"><i data-lucide="undo-2" style="width: 15px; height: 15px;"></i></div>
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: #262220; border: 1px solid #332e29; color: #a39a90; display: grid; place-items: center;"><i data-lucide="redo-2" style="width: 15px; height: 15px;"></i></div>
+              </div>
+              <div style="position: absolute; right: 14px; top: 14px; display: flex; gap: 6px;">
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: #262220; border: 1px solid #332e29; color: #a39a90; display: grid; place-items: center;"><i data-lucide="type" style="width: 15px; height: 15px;"></i></div>
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: rgba(245,165,36,.14); border: 1px solid #f5a524; color: #f5a524; display: grid; place-items: center;"><i data-lucide="hand" style="width: 15px; height: 15px;"></i></div>
+                <div style="width: 34px; height: 34px; border-radius: 10px; background: #262220; border: 1px solid #332e29; color: #f5a524; display: grid; place-items: center;"><i data-lucide="maximize" style="width: 15px; height: 15px;"></i></div>
+              </div>
+              <div style="position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; font-family: 'Geist Mono', monospace; font-size: 10px; color: #453e37; letter-spacing: .08em;">PEN DRAWS · FINGER PANS · TAP TO GO FULLSCREEN</div>
+            </div>
+            <div style="flex: none; background: #1d1a17; border-top: 1px solid #332e29; border-radius: 20px 20px 0 0; margin-top: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="background: #0e0d0b; border: 1px solid #f5a524; border-radius: 12px; height: 56px; display: flex; align-items: center; padding: 0 14px;">
+                <div style="font-size: 20px;"><span data-tex="\frac{1}{2\sqrt{x}\left(a+\sqrt{x}\right)}"></span></div>
+                <div style="width: 2px; height: 24px; background: #f5a524; margin-left: 4px;"></div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+                <sc-for list="{{ phoneKeys }}" as="k" hint-placeholder-count="24">
+                  <div style="height: 38px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; color: #d8d0c6; background: {{ k.bg }}; border: 1px solid {{ k.border }};">{{ k.label }}</div>
+                </sc-for>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <div style="flex: 1; height: 40px; border-radius: 10px; background: #262220; border: 1px solid #332e29; display: grid; place-items: center; font-size: 13px; color: #d8d0c6;">Sure</div>
+                <div style="flex: 1; height: 40px; border-radius: 10px; background: rgba(245,165,36,.14); border: 1px solid #f5a524; display: grid; place-items: center; font-size: 13px; color: #f5a524;">Think so</div>
+                <div style="flex: 1; height: 40px; border-radius: 10px; background: #262220; border: 1px solid #332e29; display: grid; place-items: center; font-size: 13px; color: #d8d0c6;">Guessed</div>
+              </div>
+              <div style="height: 52px; border-radius: 12px; background: #f5a524; color: #1a1206; display: grid; place-items: center; font-size: 17px; font-weight: 600;">Submit</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; align-items: baseline; gap: 12px;">
+          <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">04</span>
+          <span style="font-size: 19px; font-weight: 500;">Canvas fullscreen</span>
+        </div>
+        <div style="width: 440px; padding: 14px; background: #080706; border-radius: 46px; box-shadow: 0 40px 80px -30px #000, inset 0 0 0 1px #241f1c;">
+          <div style="width: 412px; height: 915px; background: #171512; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; position: relative;">
+            <div style="flex: none; background: rgba(20,18,16,.94); border-bottom: 1px solid #2a2521; padding: 14px 16px; display: flex; align-items: center; gap: 10px;">
+              <div style="font-size: 17px;"><span data-tex="f(x)=\ln\!\left(a+\sqrt{x}\right)"></span></div>
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px; border-radius: 9px; background: #262220; border: 1px solid #332e29; color: #f5a524;"><i data-lucide="minimize" style="width: 14px; height: 14px;"></i><span style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .08em;">EXIT</span></div>
+            </div>
+            <div style="flex: 1; position: relative; background: repeating-linear-gradient(#171512 0 39px, #201d19 39px 40px);">
+              <div style="position: absolute; right: 8px; top: 20px; bottom: 20px; width: 4px; border-radius: 999px; background: #241f1c;">
+                <div style="position: absolute; top: 22%; height: 34%; width: 4px; border-radius: 999px; background: #4a423a;"></div>
+              </div>
+              <div style="position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: #302a26; border: 1px solid #443c36; border-radius: 999px; padding: 9px 20px; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 12px 30px -8px #000;"><i data-lucide="redo-2" style="width: 15px; height: 15px; color: #f5a524;"></i>Redo</div>
+            </div>
+            <div style="flex: none; padding: 12px 16px 22px; display: flex; justify-content: center; gap: 8px;">
+              <div style="width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #f5a524; color: #1a1206;"><i data-lucide="pen-tool" style="width: 18px; height: 18px;"></i></div>
+              <div style="width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="eraser" style="width: 18px; height: 18px;"></i></div>
+              <div style="width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="type" style="width: 18px; height: 18px;"></i></div>
+              <div style="width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="undo-2" style="width: 18px; height: 18px;"></i></div>
+              <div style="width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="redo-2" style="width: 18px; height: 18px;"></i></div>
+              <div style="width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #262220; color: #a39a90; border: 1px solid #332e29;"><i data-lucide="trash-2" style="width: 18px; height: 18px;"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; align-items: baseline; gap: 12px;">
+          <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">05</span>
+          <span style="font-size: 19px; font-weight: 500;">Hint panel — phone sheet</span>
+        </div>
+        <div style="width: 440px; padding: 14px; background: #080706; border-radius: 46px; box-shadow: 0 40px 80px -30px #000, inset 0 0 0 1px #241f1c;">
+          <div style="width: 412px; height: 915px; background: #141210; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; position: relative;">
+            <div style="flex: 1; opacity: .35; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="font-size: 22px;"><span data-tex="f(x)=\ln\!\left(a+\sqrt{x}\right)"></span></div>
+              <div style="flex: 1; background: repeating-linear-gradient(#171512 0 39px, #201d19 39px 40px); border-radius: 14px;"></div>
+            </div>
+            <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 660px; background: #262220; border-top: 1px solid #443c36; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; box-shadow: 0 -30px 60px -20px rgba(0,0,0,.6);">
+              <div style="padding: 12px 0 0; display: grid; place-items: center;"><div style="width: 44px; height: 4px; border-radius: 999px; background: #4a423a;"></div></div>
+              <div style="padding: 14px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3a332e;">
+                <div style="font-size: 17px; font-weight: 600;">Hints</div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e;">RUNG 2 / 4</div>
+              </div>
+              <div style="flex: 1; overflow: hidden; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="background: #211d1a; border: 1px solid #3a332e; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; gap: 8px; align-items: center;"><span style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #f5a524;">01</span><span style="font-size: 13px; font-weight: 500;">Which rule</span></div>
+                  <div style="font-size: 13px; color: #d8d0c6; line-height: 1.5;">Chain rule. The outer function is ln(u), whose derivative is 1/u.</div>
+                  <div style="font-size: 12px; color: #f5a524;">Rule card: chain rule</div>
+                </div>
+                <div style="background: #211d1a; border: 1px solid #3a332e; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; gap: 8px; align-items: center;"><span style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #f5a524;">02</span><span style="font-size: 13px; font-weight: 500;">Set it up</span></div>
+                  <div style="background: #141210; border: 1px solid #332e29; border-radius: 9px; padding: 12px; font-size: 17px;"><span data-tex="f'(x)=\frac{1}{a+\sqrt{x}}\cdot\frac{d}{dx}\!\left(a+\sqrt{x}\right)"></span></div>
+                </div>
+                <div style="background: #211d1a; border: 1px solid #3a332e; border-radius: 12px; padding: 14px; display: flex; gap: 8px; align-items: center; opacity: .5;">
+                  <span style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #6e665e;">03</span><span style="font-size: 13px;">Next step</span>
+                  <span style="margin-left: auto; font-size: 11px; color: #6e665e;">locked</span>
+                </div>
+                <div style="background: #211d1a; border: 1px solid #3a332e; border-radius: 12px; padding: 14px; display: flex; gap: 8px; align-items: center; opacity: .5;">
+                  <span style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #6e665e;">04</span><span style="font-size: 13px;">Full solution</span>
+                  <span style="margin-left: auto; font-size: 11px; color: #6e665e;">locked</span>
+                </div>
+                <div style="height: 44px; border-radius: 11px; border: 1px dashed #4a423a; color: #f5a524; display: grid; place-items: center; font-size: 13px; font-weight: 500;">Reveal next step</div>
+              </div>
+              <div style="border-top: 1px solid #3a332e; background: #211d1a; padding: 14px 20px 24px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-size: 13px; font-weight: 500;">Am I still on track?</div>
+                <div style="display: flex; gap: 8px;">
+                  <div style="flex: 1; height: 44px; background: #0e0d0b; border: 1px solid #332e29; border-radius: 10px; display: flex; align-items: center; padding: 0 12px; font-size: 15px;"><span data-tex="\frac{1}{2\sqrt{x}\,(a+\sqrt{x})}"></span></div>
+                  <div style="width: 84px; height: 44px; background: #302a26; border: 1px solid #443c36; border-radius: 10px; display: grid; place-items: center; font-size: 13px;">Check</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ROW 3 : feedback -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">06</span>
+      <span style="font-size: 19px; font-weight: 500;">Answer feedback</span>
+      <span style="font-size: 14px; color: #6e665e;">the control column, four states</span>
+    </div>
+    <div style="display: flex; gap: 24px;">
+
+      <div style="width: 470px; background: #141210; border: 1px solid #2a2521; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="background: #1d1a17; border: 1px solid #3fb27f; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px; animation: cfpulse 400ms ease-out;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: #3fb27f; color: #06241a; display: grid; place-items: center;"><i data-lucide="check" style="width: 16px; height: 16px;"></i></div>
+            <div style="font-size: 19px; font-weight: 600; color: #3fb27f;">Correct</div>
+            <div style="margin-left: auto; font-size: 12px; color: #6e665e;">sure · 41 s · no hints</div>
+          </div>
+          <div style="font-size: 24px;"><span data-tex="\frac{1}{2\sqrt{x}\left(a+\sqrt{x}\right)}"></span></div>
+        </div>
+        <div style="height: 56px; border-radius: 14px; background: #f5a524; color: #1a1206; display: grid; place-items: center; font-size: 17px; font-weight: 600;">Next problem</div>
+        
+      </div>
+
+      <div style="width: 470px; background: #141210; border: 1px solid #2a2521; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="background: #1d1a17; border: 1px solid #e5484d; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; animation: cfshake 260ms ease-in-out;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: #e5484d; color: #2b0708; display: grid; place-items: center;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></div>
+            <div style="font-size: 19px; font-weight: 600; color: #e5484d;">Not right</div>
+            <div style="margin-left: auto; font-size: 12px; color: #e5484d;">confident · logged as misconception</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e; letter-spacing: .12em;">YOU WROTE</div>
+            <div style="font-size: 20px; color: #a39a90;"><span data-tex="\frac{1}{a+\sqrt{x}}"></span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e; letter-spacing: .12em;">ANSWER</div>
+            <div style="font-size: 22px;"><span data-tex="\frac{1}{2\sqrt{x}\left(a+\sqrt{x}\right)}"></span></div>
+          </div>
+          <div style="border-top: 1px solid #332e29; padding-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 7px; font-size: 13px; color: #f5a524;">See the steps <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <sc-for list="{{ solution }}" as="s" hint-placeholder-count="3">
+                <div style="display: flex; gap: 12px; align-items: center; background: #141210; border: 1px solid #2a2521; border-radius: 10px; padding: 10px 14px;">
+                  <div style="font-size: 12px; color: #6e665e; width: 108px; flex: none;">{{ s.rule }}</div>
+                  <div style="font-size: 17px;"><span data-tex="{{ s.tex }}"></span></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="width: 470px; background: #141210; border: 1px solid #2a2521; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="background: #1d1a17; border: 1px solid #b98a3c; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: #b98a3c; color: #241905; display: grid; place-items: center; font-size: 15px;">+</div>
+            <div style="font-size: 19px; font-weight: 600; color: #d9a955;">Forgot the +C</div>
+          </div>
+          <div style="font-size: 14px; color: #d8d0c6; line-height: 1.55;">The antiderivative itself is right. An indefinite integral needs the constant of integration.</div>
+          <div style="font-size: 22px;"><span data-tex="\tfrac{1}{10}(2x+1)^{5}+C"></span></div>
+          
+        </div>
+        <div style="background: #1d1a17; border: 1px solid #b98a3c; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: #b98a3c; color: #241905; display: grid; place-items: center; font-size: 13px;">≈</div>
+            <div style="font-size: 19px; font-weight: 600; color: #d9a955;">Not in exact form</div>
+          </div>
+          <div style="font-size: 14px; color: #d8d0c6; line-height: 1.55;">You wrote 0.866. The book wants the exact value.</div>
+          <div style="display: flex; align-items: center; gap: 14px; font-size: 22px;"><span data-tex="0.866"></span><span style="color: #6e665e; font-size: 15px;">→</span><span data-tex="\tfrac{1}{2}\sqrt{3}"></span></div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 4 : summary + stats -->
+  <div style="display: flex; gap: 64px; align-items: flex-start;">
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">07</span>
+        <span style="font-size: 19px; font-weight: 500;">Session summary</span>
+      </div>
+      <div style="width: 900px; background: #141210; border: 1px solid #2a2521; border-radius: 24px; padding: 40px 44px; display: flex; flex-direction: column; gap: 32px;">
+        <div style="display: flex; align-items: flex-end; gap: 28px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">SET OF 10 · COMPLETE</div>
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+              <div style="font-size: 68px; font-weight: 600; letter-spacing: -.03em; line-height: 1;">8</div>
+              <div style="font-size: 28px; color: #6e665e;">/ 10</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 32px; margin-left: auto;">
+            <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #6e665e;">TIME</div><div style="font-size: 24px; font-family: 'Geist Mono', monospace;">14:20</div></div>
+            <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #6e665e;">HINTS</div><div style="font-size: 24px; font-family: 'Geist Mono', monospace;">3</div></div>
+            <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #6e665e;">MEDIAN</div><div style="font-size: 24px; font-family: 'Geist Mono', monospace;">1:12</div></div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 24px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">CONFIDENCE</div>
+            <sc-for list="{{ confBreakdown }}" as="c" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 78px; font-size: 14px; color: #d8d0c6;">{{ c.label }}</div>
+                <div style="flex: 1; height: 10px; border-radius: 999px; background: #241f1c; overflow: hidden; display: flex;">
+                  <div style="height: 10px; background: #3fb27f; width: {{ c.right }};"></div>
+                  <div style="height: 10px; background: #e5484d; width: {{ c.wrong }};"></div>
+                </div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #a39a90; width: 46px; text-align: right;">{{ c.n }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="width: 1px; background: #241f1c;"></div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">TOPICS THIS SET</div>
+            <sc-for list="{{ topicHits }}" as="t" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 8px; height: 8px; border-radius: 999px; background: {{ t.dot }};"></div>
+                <div style="font-size: 14px; color: #d8d0c6;">{{ t.name }}</div>
+                <div style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 13px; color: #6e665e;">{{ t.score }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <div style="flex: 1; height: 60px; border-radius: 14px; background: #f5a524; color: #1a1206; display: grid; place-items: center; font-size: 17px; font-weight: 600;">Practice the 2 misses</div>
+          <div style="width: 200px; height: 60px; border-radius: 14px; background: #1d1a17; border: 1px solid #332e29; display: grid; place-items: center; font-size: 16px; color: #d8d0c6;">Done for now</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">08</span>
+        <span style="font-size: 19px; font-weight: 500;">Stats dashboard</span>
+        <span style="font-size: 14px; color: #6e665e;">Tab S11 · fits without scrolling</span>
+      </div>
+      <div style="width: 1480px; padding: 20px; background: #080706; border-radius: 34px; box-shadow: 0 50px 90px -30px #000, inset 0 0 0 1px #241f1c;">
+        <div style="width: 1440px; height: 900px; background: #141210; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e;">
+            <span>09:31</span>
+            <span style="display: flex; gap: 14px;"><span>tailscale</span><span>84%</span></span>
+          </div>
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 20px 40px 32px; gap: 20px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: #1d1a17; border: 1px solid #332e29; display: grid; place-items: center; color: #a39a90; cursor: pointer;"><i data-lucide="arrow-left" style="width: 17px; height: 17px;"></i></div>
+              <div style="font-size: 28px; font-weight: 600; letter-spacing: -.02em;">Where you stand</div>
+              <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e;">412 ATTEMPTS · 2 DEVICES · SYNCED 09:31</div>
+            </div>
+
+            <div style="flex: 1; min-height: 0; display: flex; gap: 20px;">
+              <div style="flex: 1; min-width: 0; background: #1d1a17; border: 1px solid #332e29; border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; flex-grow: 1">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">MASTERY BY CHAPTER</div>
+                  <div style="margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12px; color: #6e665e;">
+                    <span style="display: flex; align-items: center; gap: 4px;"><i data-lucide="zap" style="width: 13px; height: 13px; color: #3fb27f;"></i>faster</span>
+                    <span style="display: flex; align-items: center; gap: 4px;"><i data-lucide="timer" style="width: 13px; height: 13px; color: #b98a3c;"></i>slower</span>
+                  </div>
+                </div>
+            <sc-for list="{{ chapters }}" as="ch" hint-placeholder-count="9">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #6e665e; width: 20px;">{{ ch.n }}</div>
+                <div style="width: 148px; font-size: 14px; color: #d8d0c6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ ch.title }}</div>
+                <div style="flex: 1; height: 9px; border-radius: 999px; background: #241f1c; overflow: hidden;">
+                  <div style="height: 9px; border-radius: 999px; background: {{ ch.ring }}; width: {{ ch.pctCss }};"></div>
+                </div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #a39a90; width: 32px; text-align: right;">{{ ch.pct }}</div>
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 5px; width: 70px; flex: none;">
+                  <sc-if value="{{ ch.isFast }}" hint-placeholder-val="{{ false }}"><i data-lucide="zap" style="width: 13px; height: 13px; color: #3fb27f;"></i></sc-if>
+                  <sc-if value="{{ ch.isSlow }}" hint-placeholder-val="{{ false }}"><i data-lucide="timer" style="width: 13px; height: 13px; color: #b98a3c;"></i></sc-if>
+                  <sc-if value="{{ ch.isPar }}" hint-placeholder-val="{{ false }}"><span style="width: 13px; height: 1px; background: #4a423a;"></span></sc-if>
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: {{ ch.speedColor }};">{{ ch.median }}</div>
+                </div>
+              </div>
+            </sc-for>
+                <div style="margin-top: auto; padding-top: 12px; border-top: 1px solid #262220; font-size: 13px; color: #6e665e; text-wrap: pretty;">Median time per problem, measured against your own median across every chapter — not an outside benchmark.</div>
+              </div>
+
+              <div style="width: 372px; flex: none; display: flex; flex-direction: column; gap: 14px;">
+                <div style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: .14em; color: #6e665e;">CONFIDENCE × CORRECTNESS</div>
+                <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 12px; position: static; flex-grow: 0">
+              <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                <div style="font-size: 13px; color: #6e665e;">Sure · right</div>
+                <div style="font-size: 38px; font-weight: 600; color: #3fb27f; line-height: 1;">168</div>
+                <div style="font-size: 13px; color: #6e665e;">solid</div>
+              </div>
+              <div style="background: rgba(229,72,77,.08); border: 1px solid #e5484d; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                <div style="font-size: 13px; color: #e5848a;">Sure · wrong</div>
+                <div style="font-size: 38px; font-weight: 600; color: #e5484d; line-height: 1;">37</div>
+                <div style="font-size: 13px; color: #e5848a;">misconceptions</div>
+              </div>
+              <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                <div style="font-size: 13px; color: #6e665e;">Unsure · right</div>
+                <div style="font-size: 38px; font-weight: 600; color: #d8d0c6; line-height: 1;">94</div>
+                <div style="font-size: 13px; color: #6e665e;">fragile</div>
+              </div>
+              <div style="background: rgba(185,138,60,.08); border: 1px solid #b98a3c; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                <div style="font-size: 13px; color: #d9a955;">Unsure · wrong</div>
+                <div style="font-size: 38px; font-weight: 600; color: #d9a955; line-height: 1;">113</div>
+                <div style="font-size: 13px; color: #d9a955;">gaps</div>
+              </div>
+                </div>
+              </div>
+
+              <div style="width: 340px; flex: none; display: flex; flex-direction: column; gap: 14px;">
+                <div style="flex: 1; background: #1d1a17; border: 1px solid #332e29; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px; flex-grow: 0">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .12em; color: #f5a524;">STUDY NEXT</div>
+                  <div style="font-size: 18px; font-weight: 500;">Ch 7 · double-angle identities</div>
+                  <div style="font-size: 13px; color: #a39a90; line-height: 1.55; text-wrap: pretty;">Nine of your last thirty attempts here were confident and wrong — the pattern says a rule is misremembered, not missing.</div>
+                  <div style="margin-top: auto; height: 46px; border-radius: 11px; background: #302a26; border: 1px solid #443c36; display: grid; place-items: center; font-size: 14px; cursor: pointer;">Drill 10 from this topic</div>
+                </div>
+                <div style="flex: 1; background: #1d1a17; border: 1px solid #332e29; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px; flex-grow: 0">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="timer" style="width: 14px; height: 14px; color: #3fb27f;"></i>
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .12em; color: #3fb27f;">THEN BUILD SPEED</div>
+                  </div>
+                  <div style="font-size: 18px; font-weight: 500;">Ch 3 · fractions</div>
+                  <div style="font-size: 13px; color: #a39a90; line-height: 1.55; text-wrap: pretty;">You get 88% of these right but take 2.4× your median time. Accuracy is there; fluency isn't.</div>
+                  <div style="margin-top: auto; height: 46px; border-radius: 11px; background: #302a26; border: 1px solid #443c36; display: grid; place-items: center; font-size: 14px; cursor: pointer;">Timed set of 10</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">09</span>
+      <span style="font-size: 19px; font-weight: 500;">Stats dashboard — phone</span>
+      <span style="font-size: 14px; color: #6e665e;">the one screen that scrolls · scroll it</span>
+    </div>
+    <div style="width: 440px; padding: 14px; background: #080706; border-radius: 46px; box-shadow: 0 40px 80px -30px #000, inset 0 0 0 1px #241f1c;">
+      <div style="width: 412px; height: 915px; background: #141210; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="height: 30px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e;"><span>09:31</span><span>tailscale · 81%</span></div>
+        <div style="flex: none; padding: 12px 20px 14px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #241f1c;">
+          <div style="width: 34px; height: 34px; border-radius: 10px; background: #1d1a17; border: 1px solid #332e29; display: grid; place-items: center; color: #a39a90;"><i data-lucide="arrow-left" style="width: 15px; height: 15px;"></i></div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 21px; font-weight: 600; letter-spacing: -.02em;">Where you stand</div>
+            <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #6e665e;">412 ATTEMPTS · SYNCED 09:31</div>
+          </div>
+        </div>
+        <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px 28px; display: flex; flex-direction: column; gap: 20px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .14em; color: #6e665e;">CONFIDENCE × CORRECTNESS</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 3px;">
+                <div style="font-size: 11px; color: #6e665e;">Sure · right</div>
+                <div style="font-size: 26px; font-weight: 600; color: #3fb27f; line-height: 1.1;">168</div>
+                <div style="font-size: 11px; color: #6e665e;">solid</div>
+              </div>
+              <div style="background: rgba(229,72,77,.08); border: 1px solid #e5484d; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 3px;">
+                <div style="font-size: 11px; color: #e5848a;">Sure · wrong</div>
+                <div style="font-size: 26px; font-weight: 600; color: #e5484d; line-height: 1.1;">37</div>
+                <div style="font-size: 11px; color: #e5848a;">misconceptions</div>
+              </div>
+              <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 3px;">
+                <div style="font-size: 11px; color: #6e665e;">Unsure · right</div>
+                <div style="font-size: 26px; font-weight: 600; color: #d8d0c6; line-height: 1.1;">94</div>
+                <div style="font-size: 11px; color: #6e665e;">fragile</div>
+              </div>
+              <div style="background: rgba(185,138,60,.08); border: 1px solid #b98a3c; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 3px;">
+                <div style="font-size: 11px; color: #d9a955;">Unsure · wrong</div>
+                <div style="font-size: 26px; font-weight: 600; color: #d9a955; line-height: 1.1;">113</div>
+                <div style="font-size: 11px; color: #d9a955;">gaps</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .14em; color: #6e665e;">MASTERY BY CHAPTER</div>
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #6e665e;">
+                <span style="display: flex; align-items: center; gap: 3px;"><i data-lucide="zap" style="width: 11px; height: 11px; color: #3fb27f;"></i>fast</span>
+                <span style="display: flex; align-items: center; gap: 3px;"><i data-lucide="timer" style="width: 11px; height: 11px; color: #b98a3c;"></i>slow</span>
+              </div>
+            </div>
+            <sc-for list="{{ chapters }}" as="ch" hint-placeholder-count="9">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; align-items: baseline; gap: 8px;">
+                  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e;">{{ ch.n }}</div>
+                  <div style="font-size: 13px; color: #d8d0c6;">{{ ch.title }}</div>
+                  <div style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+                    <sc-if value="{{ ch.isFast }}" hint-placeholder-val="{{ false }}"><i data-lucide="zap" style="width: 12px; height: 12px; color: #3fb27f;"></i></sc-if>
+                    <sc-if value="{{ ch.isSlow }}" hint-placeholder-val="{{ false }}"><i data-lucide="timer" style="width: 12px; height: 12px; color: #b98a3c;"></i></sc-if>
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: {{ ch.speedColor }};">{{ ch.median }}</div>
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #a39a90; width: 30px; text-align: right;">{{ ch.pct }}%</div>
+                  </div>
+                </div>
+                <div style="height: 8px; border-radius: 999px; background: #241f1c; overflow: hidden;">
+                  <div style="height: 8px; border-radius: 999px; background: {{ ch.ring }}; width: {{ ch.pctCss }};"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .12em; color: #f5a524;">STUDY NEXT</div>
+            <div style="font-size: 16px; font-weight: 500;">Ch 7 · double-angle identities</div>
+            <div style="font-size: 12px; color: #a39a90; line-height: 1.5;">Nine of your last thirty attempts here were confident and wrong.</div>
+            <div style="height: 42px; border-radius: 10px; background: #302a26; border: 1px solid #443c36; display: grid; place-items: center; font-size: 13px; margin-top: 4px;">Drill 10 from this topic</div>
+          </div>
+
+          <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <i data-lucide="timer" style="width: 13px; height: 13px; color: #3fb27f;"></i>
+              <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .12em; color: #3fb27f;">THEN BUILD SPEED</div>
+            </div>
+            <div style="font-size: 16px; font-weight: 500;">Ch 3 · fractions</div>
+            <div style="font-size: 12px; color: #a39a90; line-height: 1.5;">88% right, but 2.4× your median time.</div>
+            <div style="height: 42px; border-radius: 10px; background: #302a26; border: 1px solid #443c36; display: grid; place-items: center; font-size: 13px; margin-top: 4px;">Timed set of 10</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #f5a524;">10</span>
+      <span style="font-size: 19px; font-weight: 500;">Settings</span>
+      <span style="font-size: 14px; color: #6e665e;">S23 Ultra · portrait</span>
+    </div>
+    <div style="width: 440px; padding: 14px; background: #080706; border-radius: 46px; box-shadow: 0 40px 80px -30px #000, inset 0 0 0 1px #241f1c;">
+      <div style="width: 412px; height: 915px; background: #141210; border-radius: 34px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="height: 30px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #6e665e;"><span>09:31</span><span>tailscale · 81%</span></div>
+        <div style="padding: 16px 20px 8px; font-size: 26px; font-weight: 600; letter-spacing: -.02em;">Settings</div>
+        <div style="flex: 1; overflow: hidden; padding: 8px 20px 24px; display: flex; flex-direction: column; gap: 20px;">
+          <sc-for list="{{ settingGroups }}" as="g" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .14em; color: #6e665e;">{{ g.title }}</div>
+              <div style="background: #1d1a17; border: 1px solid #332e29; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;">
+                <sc-for list="{{ g.rows }}" as="row" hint-placeholder-count="4">
+                  <div style="padding: 13px 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #262220;">
+                    <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                      <div style="font-size: 14px; color: #f2ede6;">{{ row.label }}</div>
+                      <sc-if value="{{ row.sub }}" hint-placeholder-val="{{ true }}">
+                        <div style="font-size: 12px; color: #6e665e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ row.sub }}</div>
+                      </sc-if>
+                    </div>
+                    <div style="margin-left: auto; flex: none;">
+                      <sc-if value="{{ row.isToggle }}" hint-placeholder-val="{{ true }}">
+                        <div style="width: 44px; height: 26px; border-radius: 999px; background: {{ row.tBg }}; border: 1px solid {{ row.tBorder }}; position: relative;">
+                          <div style="position: absolute; top: 2px; width: 20px; height: 20px; border-radius: 999px; left: {{ row.tX }}; background: {{ row.tKnob }};"></div>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ row.value }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #a39a90;">{{ row.value }}</div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+          <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+            <div style="height: 50px; border-radius: 13px; background: #302a26; border: 1px solid #443c36; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px;"><i data-lucide="refresh-cw" style="width: 16px; height: 16px; color: #3fb27f;"></i> Sync now — 4 queued</div>
+            <div style="text-align: center; font-family: 'Geist Mono', monospace; font-size: 11px; color: #453e37;">CALCFLOW 1.0.0 · ENGINE 1.0.0 · 9 CHAPTERS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;specNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Mockup&quot;},&quot;phoneScreens&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Mockup&quot;},&quot;canvasGrid&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ruled&quot;,&quot;dots&quot;,&quot;blank&quot;],&quot;default&quot;:&quot;ruled&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+class Component extends DCLogic {
+  state = {
+    selected: { 2: true, 3: true, 4: true, 6: true, 7: false, 8: true, 9: true, 10: true, 11: true },
+    steps: 3, diff: 3, mode: 0, adaptive: false,
+    tool: 'pen2', penOnly: true,
+    answer: '\\frac{1}{2\\sqrt{x}}',
+    conf: null, hintsOpen: true, rung: 2, onTrack: true, clearAsk: false, grabbed: null, ruleOpen: false,
+    toast: '', panY: 0
+  };
+
+  CH = [
+    [2, 'Powers', 72, '0:38', 'fast'], [3, 'Fractions', 58, '2:51', 'slow'], [4, 'Roots', 41, '1:22', 'par'],
+    [6, 'exp, ln, log', 66, '0:51', 'fast'], [7, 'sin, cos, tan', 23, '2:04', 'slow'], [8, 'Equations', 80, '1:09', 'par'],
+    [9, 'Differentiation', 54, '0:44', 'fast'], [10, 'Antidifferentiation', 12, '2:33', 'slow'], [11, 'Integration', 4, '1:15', 'par']
+  ];
+
+  RUNGS = [
+    { num: '01', title: 'Which rule', body: 'Chain rule. The outer function is ln(u), whose derivative is 1/u.', link: 'Rule card: chain rule' },
+    { num: '02', title: 'Set it up', body: 'Differentiate the outside, then multiply by the derivative of the inside.', tex: "f'(x)=\\frac{1}{a+\\sqrt{x}}\\cdot\\frac{d}{dx}\\!\\left(a+\\sqrt{x}\\right)" },
+    { num: '03', title: 'Next step', body: 'a is constant, so only the root differentiates.', tex: '\\frac{d}{dx}\\!\\left(a+\\sqrt{x}\\right)=\\frac{1}{2\\sqrt{x}}' },
+    { num: '04', title: 'Full solution', body: 'Multiply and simplify.', tex: "f'(x)=\\frac{1}{2\\sqrt{x}\\left(a+\\sqrt{x}\\right)}" }
+  ];
+
+  componentDidMount() {
+    this.mathTick(); this.icons();
+    this.katexTimer = setInterval(() => {
+      this.mathTick(); this.icons();
+      if (window.katex && window.lucide) clearInterval(this.katexTimer);
+    }, 160);
+    this.strokes = []; this.undone = []; this.live = null; this.touches = new Map(); this.tapCandidate = null;
+    this.setupCanvas();
+    window.addEventListener('resize', this.onResize);
+  }
+  componentDidUpdate() { this.mathTick(); this.icons(); }
+
+  icons() { if (window.lucide) { try { window.lucide.createIcons(); } catch (e) { /* ignore */ } } }
+  componentWillUnmount() {
+    clearInterval(this.katexTimer); clearTimeout(this.toastTimer);
+    window.removeEventListener('resize', this.onResize);
+  }
+
+  onResize = () => this.setupCanvas();
+
+  mathTick() {
+    if (!window.katex) return;
+    document.querySelectorAll('[data-tex]').forEach(el => {
+      const tex = el.getAttribute('data-tex');
+      if (!tex || el.__tex === tex) return;
+      try { window.katex.render(tex, el, { throwOnError: false, displayMode: false }); el.__tex = tex; } catch (e) { /* ignore */ }
+    });
+  }
+
+  // ---------- canvas ----------
+  setupCanvas = () => {
+    const c = this.canvas; if (!c) return;
+    const r = c.getBoundingClientRect(); if (!r.width) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+    this.dpr = dpr; this.cw = r.width; this.chh = r.height;
+    this.draw();
+  };
+
+  draw() {
+    const c = this.canvas; if (!c) return;
+    const g = c.getContext('2d');
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    g.clearRect(0, 0, this.cw, this.chh);
+    g.fillStyle = '#171512';
+    g.fillRect(0, 0, this.cw, this.chh);
+    const grid = this.props.canvasGrid || 'ruled';
+    const pan = this.state.panY;
+    if (grid === 'ruled') {
+      g.strokeStyle = '#211d19'; g.lineWidth = 1;
+      const start = -((pan % 40) + 40) % 40;
+      for (let y = start; y < this.chh; y += 40) { g.beginPath(); g.moveTo(0, y + .5); g.lineTo(this.cw, y + .5); g.stroke(); }
+    } else if (grid === 'dots') {
+      g.fillStyle = '#2a2521';
+      const start = -((pan % 32) + 32) % 32;
+      for (let y = start; y < this.chh; y += 32) for (let x = 16; x < this.cw; x += 32) { g.beginPath(); g.arc(x, y, 1.3, 0, 6.284); g.fill(); }
+    }
+    g.save(); g.translate(0, -pan);
+    const all = this.live ? this.strokes.concat([this.live]) : this.strokes;
+    all.forEach(s => this.paint(g, s));
+    g.restore();
+  }
+
+  paint(g, s) {
+    if (s.pts.length < 2) {
+      const p = s.pts[0]; if (!p) return;
+      g.fillStyle = s.color; g.beginPath(); g.arc(p.x, p.y, Math.max(1, s.w * p.p) / 2, 0, 6.284); g.fill(); return;
+    }
+    g.strokeStyle = s.color; g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let i = 1; i < s.pts.length; i++) {
+      const a = s.pts[i - 1], b = s.pts[i];
+      g.lineWidth = Math.max(.7, s.w * ((a.p + b.p) / 2));
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    }
+  }
+
+  local(e) {
+    const r = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top + this.state.panY };
+  }
+
+  showToast(msg) {
+    clearTimeout(this.toastTimer);
+    this.setState({ toast: msg });
+    this.toastTimer = setTimeout(() => this.setState({ toast: '' }), 1100);
+  }
+
+  onDown = (e) => {
+    const c = this.canvas; if (!c) return;
+    c.setPointerCapture && c.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'touch') {
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY, t: Date.now(), moved: 0 });
+      if (this.state.penOnly) { this.panFrom = { y: e.clientY, pan: this.state.panY }; return; }
+    }
+    if (this.penDown && e.pointerType === 'touch') return;
+    if (e.pointerType === 'pen') this.penDown = true;
+    if (this.state.tool === 'type') return;
+    if (this.state.tool === 'eraser') { this.erasing = true; this.eraseAt(this.local(e)); return; }
+    const p = this.local(e);
+    const w = this.state.tool === 'pen1' ? 3.2 : 6.4;
+    this.live = { pts: [{ x: p.x, y: p.y, p: this.pressure(e) }], w, color: '#efe7db' };
+    this.drawing = true;
+  };
+
+  pressure(e) {
+    if (e.pointerType === 'pen' && e.pressure > 0) return .35 + e.pressure * .9;
+    return 1;
+  }
+
+  onMove = (e) => {
+    if (e.pointerType === 'touch') {
+      const t = this.touches.get(e.pointerId);
+      if (t) { t.moved = Math.max(t.moved, Math.abs(e.clientX - t.x) + Math.abs(e.clientY - t.y)); }
+      if (this.state.penOnly && this.panFrom && this.touches.size === 1) {
+        this.setState({ panY: Math.max(0, this.panFrom.pan - (e.clientY - this.panFrom.y)) }, () => this.draw());
+        return;
+      }
+      if (this.state.penOnly) return;
+    }
+    if (this.erasing) { this.eraseAt(this.local(e)); return; }
+    if (!this.drawing || !this.live) return;
+    const evs = e.nativeEvent && e.nativeEvent.getCoalescedEvents ? e.nativeEvent.getCoalescedEvents() : null;
+    const list = evs && evs.length ? evs : [e];
+    list.forEach(ev => { const p = this.local(ev); this.live.pts.push({ x: p.x, y: p.y, p: this.pressure(ev) }); });
+    this.draw();
+  };
+
+  onUp = (e) => {
+    if (e.pointerType === 'touch') {
+      const t = this.touches.get(e.pointerId);
+      const n = this.touches.size;
+      this.touches.delete(e.pointerId);
+      this.panFrom = null;
+      if (t && !this.penDown && t.moved < 14 && Date.now() - t.t < 320) {
+        this.pendingTap = (this.pendingTap || 0) + 1;
+        clearTimeout(this.tapTimer);
+        const count = Math.max(this.pendingTap, n);
+        this.tapTimer = setTimeout(() => {
+          if (count >= 3) this.redo(); else if (count === 2) this.undo();
+          this.pendingTap = 0;
+        }, 60);
+      }
+    }
+    if (e.pointerType === 'pen') this.penDown = false;
+    if (this.erasing) { this.erasing = false; return; }
+    if (this.drawing && this.live) {
+      if (this.live.pts.length) { this.strokes.push(this.live); this.undone = []; }
+      this.live = null; this.drawing = false; this.draw();
+    }
+  };
+
+  eraseAt(p) {
+    const hit = this.strokes.findIndex(s => s.pts.some(q => Math.abs(q.x - p.x) < 12 && Math.abs(q.y - p.y) < 12));
+    if (hit >= 0) { this.undone.push(this.strokes.splice(hit, 1)[0]); this.draw(); }
+  }
+
+  undo = () => {
+    if (!this.strokes.length) { this.showToast('Nothing to undo'); return; }
+    this.undone.push(this.strokes.pop()); this.draw(); this.showToast('Undo');
+  };
+  redo = () => {
+    if (!this.undone.length) { this.showToast('Nothing to redo'); return; }
+    this.strokes.push(this.undone.pop()); this.draw(); this.showToast('Redo');
+  };
+  askClear = () => {
+    if (!this.strokes.length) { this.showToast('Canvas already empty'); return; }
+    this.setState({ clearAsk: true });
+  };
+  clear = () => {
+    this.undone = this.strokes.slice().reverse().concat(this.undone); this.strokes = [];
+    this.draw(); this.setState({ clearAsk: false }); this.showToast('Cleared');
+  };
+
+  // ---------- helpers ----------
+  slider(name, current, set) {
+    const pct = ((current - 1) / 4) * 100;
+    const from = (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      return Math.min(5, Math.max(1, Math.round(ratio * 4) + 1));
+    };
+    return {
+      pos: pct + '%',
+      fill: pct + '%',
+      scale: this.state.grabbed === name ? '1.15' : '1',
+      ticks: [1, 2, 3, 4, 5].map(v => ({
+        left: (((v - 1) / 4) * 100) + '%',
+        bg: v === current ? 'transparent' : (v < current ? '#8a5f18' : '#443c36')
+      })),
+      down: (e) => {
+        e.currentTarget.setPointerCapture && e.currentTarget.setPointerCapture(e.pointerId);
+        this.setState({ grabbed: name }); set(from(e));
+      },
+      move: (e) => { if (this.state.grabbed === name) set(from(e)); }
+    };
+  }
+
+  toolStyle(id) {
+    const on = this.state.tool === id;
+    return { bg: on ? '#f5a524' : '#262220', fg: on ? '#1a1206' : '#a39a90', border: on ? '#f5a524' : '#332e29' };
+  }
+
+  key(label, ins, numeric) {
+    return {
+      label,
+      bg: numeric ? '#211d1a' : '#262220',
+      fg: '#f2ede6',
+      border: numeric ? '#2a2521' : '#332e29',
+      tap: () => this.setState(s => ({ answer: s.answer + ins }))
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const st = this.slider('steps', s.steps, v => { if (v !== s.steps) this.setState({ steps: v }); });
+    const df = this.slider('diff', s.diff, v => { if (v !== s.diff) this.setState({ diff: v }); });
+    const specNotes = this.props.specNotes !== false;
+    const phoneScreens = this.props.phoneScreens !== false;
+
+    const chapters = this.CH.map(([n, title, pct, median, speed]) => {
+      const on = !!s.selected[n];
+      return {
+        n, title, pct, pctCss: pct + '%', median,
+        isFast: speed === 'fast', isSlow: speed === 'slow', isPar: speed === 'par',
+        speedColor: speed === 'fast' ? '#3fb27f' : speed === 'slow' ? '#b98a3c' : '#6e665e',
+        dash: (pct / 100 * 87.96).toFixed(1) + ' 87.96',
+        ring: pct >= 65 ? '#3fb27f' : pct >= 35 ? '#f5a524' : '#e5484d',
+        bg: on ? 'rgba(245,165,36,.09)' : '#1d1a17',
+        border: on ? '#f5a524' : '#332e29',
+        toggle: () => this.setState(st => ({ selected: Object.assign({}, st.selected, { [n]: !st.selected[n] }) }))
+      };
+    });
+
+    const modes = ['Set of 10', 'Endless', 'Weak spots', 'Build speed'].map((label, i) => ({
+      label, meta: ['~12 min', 'no end', '37 flagged', '3 slow topics'][i],
+      bg: s.mode === i ? 'rgba(245,165,36,.09)' : '#141210',
+      border: s.mode === i ? '#f5a524' : '#2a2521',
+      ring: s.mode === i ? '#f5a524' : '#4a423a',
+      dot: s.mode === i ? '#f5a524' : 'transparent',
+      pick: () => this.setState({ mode: i })
+    }));
+
+    const toolDef = [
+      ['pen1', '·', 'Thin pen'], ['pen2', '✒', 'Thick pen'], ['eraser', '◧', 'Eraser'],
+      ['type', 'T', 'Type LaTeX'], ['undo', '↶', 'Undo'], ['redo', '↷', 'Redo'], ['clear', '⌫', 'Clear']
+    ];
+    const tools = toolDef.map(([id, icon, label]) => {
+      const active = s.tool === id;
+      const isTool = id.startsWith('pen') || id === 'eraser' || id === 'type';
+      return {
+        icon, label,
+        bg: active && isTool ? '#f5a524' : '#262220',
+        fg: active && isTool ? '#1a1206' : '#a39a90',
+        border: active && isTool ? '#f5a524' : '#332e29',
+        pick: () => {
+          if (isTool) this.setState({ tool: id });
+          else if (id === 'undo') this.undo();
+          else if (id === 'redo') this.redo();
+          else this.askClear();
+        }
+      };
+    });
+
+    const K = (l, i) => this.key(l, i);
+    const N = (l, i) => this.key(l, i, true);
+    const keys = [
+      K('x', 'x'), K('a', 'a'), K('a/b', '\\frac{}{}'), N('7', '7'), N('8', '8'), N('9', '9'),
+      K('√', '\\sqrt{}'), K('xⁿ', '^{}'), K('x²', '^{2}'), N('4', '4'), N('5', '5'), N('6', '6'),
+      K('(', '('), K(')', ')'), K('π', '\\pi'), N('1', '1'), N('2', '2'), N('3', '3'),
+      K('ln', '\\ln'), K('log', '\\log'), K('eˣ', 'e^{}'), N('0', '0'), N('.', '.'), N('−', '-'),
+      K('sin', '\\sin'), K('cos', '\\cos'), K('tan', '\\tan'), N('+', '+'), N('·', '\\cdot'), N('÷', '\\div'),
+      K('∫', '\\int'), K('|x|', '\\left|\\right|'), K('+C', '+C'), N('=', '='), N('<', '<'), N('>', '>')
+    ];
+
+    const confidences = ['Sure', 'Think so', 'Guessed'].map((label, i) => ({
+      label,
+      bg: s.conf === i ? 'rgba(245,165,36,.14)' : '#262220',
+      fg: s.conf === i ? '#f5a524' : '#d8d0c6',
+      border: s.conf === i ? '#f5a524' : '#332e29',
+      pick: () => this.setState({ conf: i })
+    }));
+
+    const pipState = [1, 1, 1, 0, 1, 1, 2, 2, 2, 2];
+    const pips = pipState.map(v => ({ bg: v === 1 ? '#3fb27f' : v === 0 ? '#e5484d' : '#332e29' }));
+
+    const rungs = this.RUNGS.map((r, i) => {
+      const open = i < s.rung;
+      return {
+        num: r.num, title: r.title, body: r.body, tex: open ? (r.tex || '') : '', link: open ? (r.link || '') : '',
+        open, state: open ? '' : 'locked',
+        bg: '#211d1a', border: open ? '#3a332e' : '#302a26',
+        numColor: open ? '#f5a524' : '#6e665e',
+        titleColor: open ? '#f2ede6' : '#8a8177'
+      };
+    });
+
+    const solution = [
+      { rule: 'Chain rule', tex: "\\frac{1}{a+\\sqrt{x}}\\cdot\\frac{d}{dx}\\!\\left(a+\\sqrt{x}\\right)" },
+      { rule: 'Power rule', tex: '\\frac{1}{a+\\sqrt{x}}\\cdot\\frac{1}{2\\sqrt{x}}' },
+      { rule: 'Simplify', tex: "\\frac{1}{2\\sqrt{x}\\left(a+\\sqrt{x}\\right)}" }
+    ];
+
+    const confBreakdown = [
+      { label: 'Sure', right: '70%', wrong: '10%', n: '8' },
+      { label: 'Think so', right: '20%', wrong: '20%', n: '4' },
+      { label: 'Guessed', right: '0%', wrong: '40%', n: '2' }
+    ];
+
+    const topicHits = [
+      { name: 'Chain rule', score: '3 / 3', dot: '#3fb27f' },
+      { name: 'Quotient rule', score: '2 / 2', dot: '#3fb27f' },
+      { name: 'Rationalise denominator', score: '2 / 3', dot: '#f5a524' },
+      { name: 'Double-angle', score: '1 / 2', dot: '#e5484d' },
+      { name: 'Log laws', score: '0 / 0', dot: '#332e29' }
+    ];
+
+    const ruleFilters = ['All', 'Ch 4', 'Ch 7', 'Ch 9', 'Ch 11'].map((label, i) => ({
+      label,
+      bg: i === 0 ? 'rgba(245,165,36,.12)' : '#1d1a17',
+      fg: i === 0 ? '#f5a524' : '#a39a90',
+      border: i === 0 ? '#f5a524' : '#332e29'
+    }));
+
+    const rules = [
+      { ch: 2, name: 'Notable products', tex: '(a\\pm b)^2=a^2\\pm 2ab+b^2', note: 'And the difference of squares, (a+b)(a−b)=a²−b².' },
+      { ch: 2, name: 'Power rules', tex: 'a^{m}a^{n}=a^{m+n},\\quad (a^{m})^{n}=a^{mn}', note: 'Same base multiplies exponents only when nested.' },
+      { ch: 4, name: 'Rationalising', tex: '\\frac{1}{\\sqrt{a}+b}=\\frac{\\sqrt{a}-b}{a-b^{2}}', note: 'Multiply by the conjugate; the denominator loses its root.' },
+      { ch: 4, name: 'Fractional exponents', tex: 'a^{m/n}=\\sqrt[n]{a^{m}}', note: 'Negative exponent means reciprocal, not a sign change.' },
+      { ch: 6, name: 'Log laws', tex: '\\log_a(xy)=\\log_a x+\\log_a y', note: 'Products become sums; powers come out front.' },
+      { ch: 6, name: 'Change of base', tex: '\\log_a x=\\frac{\\ln x}{\\ln a}', note: 'The route to any base your calculator lacks.' },
+      { ch: 7, name: 'Double angle', tex: '\\sin 2x = 2\\sin x\\cos x', note: 'Also cos 2x = cos²x − sin²x = 1 − 2sin²x.' },
+      { ch: 9, name: 'Chain rule', tex: '\\frac{d}{dx}f(g(x))=f\'(g(x))\\,g\'(x)', note: 'Differentiate the outside, multiply by the inside.' },
+      { ch: 11, name: 'Definite integral', tex: '\\int_a^b f(x)\\,dx=F(b)-F(a)', note: 'No +C once the bounds are substituted.' }
+    ];
+
+    const tog = (on) => ({
+      isToggle: true,
+      tBg: on ? '#f5a524' : '#302a26', tBorder: on ? '#f5a524' : '#443c36',
+      tKnob: on ? '#1a1206' : '#8a8177', tX: on ? '20px' : '2px'
+    });
+
+    const settingGroups = [
+      { title: 'PRACTICE', rows: [
+        Object.assign({ label: 'Pen-only mode', sub: 'finger pans instead of drawing' }, tog(true)),
+        Object.assign({ label: 'Word problems', sub: 'parameterised templates' }, tog(true)),
+        Object.assign({ label: 'Adaptive difficulty' }, tog(false)),
+        { label: 'Default hint rung', value: 'ASK FIRST' }
+      ] },
+      { title: 'APPEARANCE', rows: [
+        { label: 'Theme', value: 'DARK' },
+        Object.assign({ label: 'Reduced motion', sub: 'follows the system setting' }, tog(false)),
+        { label: 'Canvas surface', value: (this.props.canvasGrid || 'ruled').toUpperCase() }
+      ] },
+      { title: 'SYNC', rows: [
+        { label: 'Device name', value: 'TAB-S11' },
+        { label: 'Backend', value: 'calcflow.ts.net' },
+        { label: 'Token', value: '••••••••' },
+        { label: 'Last synced', value: '09:31' }
+      ] }
+    ];
+
+    const viewH = this.chh || 900;
+    const total = Math.max(viewH * 3, s.panY + viewH);
+    const scrollLen = Math.max(12, (viewH / total) * 100);
+
+    return {
+      specNotes, phoneScreens, chapters, modes, tools, keys, confidences, pips, rungs, solution,
+      confBreakdown, topicHits, ruleFilters, rules, settingGroups,
+      stepsVal: s.steps, diffVal: s.diff,
+      stepsPos: st.pos, stepsFill: st.fill, stepsScale: st.scale, stepsTicks: st.ticks,
+      stepsDown: st.down, stepsMove: st.move,
+      diffPos: df.pos, diffFill: df.fill, diffScale: df.scale, diffTicks: df.ticks,
+      diffDown: df.down, diffMove: df.move,
+      sliderUp: () => this.setState({ grabbed: null }),
+      clearAsk: s.clearAsk,
+      cancelClear: () => this.setState({ clearAsk: false }),
+      confirmClear: this.clear,
+      moreRungs: s.rung < 4,
+      adaptiveBg: s.adaptive ? '#f5a524' : '#302a26',
+      adaptiveBorder: s.adaptive ? '#f5a524' : '#443c36',
+      adaptiveKnob: s.adaptive ? '#1a1206' : '#8a8177',
+      adaptiveX: s.adaptive ? '22px' : '2px',
+      toggleAdaptive: () => this.setState(st => ({ adaptive: !st.adaptive })),
+      startSession: () => this.showToast('Session would start here'),
+      canvasRef: el => { if (el && el !== this.canvas) { this.canvas = el; requestAnimationFrame(this.setupCanvas); } },
+      onDown: this.onDown, onMove: this.onMove, onUp: this.onUp,
+      tPen1: this.toolStyle('pen1'), tPen2: this.toolStyle('pen2'),
+      tEraser: this.toolStyle('eraser'), tType: this.toolStyle('type'),
+      pickPen1: () => this.setState({ tool: 'pen1' }),
+      pickPen2: () => this.setState({ tool: 'pen2' }),
+      pickEraser: () => this.setState({ tool: 'eraser' }),
+      pickType: () => this.setState({ tool: 'type' }),
+      undo: this.undo, redo: this.redo, askClear: this.askClear,
+      penOnlyBg: s.penOnly ? 'rgba(245,165,36,.14)' : '#262220',
+      penOnlyFg: s.penOnly ? '#f5a524' : '#a39a90',
+      penOnlyBorder: s.penOnly ? '#f5a524' : '#332e29',
+      togglePenOnly: () => this.setState(st => ({ penOnly: !st.penOnly })),
+      toast: s.toast,
+      canvasHint: s.tool === 'type' ? 'TYPING MATH · TAP A RULED LINE TO PLACE A BLOCK' : (s.penOnly ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES' : 'FINGER DRAWS · 2-FINGER TAP UNDOES'),
+      typeMode: s.tool === 'type',
+      ruleOpen: s.ruleOpen,
+      openRule: () => this.setState({ ruleOpen: true }),
+      closeRule: () => this.setState({ ruleOpen: false }),
+      scrollTop: (Math.min(80, (s.panY / total) * 100)) + '%',
+      scrollLen: scrollLen + '%',
+      answerTex: s.answer,
+      backspace: () => this.setState(st => ({ answer: st.answer.replace(/(\\[a-zA-Z]+\{?\}?|.)$/, '') })),
+      fieldBorder: s.conf === null ? '#f5a524' : '#f5a524',
+      hintsOpen: s.hintsOpen,
+      openHints: () => this.setState({ hintsOpen: true }),
+      closeHints: () => this.setState({ hintsOpen: false }),
+      rungLabel: s.rung,
+      nextRung: () => this.setState(st => ({ rung: Math.min(4, st.rung + 1) })),
+      nextRungLabel: s.rung >= 4 ? '' : 'Reveal ' + this.RUNGS[s.rung].title.toLowerCase(),
+      onTrack: s.onTrack,
+      checkLine: () => this.setState(st => ({ onTrack: !st.onTrack })),
+      submitLabel: s.conf === null ? 'Pick a confidence to submit' : 'Submit',
+      submitBg: s.conf === null ? '#262220' : '#f5a524',
+      submitFg: s.conf === null ? '#6e665e' : '#1a1206',
+      submit: () => this.showToast(s.conf === null ? 'Confidence first' : 'Submitted'),
+      phoneKeys: [
+        ['x', 0], ['a', 0], ['a/b', 0], ['7', 1], ['8', 1], ['9', 1],
+        ['√', 0], ['xⁿ', 0], ['π', 0], ['4', 1], ['5', 1], ['6', 1],
+        ['(', 0], [')', 0], ['ln', 0], ['1', 1], ['2', 1], ['3', 1],
+        ['sin', 0], ['cos', 0], ['∫', 0], ['0', 1], ['.', 1], ['⌫', 1]
+      ].map(([label, n]) => ({ label, bg: n ? '#211d1a' : '#262220', border: n ? '#2a2521' : '#332e29' })),
+      fsTools: [['✒', 1], ['·', 0], ['◧', 0], ['↶', 0], ['↷', 0], ['⌫', 0]].map(([icon, a]) => ({
+        icon, bg: a ? '#f5a524' : '#262220', fg: a ? '#1a1206' : '#a39a90', border: a ? '#f5a524' : '#332e29'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
