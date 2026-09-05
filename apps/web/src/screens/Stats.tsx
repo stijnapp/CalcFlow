@@ -41,20 +41,12 @@ export function Stats({ compact }: { compact?: boolean }) {
               Finish a set and this fills in: mastery per chapter, how long each takes you, and which
               topics you get wrong while feeling sure.
             </p>
-            <div className="mt-2 flex flex-wrap justify-center gap-2.5">
-              <button
-                onClick={() => store.startSession(settings.mode)}
-                className="rounded-md bg-accent px-6 py-3 font-semibold text-on-accent"
-              >
-                Start a set
-              </button>
-              <button
-                onClick={() => void store.loadSample()}
-                className="rounded-md border border-strong bg-raised px-6 py-3 text-sm text-ink2 hover:border-accent"
-              >
-                Load sample data
-              </button>
-            </div>
+            <button
+              onClick={() => store.startSession(settings.mode)}
+              className="mt-2 rounded-md bg-accent px-6 py-3 font-semibold text-on-accent"
+            >
+              Start a set
+            </button>
           </div>
         </div>
       </div>

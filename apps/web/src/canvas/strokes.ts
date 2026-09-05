@@ -40,6 +40,8 @@ export class Surface {
 
   private bitmap: HTMLCanvasElement | null = null;
   private worldHeight = CHUNK;
+  /** The bitmap is kept at device resolution; this is the ratio it was cut at. */
+  private bitmapDpr = 1;
   private dirty = true;
   private nextId = 1;
 
@@ -123,31 +125,43 @@ export class Surface {
     height: number,
     panY: number,
     surface: CanvasSurface,
+    dpr: number,
   ): void {
+    // Pan on whole device pixels: half a pixel of offset is enough to make the
+    // blit resample, and resampled ink is what reads as "it went soft".
+    const pan = Math.round(panY * dpr) / dpr;
+
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#171512';
     ctx.fillRect(0, 0, width, height);
-    paintSurface(ctx, width, height, panY, surface);
+    paintSurface(ctx, width, height, pan, surface);
 
-    this.ensureBitmap(width);
+    this.ensureBitmap(width, dpr);
     if (this.dirty) this.repaintBitmap(width);
-    if (this.bitmap) ctx.drawImage(this.bitmap, 0, -panY);
+    if (this.bitmap) ctx.drawImage(this.bitmap, 0, -pan, width, this.worldHeight);
 
     if (this.live) {
       ctx.save();
-      ctx.translate(0, -panY);
+      ctx.translate(0, -pan);
       paintStroke(ctx, this.live);
       ctx.restore();
     }
   }
 
-  private ensureBitmap(width: number): void {
+  /**
+   * The bitmap holds world coordinates but is cut at device resolution: drawn
+   * at CSS size into a context already scaled by the ratio, every committed
+   * stroke was being blown up by that same factor the moment it was committed.
+   */
+  private ensureBitmap(width: number, dpr: number): void {
     const needed = Math.max(this.worldHeight, this.contentBottom() + CHUNK / 2);
-    if (!this.bitmap || this.bitmap.width !== width || needed > this.worldHeight) {
+    const px = Math.round(width * dpr);
+    if (!this.bitmap || this.bitmap.width !== px || this.bitmapDpr !== dpr || needed > this.worldHeight) {
       this.worldHeight = Math.ceil(needed / CHUNK) * CHUNK;
+      this.bitmapDpr = dpr;
       this.bitmap = document.createElement('canvas');
-      this.bitmap.width = width;
-      this.bitmap.height = this.worldHeight;
+      this.bitmap.width = px;
+      this.bitmap.height = Math.round(this.worldHeight * dpr);
       this.dirty = true;
     }
   }
@@ -156,6 +170,7 @@ export class Surface {
     if (!this.bitmap) return;
     const ctx = this.bitmap.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(this.bitmapDpr, 0, 0, this.bitmapDpr, 0, 0);
     ctx.clearRect(0, 0, width, this.worldHeight);
     for (const s of this.strokes) paintStroke(ctx, s);
     this.dirty = false;

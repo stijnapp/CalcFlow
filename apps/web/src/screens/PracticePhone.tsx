@@ -49,6 +49,8 @@ export function PracticePhone() {
 
   const { problem, outcome } = session;
   const answered = outcome !== null;
+  const filled = problem.answers.every((_, i) => (session.answers[i] ?? '').trim() !== '');
+  const ready = filled && session.confidence !== null;
 
   const canvasEl = (
     <ScribbleCanvas
@@ -109,9 +111,11 @@ export function PracticePhone() {
       <div className="relative flex h-full flex-col bg-canvas">
         {/* The problem stays readable while writing, as one thin bar. */}
         <div className="flex shrink-0 items-center gap-2.5 border-b border-edge bg-page/95 px-4 py-3.5">
-          <span className="min-w-0 scroll-x text-[17px]">
-            <Tex>{problem.prompt}</Tex>
-          </span>
+          <div className="min-w-0 scroll-x text-[17px]">
+            <div className="w-max">
+              <Tex>{problem.prompt}</Tex>
+            </div>
+          </div>
           <button
             onClick={() => setFullscreen(false)}
             className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-raised px-2.5 text-accent"
@@ -273,6 +277,13 @@ export function PracticePhone() {
         </motion.div>
       ) : (
         <Sheet className="gap-3 px-4 pb-4">
+          {/* The on-screen keyboard covers the card at the top of the screen, so
+              the sheet carries the question with it. */}
+          <div className="scroll-x shrink-0 rounded-md border border-edge bg-page px-3 py-2 text-[19px]">
+            <div className="w-max">
+              <Tex>{problem.prompt}</Tex>
+            </div>
+          </div>
           <div className="scroll-y flex min-h-0 flex-1 flex-col gap-3">
             <AnswerField
               specs={problem.answers}
@@ -280,7 +291,7 @@ export function PracticePhone() {
               activeField={session.activeField}
               onFocusField={store.setActiveField}
               onChange={store.setAnswer}
-              onSubmit={session.confidence === null ? undefined : store.submit}
+              onSubmit={ready ? store.submit : undefined}
               state="editing"
               compact
             />
@@ -288,15 +299,13 @@ export function PracticePhone() {
           <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
           <button
             onClick={store.submit}
-            disabled={session.confidence === null}
+            disabled={!ready}
             className={cx(
               'grid h-[52px] shrink-0 place-items-center rounded-md text-[17px] font-semibold',
-              session.confidence === null
-                ? 'cursor-not-allowed bg-raised text-faint'
-                : 'bg-accent text-on-accent',
+              ready ? 'bg-accent text-on-accent' : 'cursor-not-allowed bg-raised text-faint',
             )}
           >
-            {session.confidence === null ? 'Pick a confidence' : 'Submit'}
+            {!filled ? 'Type an answer' : session.confidence === null ? 'Pick a confidence' : 'Submit'}
           </button>
         </Sheet>
       )}

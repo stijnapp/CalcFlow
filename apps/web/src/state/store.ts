@@ -96,6 +96,8 @@ interface Store {
   session: Session | null;
   canvasFullscreen: boolean;
   toast: string | null;
+  /** Bumped per toast, so two identical messages are still two toasts. */
+  toastId: number;
   /** Set when a rule card is open over everything else. */
   openRule: string | null;
   /** Attempts written here but not yet accepted by the server. */
@@ -143,6 +145,7 @@ export const useStore = create<Store>((set, get) => ({
   session: null,
   canvasFullscreen: false,
   toast: null,
+  toastId: 0,
   openRule: null,
   queued: 0,
 
@@ -170,7 +173,7 @@ export const useStore = create<Store>((set, get) => ({
 
   showToast(message) {
     clearTimeout(toastTimer);
-    set({ toast: message });
+    set({ toast: message, toastId: get().toastId + 1 });
     toastTimer = setTimeout(() => set({ toast: null }), 3300);
   },
 
@@ -337,6 +340,8 @@ export const useStore = create<Store>((set, get) => ({
   submit() {
     const { session, settings } = get();
     if (!session || session.outcome || session.confidence === null) return;
+    // Enter reaches this too, so the guard lives here and not only on the button.
+    if (session.problem.answers.some((_, i) => (session.answers[i] ?? '').trim() === '')) return;
 
     const fields = gradeFields(session.problem, session.answers);
     const correct = fields.every((f) => f.correct);

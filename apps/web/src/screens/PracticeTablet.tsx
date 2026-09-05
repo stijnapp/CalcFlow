@@ -19,8 +19,9 @@ const CONFIDENCE_LABEL = { sure: 'sure', think: 'think so', guess: 'guessed' } a
 
 /**
  * Canvas on the left, controls on the right — so his writing hand rests on the
- * tablet rather than hanging off the edge. Nothing on this page scrolls; only
- * the canvas pans and the hint panel scrolls internally.
+ * tablet rather than hanging off the edge. The question stays put; everything
+ * under it scrolls together, because a second answer box or a revealed solution
+ * is more than the column can hold.
  */
 export function PracticeTablet() {
   const session = useStore((s) => s.session)!;
@@ -33,6 +34,8 @@ export function PracticeTablet() {
   const store = useStore();
   const { problem, outcome } = session;
   const answered = outcome !== null;
+  const filled = problem.answers.every((_, i) => (session.answers[i] ?? '').trim() !== '');
+  const ready = filled && session.confidence !== null;
 
   return (
     <div className="relative flex h-full overflow-hidden">
@@ -86,64 +89,75 @@ export function PracticeTablet() {
           )}
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pb-[22px] pt-5">
-          <ProblemCard problem={problem} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pt-5">
+          <div className="shrink-0">
+            <ProblemCard problem={problem} />
+          </div>
 
-          {answered ? (
-            <>
-              <FeedbackCard
-                problem={problem}
-                correct={outcome.correct}
-                errorClass={outcome.errorClass}
-                answers={session.answers}
-                confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
-                durationMs={session.done.at(-1)?.durationMs ?? 0}
-                hintsUsed={session.rung}
-              />
-              <RulesUsed problem={problem} />
-              <button
-                onClick={store.next}
-                autoFocus
-                className="mt-auto grid h-14 place-items-center rounded-lg bg-accent text-[17px] font-semibold text-on-accent hover:bg-accent-hi"
-              >
-                {session.target !== null && session.done.length >= session.target
-                  ? 'See the summary'
-                  : 'Next problem'}
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-2.5">
-                <Eyebrow>YOUR ANSWER</Eyebrow>
-                <AnswerField
-                  specs={problem.answers}
-                  values={session.answers}
-                  activeField={session.activeField}
-                  onFocusField={store.setActiveField}
-                  onChange={store.setAnswer}
-                  onSubmit={session.confidence === null ? undefined : store.submit}
-                  state="editing"
+          {/* Everything under the question shares one scroll surface: two answer
+              boxes, or a wrong answer with its full solution, do not fit a
+              column this narrow. */}
+          <div className="scroll-y -mx-[26px] flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pb-[22px]">
+            {answered ? (
+              <>
+                <FeedbackCard
+                  problem={problem}
+                  correct={outcome.correct}
+                  errorClass={outcome.errorClass}
+                  answers={session.answers}
+                  confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
+                  durationMs={session.done.at(-1)?.durationMs ?? 0}
+                  hintsUsed={session.rung}
                 />
-              </div>
-
-              <div className="mt-auto flex flex-col gap-3">
-                <Eyebrow>HOW SURE ARE YOU?</Eyebrow>
-                <ConfidenceRow value={session.confidence} onChange={store.setConfidence} />
+                <RulesUsed problem={problem} />
                 <button
-                  onClick={store.submit}
-                  disabled={session.confidence === null}
-                  className={cx(
-                    'grid h-[60px] place-items-center rounded-lg text-[18px] font-semibold transition-colors',
-                    session.confidence === null
-                      ? 'cursor-not-allowed bg-raised text-faint'
-                      : 'bg-accent text-on-accent hover:bg-accent-hi',
-                  )}
+                  onClick={store.next}
+                  autoFocus
+                  className="mt-auto grid h-14 shrink-0 place-items-center rounded-lg bg-accent text-[17px] font-semibold text-on-accent hover:bg-accent-hi"
                 >
-                  {session.confidence === null ? 'Pick a confidence to submit' : 'Submit'}
+                  {session.target !== null && session.done.length >= session.target
+                    ? 'See the summary'
+                    : 'Next problem'}
                 </button>
-              </div>
-            </>
-          )}
+              </>
+            ) : (
+              <>
+                <div className="flex shrink-0 flex-col gap-2.5">
+                  <Eyebrow>YOUR ANSWER</Eyebrow>
+                  <AnswerField
+                    specs={problem.answers}
+                    values={session.answers}
+                    activeField={session.activeField}
+                    onFocusField={store.setActiveField}
+                    onChange={store.setAnswer}
+                    onSubmit={ready ? store.submit : undefined}
+                    state="editing"
+                  />
+                </div>
+
+                <div className="mt-auto flex shrink-0 flex-col gap-3 pt-2">
+                  <Eyebrow>HOW SURE ARE YOU?</Eyebrow>
+                  <ConfidenceRow value={session.confidence} onChange={store.setConfidence} />
+                  <button
+                    onClick={store.submit}
+                    disabled={!ready}
+                    className={cx(
+                      'grid h-[60px] place-items-center rounded-lg text-[18px] font-semibold transition-colors',
+                      ready
+                        ? 'bg-accent text-on-accent hover:bg-accent-hi'
+                        : 'cursor-not-allowed bg-raised text-faint',
+                    )}
+                  >
+                    {!filled
+                      ? 'Type an answer to submit'
+                      : session.confidence === null
+                        ? 'Pick a confidence to submit'
+                        : 'Submit'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

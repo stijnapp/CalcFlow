@@ -14,9 +14,9 @@ export function RulesUsed({ problem }: { problem: Problem }) {
   if (rules.length === 0) return null;
 
   return (
-    <section className="flex min-h-0 flex-col gap-2.5">
+    <section className="flex shrink-0 flex-col gap-2.5">
       <Eyebrow>RULES THIS USED</Eyebrow>
-      <div className="scroll-y flex flex-col gap-2 pb-3">
+      <div className="flex flex-col gap-2">
         {rules.map((rule) => (
           <button
             key={rule.id}

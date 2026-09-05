@@ -25,8 +25,13 @@ export function ProblemCard({ problem, compact }: Props) {
         <p className="text-sm leading-relaxed text-ink2 text-pretty">{problem.promptText}</p>
       )}
 
-      <div className={compact ? 'text-2xl' : 'text-[34px]'}>
-        <Tex>{problem.prompt}</Tex>
+      {/* `w-max` is the whole trick: KaTeX breaks a long expression between its
+          bases when it is told how wide it may be, so it is told nothing, and
+          the box around it scrolls instead. */}
+      <div className={cx('scroll-x', compact ? 'text-2xl' : 'text-[34px]')}>
+        <div className="w-max">
+          <Tex>{problem.prompt}</Tex>
+        </div>
       </div>
 
       {problem.note && !compact && <p className="text-[13px] text-faint text-pretty">{problem.note}</p>}

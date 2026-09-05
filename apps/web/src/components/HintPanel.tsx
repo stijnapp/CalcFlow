@@ -5,7 +5,7 @@ import { cx } from '@/lib/cx';
 import { useBackDismiss } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
 import { LatexField } from './LatexField';
-import { Sheet } from './Sheet';
+import { Sheet, SHEET_TALL } from './Sheet';
 import { Tex } from './Tex';
 import { buildRungs } from './hints';
 
@@ -26,7 +26,7 @@ export function HintPanel({ variant }: Props) {
 
   if (variant === 'sheet') {
     return (
-      <Sheet closeable onClose={close} restHeight={0.72} className="px-0">
+      <Sheet closeable onClose={close} height={SHEET_TALL} className="px-0">
         <Body panel={false} onClose={close} />
       </Sheet>
     );

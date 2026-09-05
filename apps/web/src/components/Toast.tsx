@@ -4,14 +4,19 @@ import { useStore } from '@/state/store';
 /** Past this much sideways travel, letting go throws the toast away. */
 const THROW = 90;
 
-/** Brief, non-blocking, and always says what happened. */
+/**
+ * Brief, non-blocking, and always says what happened. Only ever one: a second
+ * message waits for the first to leave rather than landing beside it, so a
+ * flurry of two- and three-finger taps reads as a queue and not a scatter.
+ */
 export function Toast() {
   const toast = useStore((s) => s.toast);
+  const toastId = useStore((s) => s.toastId);
   const dismissToast = useStore((s) => s.dismissToast);
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-7 z-40 flex justify-center">
-      <AnimatePresence>
-        {toast && <Pill key={toast} message={toast} onDismiss={dismissToast} />}
+      <AnimatePresence mode="wait">
+        {toast && <Pill key={toastId} message={toast} onDismiss={dismissToast} />}
       </AnimatePresence>
     </div>
   );

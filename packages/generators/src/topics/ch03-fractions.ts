@@ -78,7 +78,7 @@ export const rationalExpressions: Generator = {
     return {
       instruction: 'Simplify',
       prompt,
-      note: `x \\neq ${-k}.`,
+      note: 'Cancel as far as it goes.',
       answers: [answer(result)],
       solution: [
         step('difference-of-squares', 'Factor the numerator', frac(`${paren(poly([[1, 1], [k, 0]]))}${paren(result)}`, poly([[1, 1], [k, 0]])), 'Difference of squares.'),

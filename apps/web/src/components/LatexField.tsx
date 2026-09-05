@@ -149,7 +149,9 @@ export function LatexField({
           compact ? 'min-h-[34px] px-3.5 pt-2 text-xl' : 'min-h-[44px] px-5 pt-2.5 text-[26px]',
         )}
       >
-        {value ? <Tex>{value}</Tex> : <span className="text-ghost">…</span>}
+        <span className="w-max">
+          {value ? <Tex>{value}</Tex> : <span className="text-ghost">…</span>}
+        </span>
       </button>
 
       <div className={cx('flex items-center gap-2', compact ? 'px-3.5 pb-2' : 'px-5 pb-2.5')}>
@@ -166,10 +168,19 @@ export function LatexField({
               onSubmit();
             }
           }}
+          type="text"
+          inputMode="text"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
+          /* Everything the platform reads as "this is not a credential", so the
+             keyboard has no reason to offer a password or an address above it. */
           autoComplete="off"
+          name="latex-line"
+          aria-autocomplete="none"
+          data-form-type="other"
+          data-lpignore="true"
+          data-1p-ignore=""
           enterKeyHint="done"
           placeholder={placeholder}
           aria-label={ariaLabel}

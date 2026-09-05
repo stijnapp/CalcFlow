@@ -44,6 +44,10 @@ const BLOCK_HEIGHT = 56;
 const FLING_MIN = 0.06;
 /** Fraction of the fling speed left after a millisecond of coasting. */
 const FLING_DECAY = 0.9965;
+/** Travel that turns a finger tap into a pan, in px of Manhattan distance. */
+const TAP_SLOP = 10;
+/** A finger resting this long is not tapping any more. */
+const TAP_HOLD_MS = 700;
 
 /**
  * A fixed viewport onto an infinitely tall surface. The page never scrolls —
@@ -66,6 +70,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const frameRef = useRef(0);
   /** Pan speed in px/ms, kept alive after the finger leaves. */
   const flingRef = useRef({ v: 0, at: 0, frame: 0 });
+  /** A single finger that has not travelled yet — a candidate tap in type mode. */
+  const tapRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
   const [panY, setPanY] = useState(0);
   const [viewH, setViewH] = useState(0);
@@ -85,7 +91,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     const { w, h } = sizeRef.current;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    surfaceRef.current.draw(ctx, w, h, panRef.current, surface);
+    surfaceRef.current.draw(ctx, w, h, panRef.current, surface, dpr);
   }, [surface]);
 
   /** Coalesce paints into one per frame; a 480 Hz pen would otherwise flood. */
@@ -219,17 +225,25 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   }
 
   function onPointerDown(e: ReactPointerEvent<HTMLCanvasElement>) {
-    canvasRef.current?.setPointerCapture(e.pointerId);
+    try {
+      canvasRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      // A pointer that is already gone cannot be captured; the stroke is fine.
+    }
     stopFling();
 
     if (e.pointerType === 'touch') {
       tapsRef.current.down(e.pointerId, e.clientX, e.clientY);
       if (penDownRef.current) tapsRef.current.abort();
-      if (penOnly) {
-        // Finger pans instead of drawing; that is what keeps the palm harmless.
+      // Pen-only hands the finger the pan; type mode does too, because there is
+      // nothing to draw in it — and a second finger is a gesture, not a tap.
+      if (penOnly || tool === 'type') {
         if (tapsRef.current.activeCount === 1) {
           panFromRef.current = { y: e.clientY, pan: panRef.current };
           flingRef.current.at = e.timeStamp;
+          tapRef.current = tool === 'type' ? { x: e.clientX, y: e.clientY, t: e.timeStamp } : null;
+        } else {
+          tapRef.current = null;
         }
         return;
       }
@@ -240,14 +254,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     }
 
     if (tool === 'type') {
-      // A line in progress is settled by the next tap; only then does the tap
-      // after it start a new one, on the line he touched.
-      if (active && active.latex.trim() !== '') {
-        deselect();
-        return;
-      }
-      const p = toWorld(e);
-      placeBlock(p.x, Math.round(p.y / RULE_SPACING) * RULE_SPACING);
+      typeTap(e);
       return;
     }
     if (tool === 'eraser') {
@@ -267,7 +274,11 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   function onPointerMove(e: ReactPointerEvent<HTMLCanvasElement>) {
     if (e.pointerType === 'touch') {
       tapsRef.current.move(e.pointerId, e.clientX, e.clientY);
-      if (penOnly) {
+      const tap = tapRef.current;
+      if (tap && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > TAP_SLOP) {
+        tapRef.current = null;
+      }
+      if (penOnly || tool === 'type') {
         const from = panFromRef.current;
         if (from && tapsRef.current.activeCount === 1) {
           const next = from.pan - (e.clientY - from.y);
@@ -309,7 +320,9 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     if (e.pointerType === 'touch') {
       const panned = panFromRef.current !== null;
       const fingers = tapsRef.current.up(e.pointerId);
+      const tap = tapRef.current;
       panFromRef.current = null;
+      tapRef.current = null;
       // A pause before letting go means he stopped on purpose.
       if (panned && e.timeStamp - flingRef.current.at < 90) startFling();
       else flingRef.current.v = 0;
@@ -317,6 +330,9 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       // is otherwise indistinguishable from an undo with nothing left to undo.
       if (fingers >= 3) redo();
       else if (fingers === 2) undo();
+      // Placing and deselecting are what he does most in type mode, and he does
+      // them with the hand that is not holding the pen.
+      else if (tap && e.timeStamp - tap.t < TAP_HOLD_MS) typeTap(e);
     }
     if (e.pointerType === 'pen') penDownRef.current = false;
 
@@ -335,6 +351,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     if (e.pointerType === 'touch') tapsRef.current.cancel(e.pointerId);
     if (e.pointerType === 'pen') penDownRef.current = false;
     panFromRef.current = null;
+    tapRef.current = null;
     erasingRef.current = false;
     if (drawingRef.current) {
       surfaceRef.current.commit();
@@ -349,6 +366,19 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   }
 
   // ---------------------------------------------------------------- tex blocks
+
+  /**
+   * A line in progress is settled by the next tap; only then does the tap after
+   * it start a new one, on the line he touched.
+   */
+  function typeTap(at: { clientX: number; clientY: number }) {
+    if (active && active.latex.trim() !== '') {
+      deselect();
+      return;
+    }
+    const p = toWorld(at);
+    placeBlock(p.x, Math.round(p.y / RULE_SPACING) * RULE_SPACING);
+  }
 
   /** Blocks exist from the first tap; an empty one is dropped on the way out. */
   function dropEmpties(list: TexBlock[]): TexBlock[] {
