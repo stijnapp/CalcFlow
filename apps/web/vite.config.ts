@@ -40,6 +40,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2,ttf,svg,png}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: 'index.html',
+        // Everything the app routes to is the same shell — except the API,
+        // which the server answers and the worker must not stand in front of.
+        navigateFallbackDenylist: [/^\/api\//],
         // An update replaces the shell rather than living beside it, and takes
         // over the open window instead of waiting for every tab to be closed.
         cleanupOutdatedCaches: true,

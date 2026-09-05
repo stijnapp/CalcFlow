@@ -1,0 +1,21 @@
+name: calcflow
+
+services:
+  app:
+    build: .
+    image: calcflow
+    restart: unless-stopped
+    # Bound to loopback on purpose: `tailscale serve --bg --https=443
+    # http://localhost:8787` is what puts it on the tailnet, with a certificate,
+    # which is what Chrome wants before it will install the app.
+    ports:
+      - '127.0.0.1:8787:8787'
+    environment:
+      CALCFLOW_TOKEN: ${CALCFLOW_TOKEN:?put one in .env — see .env.example}
+      CALCFLOW_ORIGINS: ${CALCFLOW_ORIGINS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - data:/data
+
+volumes:
+  data:
