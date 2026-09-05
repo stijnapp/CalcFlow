@@ -6,7 +6,26 @@ import { App } from './App';
 import { useStore } from './state/store';
 import './styles/index.css';
 
-registerSW({ immediate: true });
+if (import.meta.env.DEV) {
+  /*
+   * The dev server has no business installing a service worker, and one used to.
+   * It precached the dev `index.html` — the copy that asks for `/src/main.tsx` —
+   * and answered every navigation with it, so pointing the same origin at a
+   * built app served that copy, the request 404'd, and the blank page it left
+   * could not reach the code that would repair it. Its own script is missing
+   * from a build too, so Chrome never replaced it either. Clearing it here is
+   * what makes `npm run dev` the way back for a device that is already stuck.
+   */
+  void (async () => {
+    const regs = await navigator.serviceWorker?.getRegistrations();
+    if (!regs?.length) return;
+    await Promise.all(regs.map((r) => r.unregister()));
+    await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+    location.reload();
+  })();
+} else {
+  registerSW({ immediate: true });
+}
 
 /*
  * A long press anywhere opens Chrome's own back/forward/reload/share menu over

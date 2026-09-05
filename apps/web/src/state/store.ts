@@ -96,7 +96,7 @@ interface Store {
   session: Session | null;
   canvasFullscreen: boolean;
   toast: string | null;
-  /** Bumped per toast, so two identical messages are still two toasts. */
+  /** Identity of the toast on screen; a change is what replays the animation. */
   toastId: number;
   /** Set when a rule card is open over everything else. */
   openRule: string | null;
@@ -184,7 +184,11 @@ export const useStore = create<Store>((set, get) => ({
 
   showToast(message) {
     clearTimeout(toastTimer);
-    set({ toast: message, toastId: get().toastId + 1 });
+    // The same message again is the same toast still being true — undoing twice
+    // says "Undo" twice — so it keeps its identity and only its time is renewed.
+    // Fading the identical words out and back in reads as a glitch, not an event.
+    const { toast, toastId } = get();
+    set({ toast: message, toastId: message === toast ? toastId : toastId + 1 });
     toastTimer = setTimeout(() => set({ toast: null }), 3300);
   },
 

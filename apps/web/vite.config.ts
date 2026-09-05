@@ -45,11 +45,13 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
       },
-      // Enough of a service worker for the install prompt to appear against
-      // `npm run dev`, but it can only precache what the dev server has already
-      // built — which is nothing. Offline is a property of the built app:
-      // `npm run build && npm run preview`, and install from there.
-      devOptions: { enabled: true, type: 'module', navigateFallback: 'index.html' },
+      // No worker in dev. It bought an install prompt against `npm run dev` and
+      // nothing else — the install could not work offline, because the only
+      // thing there is to precache at that point is the dev `index.html`, and
+      // that copy went on being served after the origin moved to a built app,
+      // which is a white screen with no way out of itself. Offline is a
+      // property of the built app: `npm run build && npm run preview`.
+      devOptions: { enabled: false },
     }),
   ],
   resolve: {

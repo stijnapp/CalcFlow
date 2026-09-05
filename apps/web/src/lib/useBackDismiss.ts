@@ -21,6 +21,8 @@ interface Entry {
 }
 
 const stack: Entry[] = [];
+/** Entries whose overlay has unmounted but might be mounting straight back. */
+const leaving = new Set<number>();
 /** Pops we asked for ourselves; their `popstate` must not close anything. */
 let selfPops = 0;
 let seq = 0;
@@ -63,29 +65,50 @@ export function useBackGuard(active: boolean, onBack: () => void): void {
   useEntry(active, onBack, true);
 }
 
+function unwind(token: number): void {
+  const at = stack.findIndex((e) => e.token === token);
+  // Already gone: a real back press popped it, and the entry with it.
+  if (at < 0) return;
+  stack.splice(at, 1);
+  // A dialog that navigates on its way out — "leave this session" — has
+  // already replaced our entry. Going back now would undo that move.
+  const state = window.history.state as { calcflowOverlay?: number } | null;
+  if (state?.calcflowOverlay === undefined) return;
+  selfPops += 1;
+  window.history.back();
+}
+
 function useEntry(open: boolean, close: () => void, guard: boolean): void {
   const closeRef = useRef(close);
   closeRef.current = close;
+  // One token per overlay, not per effect run: a ref outlives the unmount
+  // StrictMode simulates, and the entry is meant to outlive it too.
+  const tokenRef = useRef(0);
+  if (tokenRef.current === 0) tokenRef.current = ++seq;
 
   useEffect(() => {
     if (!open) return;
     listen();
+    const token = tokenRef.current;
 
-    const token = ++seq;
-    stack.push({ token, guard, close: () => closeRef.current() });
-    window.history.pushState({ calcflowOverlay: token }, '');
+    // Mounting over an entry that was on its way out is StrictMode's second
+    // pass. The entry is still on the stack and the history entry is still
+    // ours, so it is reclaimed rather than doubled: taking a second one here
+    // left the stack one entry short of the presses it had to answer, which is
+    // why the back gesture walked out of a session against `npm run dev` while
+    // the built app held it.
+    if (!leaving.delete(token)) {
+      stack.push({ token, guard, close: () => closeRef.current() });
+      window.history.pushState({ calcflowOverlay: token }, '');
+    }
 
     return () => {
-      const at = stack.findIndex((e) => e.token === token);
-      // Already gone: a real back press popped it, and the entry with it.
-      if (at < 0) return;
-      stack.splice(at, 1);
-      // A dialog that navigates on its way out — "leave this session" — has
-      // already replaced our entry. Going back now would undo that move.
-      const state = window.history.state as { calcflowOverlay?: number } | null;
-      if (state?.calcflowOverlay === undefined) return;
-      selfPops += 1;
-      window.history.back();
+      leaving.add(token);
+      // A remount is the very next thing to happen if it happens at all, so a
+      // microtask is late enough to tell one apart from a real unmount.
+      queueMicrotask(() => {
+        if (leaving.delete(token)) unwind(token);
+      });
     };
   }, [open, guard]);
 }
