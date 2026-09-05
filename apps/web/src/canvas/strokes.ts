@@ -108,13 +108,13 @@ export class Surface {
     this.dirty = true;
   }
 
-  /** How far down the strokes reach, for the position indicator. */
-  extent(viewHeight: number): number {
-    let max = viewHeight;
+  /** How far down the strokes actually reach. Zero on an empty surface. */
+  contentBottom(): number {
+    let max = 0;
     for (const s of this.strokes) {
       for (const p of s.pts) if (p.y > max) max = p.y;
     }
-    return max + viewHeight / 2;
+    return max;
   }
 
   draw(
@@ -142,7 +142,7 @@ export class Surface {
   }
 
   private ensureBitmap(width: number): void {
-    const needed = Math.max(this.worldHeight, this.extent(0) + CHUNK / 2);
+    const needed = Math.max(this.worldHeight, this.contentBottom() + CHUNK / 2);
     if (!this.bitmap || this.bitmap.width !== width || needed > this.worldHeight) {
       this.worldHeight = Math.ceil(needed / CHUNK) * CHUNK;
       this.bitmap = document.createElement('canvas');

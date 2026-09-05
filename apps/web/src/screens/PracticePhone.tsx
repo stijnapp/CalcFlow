@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Eraser,
@@ -12,14 +12,15 @@ import {
   Type,
   Undo2,
 } from 'lucide-react';
+import { AnimatePresence, animate, motion, useDragControls, useMotionValue } from 'motion/react';
 import { chapterTitle } from '@calcflow/shared';
-import { ScribbleCanvas, type CanvasTool } from '@/canvas/ScribbleCanvas';
+import { ScribbleCanvas } from '@/canvas/ScribbleCanvas';
 import { AnswerField } from '@/components/AnswerField';
 import { ConfidenceRow } from '@/components/ConfidenceRow';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackCard } from '@/components/FeedbackCard';
 import { HintPanel } from '@/components/HintPanel';
-import { MathKeyboard } from '@/components/MathKeyboard';
+import { LatexKeyRow } from '@/components/LatexKeyRow';
 import { ProblemCard } from '@/components/ProblemCard';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
@@ -28,10 +29,14 @@ import { usePractice } from './usePractice';
 
 const CONFIDENCE_LABEL = { sure: 'sure', think: 'think so', guess: 'guessed' } as const;
 
+/** How much of the sheet stays on screen when it is down. */
+const PEEK = 34;
+const SPRING = { type: 'spring' as const, stiffness: 420, damping: 40 };
+
 /**
  * Stacked: problem on top, canvas in the middle, answer sheet pinned to the
- * bottom. The keyboard raises the sheet over the canvas rather than shrinking
- * it, so there is always room to write.
+ * bottom. The sheet sits over the canvas rather than shrinking it, so there is
+ * always room to write.
  */
 export function PracticePhone() {
   const session = useStore((s) => s.session)!;
@@ -43,10 +48,8 @@ export function PracticePhone() {
   const store = useStore();
   const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } =
     usePractice();
-  const [sheetOpen, setSheetOpen] = useState(true);
 
   const { problem, outcome } = session;
-  const spec = problem.answers[session.activeField] ?? problem.answers[0]!;
   const answered = outcome !== null;
 
   const canvasEl = (
@@ -101,15 +104,17 @@ export function PracticePhone() {
           </PhoneTool>
         </div>
 
-        {clearAsk && (
-          <ConfirmDialog
-            title="Clear the canvas?"
-            body="Every stroke on this problem goes. Undo can still bring them back until you move on."
-            confirmLabel="Clear"
-            onConfirm={confirmClear}
-            onCancel={() => setClearAsk(false)}
-          />
-        )}
+        <AnimatePresence>
+          {clearAsk && (
+            <ConfirmDialog
+              title="Clear the canvas?"
+              body="Every stroke on this problem goes. Undo can still bring them back until you move on."
+              confirmLabel="Clear"
+              onConfirm={confirmClear}
+              onCancel={() => setClearAsk(false)}
+            />
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -155,6 +160,9 @@ export function PracticePhone() {
             <PhoneTool small active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser">
               <Eraser className="size-[15px]" />
             </PhoneTool>
+            <PhoneTool small active={tool === 'type'} onClick={() => setTool('type')} label="Type LaTeX">
+              <Type className="size-[15px]" />
+            </PhoneTool>
             <PhoneTool small onClick={undo} label="Undo">
               <Undo2 className="size-[15px]" />
             </PhoneTool>
@@ -163,9 +171,6 @@ export function PracticePhone() {
             </PhoneTool>
           </div>
           <div className="pointer-events-auto flex gap-1.5">
-            <PhoneTool small active={tool === 'type'} onClick={() => setTool('type')} label="Type LaTeX">
-              <Type className="size-[15px]" />
-            </PhoneTool>
             <PhoneTool
               small
               tint
@@ -182,88 +187,133 @@ export function PracticePhone() {
         </div>
       </div>
 
-      {/* Pinned over the canvas, not stacked above it: the canvas keeps its full
-          height and he pans his working out from under the sheet. */}
-      <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]">
-        {answered ? (
-          <>
-            <FeedbackCard
-              problem={problem}
-              correct={outcome.correct}
-              errorClass={outcome.errorClass}
-              answers={session.answers}
-              confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
-              durationMs={session.done.at(-1)?.durationMs ?? 0}
-              hintsUsed={session.rung}
-              compact
-            />
-            <button
-              onClick={store.next}
-              className="grid h-13 min-h-[52px] place-items-center rounded-md bg-accent text-[17px] font-semibold text-on-accent"
-            >
-              {session.target !== null && session.done.length >= session.target
-                ? 'See the summary'
-                : 'Next problem'}
-            </button>
-          </>
-        ) : (
-          <>
-            {/* The bar is 4px; the target around it is not. */}
-            <button
-              onClick={() => setSheetOpen((v) => !v)}
-              className="mx-auto -mt-2 flex h-7 w-20 shrink-0 items-center justify-center"
-              aria-label={sheetOpen ? 'Collapse the answer sheet' : 'Expand the answer sheet'}
-            >
-              <span className="h-1 w-11 rounded-full bg-rail" />
-            </button>
-            <AnswerField
-              specs={problem.answers}
-              values={session.answers}
-              activeField={session.activeField}
-              onFocusField={store.setActiveField}
-              onBackspace={store.backspace}
-              state="editing"
-              compact
-            />
-            {sheetOpen && (
-              <>
-                <MathKeyboard
-                  layout={spec.keyboard}
-                  onInsert={store.typeKey}
-                  onBackspace={store.backspace}
-                  compact
-                />
-                <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
-              </>
+      {answered ? (
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={SPRING}
+          className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
+        >
+          <FeedbackCard
+            problem={problem}
+            correct={outcome.correct}
+            errorClass={outcome.errorClass}
+            answers={session.answers}
+            confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
+            durationMs={session.done.at(-1)?.durationMs ?? 0}
+            hintsUsed={session.rung}
+            compact
+          />
+          <button
+            onClick={store.next}
+            className="grid h-13 min-h-[52px] place-items-center rounded-md bg-accent text-[17px] font-semibold text-on-accent"
+          >
+            {session.target !== null && session.done.length >= session.target
+              ? 'See the summary'
+              : 'Next problem'}
+          </button>
+        </motion.div>
+      ) : (
+        <AnswerSheet>
+          <AnswerField
+            specs={problem.answers}
+            values={session.answers}
+            activeField={session.activeField}
+            onFocusField={store.setActiveField}
+            onChange={store.setAnswer}
+            onSubmit={session.confidence === null ? undefined : store.submit}
+            state="editing"
+            compact
+          />
+          <LatexKeyRow compact />
+          <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
+          <button
+            onClick={store.submit}
+            disabled={session.confidence === null}
+            className={cx(
+              'grid h-[52px] shrink-0 place-items-center rounded-md text-[17px] font-semibold',
+              session.confidence === null
+                ? 'cursor-not-allowed bg-raised text-faint'
+                : 'bg-accent text-on-accent',
             )}
-            <button
-              onClick={store.submit}
-              disabled={session.confidence === null}
-              className={cx(
-                'grid h-[52px] place-items-center rounded-md text-[17px] font-semibold',
-                session.confidence === null
-                  ? 'cursor-not-allowed bg-raised text-faint'
-                  : 'bg-accent text-on-accent',
-              )}
-            >
-              {session.confidence === null ? 'Pick a confidence' : 'Submit'}
-            </button>
-          </>
-        )}
-      </div>
-
-      {session.hintsOpen && !answered && <HintPanel variant="sheet" />}
-
-      {clearAsk && (
-        <ConfirmDialog
-          title="Clear the canvas?"
-          body="Every stroke on this problem goes. Undo can still bring them back until you move on."
-          confirmLabel="Clear"
-          onConfirm={confirmClear}
-          onCancel={() => setClearAsk(false)}
-        />
+          >
+            {session.confidence === null ? 'Pick a confidence' : 'Submit'}
+          </button>
+        </AnswerSheet>
       )}
+
+      <AnimatePresence>{session.hintsOpen && !answered && <HintPanel variant="sheet" />}</AnimatePresence>
+
+      <AnimatePresence>
+        {clearAsk && (
+          <ConfirmDialog
+            title="Clear the canvas?"
+            body="Every stroke on this problem goes. Undo can still bring them back until you move on."
+            confirmLabel="Clear"
+            onConfirm={confirmClear}
+            onCancel={() => setClearAsk(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * Two positions and nothing in between: down, where only the grab bar shows and
+ * the canvas is his; or up, with the whole answer in reach. Dragging follows
+ * the finger, and letting go picks the nearer of the two.
+ */
+function AnswerSheet({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const controls = useDragControls();
+  const y = useMotionValue(0);
+  const [down, setDown] = useState(0);
+  const [open, setOpen] = useState(true);
+
+  useLayoutEffect(() => {
+    const el = ref.current!;
+    const ro = new ResizeObserver(() => setDown(Math.max(0, el.offsetHeight - PEEK)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const controls = animate(y, open ? 0 : down, SPRING);
+    return () => controls.stop();
+  }, [open, down, y]);
+
+  function settle(offset: number, velocity: number) {
+    const at = y.get();
+    const target = velocity > 500 ? false : velocity < -500 ? true : at < down / 2;
+    void offset;
+    setOpen(target);
+    animate(y, target ? 0 : down, SPRING);
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      style={{ y }}
+      drag="y"
+      dragListener={false}
+      dragControls={controls}
+      dragConstraints={{ top: 0, bottom: down }}
+      dragElastic={0.04}
+      onDragEnd={(_, info) => settle(info.offset.y, info.velocity.y)}
+      className="absolute inset-x-0 bottom-0 z-10 flex touch-none flex-col gap-3 rounded-t-3xl border-t border-border bg-card px-4 pb-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
+    >
+      {/* The bar is 4px; the target around it is not. */}
+      <button
+        onPointerDown={(e) => controls.start(e)}
+        onClick={() => setOpen((v) => !v)}
+        className="mx-auto flex h-[34px] w-24 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+        aria-label={open ? 'Put the answer sheet down' : 'Bring the answer sheet up'}
+      >
+        <span className="h-1 w-11 rounded-full bg-rail" />
+      </button>
+      {children}
+    </motion.div>
   );
 }
 
@@ -278,7 +328,9 @@ interface PhoneToolProps {
 
 function PhoneTool({ children, label, onClick, active, small, tint }: PhoneToolProps) {
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 30 }}
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
@@ -293,6 +345,6 @@ function PhoneTool({ children, label, onClick, active, small, tint }: PhoneToolP
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }

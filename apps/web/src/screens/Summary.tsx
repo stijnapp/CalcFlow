@@ -39,7 +39,7 @@ export function Summary({ compact }: { compact?: boolean }) {
   }
 
   return (
-    <div className={cx('scroll-y h-full', compact ? 'px-5 py-5' : 'grid place-items-center p-10')}>
+    <div className={cx('scroll-y h-full', compact ? 'px-5 pb-16 pt-5' : 'grid place-items-center p-10')}>
       <div
         className={cx(
           'flex w-full flex-col gap-8 rounded-4xl border border-border bg-card',

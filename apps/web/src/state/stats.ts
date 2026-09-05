@@ -7,7 +7,10 @@ export interface ChapterStat {
   chapter: number;
   title: string;
   attempts: number;
+  /** Attempts inside the recent window — what every count below is out of. */
+  recent: number;
   correct: number;
+  wrong: number;
   /** 0–100. Confident-and-wrong counts against twice, because it is a
    *  misconception rather than a gap. */
   mastery: number;
@@ -57,7 +60,9 @@ export function computeStats(attempts: Attempt[]): Stats {
       chapter: n,
       title: chapterTitle(n),
       attempts: all.length,
+      recent: recent.length,
       correct,
+      wrong: recent.length - correct,
       mastery: recent.length ? Math.max(0, Math.round((rate - penalty) * 100)) : 0,
       medianMs,
       speed: speedOf(medianMs, overallMedianMs),

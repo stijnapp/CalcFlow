@@ -1,4 +1,5 @@
 import { ArrowLeft, Timer, Zap } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Eyebrow } from '@/components/Eyebrow';
 import { cx } from '@/lib/cx';
 import { clockTime, duration } from '@/lib/format';
@@ -40,12 +41,20 @@ export function Stats({ compact }: { compact?: boolean }) {
               Finish a set and this fills in: mastery per chapter, how long each takes you, and which
               topics you get wrong while feeling sure.
             </p>
-            <button
-              onClick={() => store.startSession(settings.mode)}
-              className="mt-2 rounded-md bg-accent px-6 py-3 font-semibold text-on-accent"
-            >
-              Start a set
-            </button>
+            <div className="mt-2 flex flex-wrap justify-center gap-2.5">
+              <button
+                onClick={() => store.startSession(settings.mode)}
+                className="rounded-md bg-accent px-6 py-3 font-semibold text-on-accent"
+              >
+                Start a set
+              </button>
+              <button
+                onClick={() => void store.loadSample()}
+                className="rounded-md border border-strong bg-raised px-6 py-3 text-sm text-ink2 hover:border-accent"
+              >
+                Load sample data
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -71,7 +80,7 @@ export function Stats({ compact }: { compact?: boolean }) {
       )}
     >
       <div className="flex items-center gap-3">
-        <Eyebrow className={compact ? 'text-[10px]' : 'text-xs'}>MASTERY BY CHAPTER</Eyebrow>
+        <Eyebrow className={compact ? 'text-[10px]' : 'text-xs'}>RIGHT AND WRONG BY CHAPTER</Eyebrow>
         <div className="ml-auto flex items-center gap-3 text-xs text-faint">
           <span className="flex items-center gap-1">
             <Zap className="size-3 text-correct" />
@@ -97,17 +106,14 @@ export function Stats({ compact }: { compact?: boolean }) {
               </span>
             </div>
             <Bar stat={ch} />
+            <Tally stat={ch} />
           </div>
         ) : (
           <div key={ch.chapter} className="flex flex-col gap-2">
             <div className="flex items-baseline gap-3.5">
               <span className="w-5 font-mono text-xs text-faint">{ch.chapter}</span>
               <span className="text-sm text-ink2">{ch.title}</span>
-              <span className="text-xs text-ghost">
-                {ch.attempts === 0
-                  ? 'not started'
-                  : `${ch.attempts} ${ch.attempts === 1 ? 'attempt' : 'attempts'}`}
-              </span>
+              <Tally stat={ch} />
               <span className="ml-auto flex shrink-0 items-center gap-2">
                 <SpeedMark stat={ch} />
                 <span className="w-9 text-right font-mono text-xs text-muted">{ch.mastery}%</span>
@@ -120,12 +126,6 @@ export function Stats({ compact }: { compact?: boolean }) {
 
       </div>
 
-      {!compact && (
-        <p className="border-t border-raised pt-3 text-[13px] text-faint text-pretty">
-          Median time per problem, measured against your own median across every chapter — not an
-          outside benchmark.
-        </p>
-      )}
     </div>
   );
 
@@ -162,7 +162,7 @@ export function Stats({ compact }: { compact?: boolean }) {
     return (
       <div className="flex h-full flex-col">
         <div className="shrink-0 border-b border-line px-5 py-3.5">{header}</div>
-        <div className="scroll-y flex flex-1 flex-col gap-5 px-5 pb-7 pt-4">
+        <div className="scroll-y flex flex-1 flex-col gap-5 px-5 pb-16 pt-4">
           <div className="flex flex-col gap-2.5">
             <Eyebrow className="text-[10px]">CONFIDENCE × CORRECTNESS</Eyebrow>
             {quadrants}
@@ -181,7 +181,7 @@ export function Stats({ compact }: { compact?: boolean }) {
           with the two recommendations it produces belong on the right. */}
       <div className="flex min-h-0 flex-1 gap-5">
         {mastery}
-        <div className="scroll-y flex w-[390px] shrink-0 flex-col gap-3.5">
+        <div className="scroll-y flex w-[390px] shrink-0 flex-col gap-3.5 pb-10">
           <Eyebrow className="text-xs">CONFIDENCE × CORRECTNESS</Eyebrow>
           {quadrants}
           {cards}
@@ -191,14 +191,44 @@ export function Stats({ compact }: { compact?: boolean }) {
   );
 }
 
+/**
+ * The bar is the tally, not a score: green is what he got right, red what he
+ * got wrong, and the empty remainder is a chapter he has barely touched.
+ */
 function Bar({ stat }: { stat: ChapterStat }) {
-  const colour = stat.mastery >= 65 ? 'bg-correct' : stat.mastery >= 35 ? 'bg-accent' : 'bg-wrong';
+  const total = Math.max(stat.recent, 1);
   return (
-    <span className="block h-2 overflow-hidden rounded-full bg-line">
-      <span
-        className={cx('block h-2 rounded-full transition-[width] duration-500', colour)}
-        style={{ width: `${stat.mastery}%` }}
+    <span className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-line">
+      <motion.span
+        className="block h-2 rounded-full bg-correct"
+        initial={{ width: 0 }}
+        animate={{ width: `${(stat.correct / total) * 100}%` }}
+        transition={{ type: 'spring', stiffness: 220, damping: 30 }}
       />
+      <motion.span
+        className="block h-2 rounded-full bg-wrong"
+        initial={{ width: 0 }}
+        animate={{ width: `${(stat.wrong / total) * 100}%` }}
+        transition={{ type: 'spring', stiffness: 220, damping: 30, delay: 0.05 }}
+      />
+    </span>
+  );
+}
+
+/** The counts in words, because a bar alone never answers "how many?". */
+function Tally({ stat }: { stat: ChapterStat }) {
+  if (stat.recent === 0) return <span className="text-xs text-ghost">not started</span>;
+  return (
+    <span className="flex items-baseline gap-1.5 text-xs">
+      <span className="text-correct">{stat.correct} right</span>
+      <span className="text-ghost">·</span>
+      <span className="text-wrong-ink">{stat.wrong} wrong</span>
+      {stat.confidentWrong > 0 && (
+        <>
+          <span className="text-ghost">·</span>
+          <span className="text-near-ink">{stat.confidentWrong} sure but wrong</span>
+        </>
+      )}
     </span>
   );
 }

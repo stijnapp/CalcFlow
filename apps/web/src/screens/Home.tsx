@@ -1,5 +1,6 @@
 import { ArrowRight, BarChart3, BookOpen, Flame, Settings as SettingsIcon } from 'lucide-react';
-import { CHAPTERS, type SessionMode } from '@calcflow/shared';
+import { motion } from 'motion/react';
+import { CHAPTERS, LEVELS, levelSpec, type SessionMode } from '@calcflow/shared';
 import { candidates } from '@calcflow/generators';
 import { Eyebrow } from '@/components/Eyebrow';
 import { Slider } from '@/components/Slider';
@@ -20,25 +21,25 @@ export function Home({ compact }: { compact?: boolean }) {
   const stats = useStore((s) => s.stats);
   const store = useStore();
 
-  const pool = candidates({
-    chapters: settings.chapters,
-    steps: settings.steps,
-    difficulty: settings.difficulty,
-  });
+  const { steps, difficulty } = levelSpec(settings.level);
+  const pool = candidates({ chapters: settings.chapters, steps, difficulty });
   const sample = pool[0];
+  const none = settings.chapters.length === 0;
   const flagged = stats.byChapter.filter((c) => c.attempts >= 3 && c.mastery < 70).length;
   const slow = stats.byChapter.filter((c) => c.attempts >= 3 && c.speed === 'slow').length;
 
   return (
-    <div className={cx('flex h-full flex-col gap-6', compact ? 'scroll-y px-5 py-4' : 'px-11 pb-10 pt-6')}>
+    <div
+      className={cx(
+        'flex h-full flex-col gap-6',
+        compact ? 'scroll-y px-5 pb-16 pt-4' : 'px-11 pb-10 pt-6',
+      )}
+    >
       <div className="flex flex-wrap items-end gap-5">
         <div className="flex flex-col gap-1.5">
           <h1 className={cx('font-semibold tracking-[-0.02em]', compact ? 'text-2xl' : 'text-[32px]')}>
             Ready to practice
           </h1>
-          <p className="text-[15px] text-muted">
-            Nine chapters live. Every problem is generated on-device.
-          </p>
         </div>
 
         <div className="ml-auto flex items-center gap-2.5">
@@ -72,94 +73,92 @@ export function Home({ compact }: { compact?: boolean }) {
         </div>
       </div>
 
-      <section className="flex flex-col gap-3.5">
-        <div className="flex items-center gap-3">
-          <Eyebrow className="text-xs">CHAPTERS</Eyebrow>
-          <div className="h-px flex-1 bg-line" />
-          <span className="text-[13px] text-muted">{settings.chapters.length} selected</span>
-        </div>
-
-        <div className={cx('grid gap-3', compact ? 'grid-cols-2' : 'grid-cols-5')}>
-          {CHAPTERS.map((ch) => {
-            const stat = stats.byChapter.find((c) => c.chapter === ch.n)!;
-            const on = settings.chapters.includes(ch.n);
-            // An untouched chapter is not a failing one — it gets no arc at all.
-            const ring =
-              stat.attempts === 0
-                ? 'transparent'
-                : stat.mastery >= 65
-                  ? '#3fb27f'
-                  : stat.mastery >= 35
-                    ? '#f5a524'
-                    : '#e5484d';
-            return (
-              <button
-                key={ch.n}
-                onClick={() => store.toggleChapter(ch.n)}
-                aria-pressed={on}
-                className={cx(
-                  'flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-colors',
-                  on ? 'border-accent bg-accent/10' : 'border-border bg-card hover:border-rail',
-                )}
-              >
-                <span className="relative size-[34px] shrink-0">
-                  <svg viewBox="0 0 34 34" className="block -rotate-90">
-                    <circle cx="17" cy="17" r="14" fill="none" stroke="#332e29" strokeWidth="3" />
-                    <circle
-                      cx="17"
-                      cy="17"
-                      r="14"
-                      fill="none"
-                      stroke={ring}
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeDasharray={`${((stat.mastery / 100) * 87.96).toFixed(1)} 87.96`}
-                    />
-                  </svg>
-                  <span className="absolute inset-0 grid place-items-center font-mono text-[11px] text-ink2">
-                    {ch.n}
-                  </span>
-                </span>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-sm font-medium">{ch.title}</span>
-                  <span className="text-xs text-faint">
-                    {stat.attempts === 0 ? 'not started' : `${stat.mastery}% mastery`}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
+      <section className="flex flex-col gap-5 rounded-2xl border border-border bg-card px-[26px] py-6">
+        <Slider
+          label="Level"
+          hint="more steps, harder numbers"
+          value={settings.level}
+          stops={LEVELS}
+          onChange={(level) => store.patchSettings({ level })}
+        />
+        <div className="flex flex-wrap items-center gap-3.5 rounded-md border border-edge bg-page px-4 py-3.5">
+          <Eyebrow className="text-xs">SAMPLE</Eyebrow>
+          {sample ? (
+            <motion.span key={sample.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xl">
+              <Tex>{sampleTex(sample.id)}</Tex>
+            </motion.span>
+          ) : (
+            <span className="text-[13px] text-near-ink">
+              {none ? 'Pick a chapter to see one' : 'No topic covers this cell yet'}
+            </span>
+          )}
+          <span className="ml-auto text-[13px] text-muted">
+            {pool.length} {pool.length === 1 ? 'topic covers' : 'topics cover'} this cell
+          </span>
         </div>
       </section>
 
       <div className={cx('flex gap-4.5', compact ? 'flex-col' : 'items-stretch')}>
-        <div className="flex flex-1 flex-col gap-6 rounded-2xl border border-border bg-card px-[26px] py-6">
-          <Slider
-            label="Steps"
-            hint="how many operations are chained"
-            value={settings.steps}
-            onChange={(steps) => store.patchSettings({ steps })}
-          />
-          <Slider
-            label="Difficulty"
-            hint="how ugly the numbers get"
-            value={settings.difficulty}
-            onChange={(difficulty) => store.patchSettings({ difficulty })}
-          />
-          <div className="mt-auto flex flex-wrap items-center gap-3.5 rounded-md border border-edge bg-page px-4 py-3.5">
-            <Eyebrow className="text-xs">SAMPLE</Eyebrow>
-            {sample ? (
-              <span className="text-xl">
-                <Tex>{sampleTex(sample.id)}</Tex>
-              </span>
-            ) : (
-              <span className="text-[13px] text-near-ink">No topic covers this cell yet</span>
-            )}
-            <span className="ml-auto text-[13px] text-muted">
-              {pool.length} {pool.length === 1 ? 'topic covers' : 'topics cover'} this cell
-            </span>
+        <section className="flex min-w-0 flex-1 flex-col gap-3.5">
+          <div className="flex items-center gap-3">
+            <Eyebrow className="text-xs">CHAPTERS</Eyebrow>
+            <div className="h-px flex-1 bg-line" />
           </div>
-        </div>
+
+          <div className={cx('grid gap-3', compact ? 'grid-cols-2' : 'grid-cols-3')}>
+            {CHAPTERS.map((ch) => {
+              const stat = stats.byChapter.find((c) => c.chapter === ch.n)!;
+              const on = settings.chapters.includes(ch.n);
+              // An untouched chapter is not a failing one — it gets no arc at all.
+              const ring =
+                stat.attempts === 0
+                  ? 'transparent'
+                  : stat.mastery >= 65
+                    ? '#3fb27f'
+                    : stat.mastery >= 35
+                      ? '#f5a524'
+                      : '#e5484d';
+              return (
+                <motion.button
+                  key={ch.n}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+                  onClick={() => store.toggleChapter(ch.n)}
+                  aria-pressed={on}
+                  className={cx(
+                    'flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-colors',
+                    on ? 'border-accent bg-accent/10' : 'border-border bg-card hover:border-rail',
+                  )}
+                >
+                  <span className="relative size-[34px] shrink-0">
+                    <svg viewBox="0 0 34 34" className="block -rotate-90">
+                      <circle cx="17" cy="17" r="14" fill="none" stroke="#332e29" strokeWidth="3" />
+                      <circle
+                        cx="17"
+                        cy="17"
+                        r="14"
+                        fill="none"
+                        stroke={ring}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${((stat.mastery / 100) * 87.96).toFixed(1)} 87.96`}
+                      />
+                    </svg>
+                    <span className="absolute inset-0 grid place-items-center font-mono text-[11px] text-ink2">
+                      {ch.n}
+                    </span>
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-sm font-medium">{ch.title}</span>
+                    <span className="text-xs text-faint">
+                      {stat.attempts === 0 ? 'not started' : `${stat.mastery}% mastery`}
+                    </span>
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </section>
 
         <div className={cx('flex flex-col gap-4.5', compact ? '' : 'w-[380px] shrink-0')}>
           <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-4.5">
@@ -209,13 +208,26 @@ export function Home({ compact }: { compact?: boolean }) {
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileTap={none ? undefined : { scale: 0.98 }}
             onClick={() => store.startSession(settings.mode)}
-            className="mt-auto flex h-[68px] items-center justify-center gap-3 rounded-xl bg-accent text-[19px] font-semibold text-on-accent transition-colors hover:bg-accent-hi"
+            disabled={none}
+            className={cx(
+              'mt-auto flex h-[68px] items-center justify-center gap-3 rounded-xl text-[19px] font-semibold transition-colors',
+              none
+                ? 'cursor-not-allowed bg-raised text-faint'
+                : 'bg-accent text-on-accent hover:bg-accent-hi',
+            )}
           >
-            Start {MODES.find((m) => m.id === settings.mode)!.label.toLowerCase()}
-            <ArrowRight className="size-[18px]" />
-          </button>
+            {none ? (
+              'Pick a chapter to start'
+            ) : (
+              <>
+                Start {MODES.find((m) => m.id === settings.mode)!.label.toLowerCase()}
+                <ArrowRight className="size-[18px]" />
+              </>
+            )}
+          </motion.button>
         </div>
       </div>
     </div>

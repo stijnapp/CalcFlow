@@ -1,4 +1,5 @@
 import { ArrowLeft, Lightbulb } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { chapterTitle } from '@calcflow/shared';
 import { ScribbleCanvas } from '@/canvas/ScribbleCanvas';
 import { AnswerField } from '@/components/AnswerField';
@@ -7,7 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Eyebrow } from '@/components/Eyebrow';
 import { FeedbackCard } from '@/components/FeedbackCard';
 import { HintPanel } from '@/components/HintPanel';
-import { MathKeyboard } from '@/components/MathKeyboard';
+import { LatexKeyRow } from '@/components/LatexKeyRow';
 import { ProblemCard } from '@/components/ProblemCard';
 import { RulesUsed } from '@/components/RulesUsed';
 import { ToolRail } from '@/components/ToolRail';
@@ -32,7 +33,6 @@ export function PracticeTablet() {
 
   const store = useStore();
   const { problem, outcome } = session;
-  const spec = problem.answers[session.activeField] ?? problem.answers[0]!;
   const answered = outcome !== null;
   const total = session.target ?? session.done.length + 1;
 
@@ -133,18 +133,15 @@ export function PracticeTablet() {
                   values={session.answers}
                   activeField={session.activeField}
                   onFocusField={store.setActiveField}
-                  onBackspace={store.backspace}
+                  onChange={store.setAnswer}
+                  onSubmit={session.confidence === null ? undefined : store.submit}
                   state="editing"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <Eyebrow>KEYBOARD</Eyebrow>
-                <MathKeyboard
-                  layout={spec.keyboard}
-                  onInsert={store.typeKey}
-                  onBackspace={store.backspace}
-                />
+                <Eyebrow>NOTATION</Eyebrow>
+                <LatexKeyRow />
               </div>
 
               <div className="mt-auto flex flex-col gap-3">
@@ -168,17 +165,19 @@ export function PracticeTablet() {
         </div>
       </div>
 
-      {session.hintsOpen && !answered && <HintPanel variant="panel" />}
+      <AnimatePresence>{session.hintsOpen && !answered && <HintPanel variant="panel" />}</AnimatePresence>
 
-      {clearAsk && (
-        <ConfirmDialog
-          title="Clear the canvas?"
-          body="Every stroke on this problem goes. Undo can still bring them back until you move on."
-          confirmLabel="Clear"
-          onConfirm={confirmClear}
-          onCancel={() => setClearAsk(false)}
-        />
-      )}
+      <AnimatePresence>
+        {clearAsk && (
+          <ConfirmDialog
+            title="Clear the canvas?"
+            body="Every stroke on this problem goes. Undo can still bring them back until you move on."
+            confirmLabel="Clear"
+            onConfirm={confirmClear}
+            onCancel={() => setClearAsk(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

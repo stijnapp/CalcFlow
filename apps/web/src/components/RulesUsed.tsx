@@ -16,7 +16,7 @@ export function RulesUsed({ problem }: { problem: Problem }) {
   return (
     <section className="flex min-h-0 flex-col gap-2.5">
       <Eyebrow>RULES THIS USED</Eyebrow>
-      <div className="scroll-y flex flex-col gap-2">
+      <div className="scroll-y flex flex-col gap-2 pb-3">
         {rules.map((rule) => (
           <button
             key={rule.id}

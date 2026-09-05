@@ -37,7 +37,7 @@ export function Rules({ compact }: { compact?: boolean }) {
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={cx('flex gap-2', compact ? 'flex-col items-stretch' : 'flex-wrap items-center')}>
           <label className="flex min-w-[220px] flex-1 items-center gap-2.5 rounded-md border border-border bg-well px-3.5 py-2.5 focus-within:border-accent">
             <Search className="size-4 shrink-0 text-faint" />
             <input
@@ -47,7 +47,8 @@ export function Rules({ compact }: { compact?: boolean }) {
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ghost"
             />
           </label>
-          <div className="flex flex-wrap gap-1.5">
+          {/* On the phone the chips are one lane he swipes, not four rows of chrome. */}
+          <div className={cx('flex gap-1.5', compact ? 'scroll-x -mx-5 px-5 pb-0.5' : 'flex-wrap')}>
             <Chip active={chapter === null} onClick={() => setChapter(null)}>
               All
             </Chip>
@@ -60,7 +61,7 @@ export function Rules({ compact }: { compact?: boolean }) {
         </div>
       </div>
 
-      <div className={cx('scroll-y flex-1', compact ? 'px-5 py-4' : 'px-10 py-6')}>
+      <div className={cx('scroll-y flex-1', compact ? 'px-5 pb-16 pt-4' : 'px-10 pb-16 pt-6')}>
         {shown.length === 0 ? (
           <p className="pt-10 text-center text-sm text-muted">
             No rule matches “{query}”. Try the chapter chips instead.
@@ -106,7 +107,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cx(
-        'rounded-full border px-3 py-1.5 text-[13px]',
+        'shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px]',
         active ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-card text-muted',
       )}
     >

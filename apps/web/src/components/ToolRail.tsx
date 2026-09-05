@@ -1,4 +1,5 @@
 import { Eraser, Hand, PenTool, Pencil, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import type { CanvasTool } from '@/canvas/ScribbleCanvas';
 
@@ -16,6 +17,7 @@ const TOOLS: Array<{ id: CanvasTool; icon: typeof Pencil; label: string }> = [
   { id: 'pen1', icon: Pencil, label: 'Thin pen' },
   { id: 'pen2', icon: PenTool, label: 'Thick pen' },
   { id: 'eraser', icon: Eraser, label: 'Eraser' },
+  { id: 'type', icon: Type, label: 'Type LaTeX' },
 ];
 
 /**
@@ -44,19 +46,10 @@ export function ToolRail({ tool, onTool, penOnly, onPenOnly, onUndo, onRedo, onC
         <Trash2 className="size-[17px]" />
       </RailButton>
 
-      <div className="mt-auto flex flex-col items-center gap-2.5">
-        <div className="flex flex-col items-center gap-1.5">
-          <RailButton label="Type LaTeX" active={tool === 'type'} onClick={() => onTool('type')}>
-            <Type className="size-[17px]" />
-          </RailButton>
-          <span className="font-mono text-[9px] tracking-[0.06em] text-faint">TEX</span>
-        </div>
-        <div className="flex flex-col items-center gap-1.5">
-          <RailButton label="Pen-only mode" active={penOnly} tint onClick={() => onPenOnly(!penOnly)}>
-            <Hand className="size-4" />
-          </RailButton>
-          <span className="font-mono text-[9px] tracking-[0.06em] text-faint">PEN</span>
-        </div>
+      <div className="mt-auto">
+        <RailButton label="Pen-only mode" active={penOnly} tint onClick={() => onPenOnly(!penOnly)}>
+          <Hand className="size-4" />
+        </RailButton>
       </div>
     </div>
   );
@@ -73,7 +66,9 @@ interface RailButtonProps {
 
 function RailButton({ label, active, tint, onClick, children }: RailButtonProps) {
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 700, damping: 30 }}
       title={label}
       aria-label={label}
       aria-pressed={active}
@@ -88,6 +83,6 @@ function RailButton({ label, active, tint, onClick, children }: RailButtonProps)
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }

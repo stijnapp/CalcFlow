@@ -8,7 +8,8 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { Check, Trash2, X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import type { CanvasSurface } from '@calcflow/shared';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
@@ -35,6 +36,9 @@ interface Props {
 }
 
 const PEN_WIDTH: Record<string, number> = { pen1: 3.2, pen2: 6.4 };
+const SPRING = { type: 'spring' as const, stiffness: 480, damping: 36 };
+/** Roughly a block's height, so one hanging off the end still extends the surface. */
+const BLOCK_HEIGHT = 56;
 
 /**
  * A fixed viewport onto an infinitely tall surface. The page never scrolls —
@@ -45,6 +49,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const surfaceRef = useRef(new Surface());
   const tapsRef = useRef(new TapDetector());
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -56,10 +61,14 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const frameRef = useRef(0);
 
   const [panY, setPanY] = useState(0);
+  const [viewH, setViewH] = useState(0);
+  /** How far the committed strokes reach; mirrored into state to size the thumb. */
+  const [inkBottom, setInkBottom] = useState(0);
   const [blocks, setBlocks] = useState<TexBlock[]>([]);
-  const [draft, setDraft] = useState<{ x: number; y: number; latex: string } | null>(null);
-  const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const nextBlockId = useRef(1);
+
+  const active = blocks.find((b) => b.id === activeId) ?? null;
 
   const paint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -78,6 +87,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = 0;
       paint();
+      // Unchanged while a stroke is still live, so this is a no-op mid-scribble.
+      setInkBottom(surfaceRef.current.contentBottom());
     });
   }, [paint]);
 
@@ -90,6 +101,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
     sizeRef.current = { w: rect.width, h: rect.height };
+    setViewH(rect.height);
     paint();
   }, [paint]);
 
@@ -108,18 +120,20 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   useEffect(() => {
     surfaceRef.current.reset();
     setBlocks([]);
-    setDraft(null);
-    setSelectedBlock(null);
+    setActiveId(null);
+    setInkBottom(0);
     panRef.current = 0;
     setPanY(0);
     schedulePaint();
   }, [problemKey, schedulePaint]);
 
+  /**
+   * Down is unbounded — he can always scroll into empty paper, and the thumb
+   * shrinks to say so. Coming back up, the surface shrinks to the ink again.
+   */
   const setPan = useCallback(
     (value: number) => {
-      const { h } = sizeRef.current;
-      const max = Math.max(0, surfaceRef.current.extent(h) - h);
-      panRef.current = Math.min(max, Math.max(0, value));
+      panRef.current = Math.max(0, value);
       setPanY(panRef.current);
       schedulePaint();
     },
@@ -149,6 +163,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       clear() {
         surfaceRef.current.clear();
         setBlocks([]);
+        setActiveId(null);
         schedulePaint();
       },
       isEmpty: () => surfaceRef.current.isEmpty && blocks.length === 0,
@@ -183,8 +198,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
     if (tool === 'type') {
       const p = toWorld(e);
-      setSelectedBlock(null);
-      setDraft((d) => ({ x: p.x, y: Math.round(p.y / RULE_SPACING) * RULE_SPACING, latex: d?.latex ?? '' }));
+      placeBlock(p.x, Math.round(p.y / RULE_SPACING) * RULE_SPACING);
       return;
     }
     if (tool === 'eraser') {
@@ -272,14 +286,45 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
   // ---------------------------------------------------------------- tex blocks
 
-  function commitDraft() {
-    if (!draft || !draft.latex.trim()) {
-      setDraft(null);
+  /** Blocks exist from the first tap; an empty one is dropped on the way out. */
+  function dropEmpties(list: TexBlock[]): TexBlock[] {
+    return list.filter((b) => b.latex.trim() !== '');
+  }
+
+  function placeBlock(x: number, y: number) {
+    const id = nextBlockId.current++;
+    setBlocks((bs) => [...dropEmpties(bs), { id, x, y, latex: '' }]);
+    setActiveId(id);
+    inputRef.current?.focus();
+  }
+
+  function editActive(latex: string) {
+    if (active) {
+      setBlocks((bs) => bs.map((b) => (b.id === active.id ? { ...b, latex } : b)));
       return;
     }
-    setBlocks((bs) => [...bs, { id: nextBlockId.current++, x: draft.x, y: draft.y, latex: draft.latex }]);
-    setDraft(null);
+    // Typing with nothing placed drops a block on the first free line below.
+    const id = nextBlockId.current++;
+    const y = Math.round((panRef.current + 80) / RULE_SPACING) * RULE_SPACING;
+    setBlocks((bs) => [...dropEmpties(bs), { id, x: 40, y, latex }]);
+    setActiveId(id);
   }
+
+  function deselect() {
+    setBlocks(dropEmpties);
+    setActiveId(null);
+  }
+
+  function deleteActive() {
+    setBlocks((bs) => bs.filter((b) => b.id !== activeId));
+    setActiveId(null);
+  }
+
+  // Leaving the type tool settles whatever was being written.
+  useEffect(() => {
+    if (tool !== 'type') deselect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool]);
 
   function dragBlock(id: number, e: ReactPointerEvent<HTMLDivElement>) {
     const block = blocks.find((b) => b.id === id);
@@ -306,8 +351,13 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     target.addEventListener('pointerup', up);
   }
 
-  const extent = surfaceRef.current.extent(sizeRef.current.h || 1);
-  const thumbHeight = Math.max(12, ((sizeRef.current.h || 1) / extent) * 100);
+  // The surface is 4/3 of a screen to begin with, grows past whatever he has
+  // written, and always reaches at least one screen below where he is now —
+  // so scrolling down never stops and the thumb resizes as he goes.
+  const view = viewH || 1;
+  const written = blocks.reduce((m, b) => Math.max(m, b.y + BLOCK_HEIGHT), inkBottom);
+  const extent = Math.max(view * (4 / 3), written + view / 3, panY + view);
+  const thumbHeight = Math.max(10, (view / extent) * 100);
   const thumbTop = Math.min(100 - thumbHeight, (panY / extent) * 100);
 
   return (
@@ -326,92 +376,101 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       {/* Where he is on the infinite surface. */}
       <div className="pointer-events-none absolute top-4 bottom-4 right-2 w-1 rounded-full bg-line">
         <div
-          className="absolute left-0 w-1 rounded-full bg-rail transition-[top] duration-75"
+          className="absolute left-0 w-1 rounded-full bg-rail"
           style={{ top: `${thumbTop}%`, height: `${thumbHeight}%` }}
         />
       </div>
 
-      {blocks.map((b) => (
-        <div
-          key={b.id}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            setSelectedBlock(b.id);
-            dragBlock(b.id, e);
-          }}
-          className={cx(
-            'absolute flex cursor-grab touch-none items-center gap-2 rounded-[10px] border px-3.5 py-2 text-[22px] backdrop-blur-sm',
-            selectedBlock === b.id ? 'border-accent bg-card/95' : 'border-border bg-card/90',
-          )}
-          style={{ left: b.x, top: b.y - panY }}
-        >
-          <Tex>{b.latex}</Tex>
-          {selectedBlock === b.id && (
-            <button
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => {
-                setBlocks((bs) => bs.filter((x) => x.id !== b.id));
-                setSelectedBlock(null);
+      <AnimatePresence>
+        {blocks.map((b) => {
+          const on = b.id === activeId;
+          return (
+            <motion.div
+              key={b.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={SPRING}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                setBlocks((bs) => bs.filter((x) => x.id === b.id || x.latex.trim() !== ''));
+                setActiveId(b.id);
+                inputRef.current?.focus();
+                dragBlock(b.id, e);
               }}
-              aria-label="Delete this block"
-              className="ml-1 grid size-6 place-items-center rounded-md bg-raised text-muted hover:text-ink"
+              className={cx(
+                'absolute flex touch-none items-center gap-2 rounded-[10px] border px-3.5 py-2 text-[22px] backdrop-blur-sm',
+                tool === 'type' ? 'cursor-grab' : 'pointer-events-none',
+                on
+                  ? 'border-accent bg-card/95 shadow-[0_0_0_4px_rgba(245,165,36,0.1)]'
+                  : 'border-border bg-card/90',
+              )}
+              style={{ left: b.x, top: b.y - panY }}
             >
-              <Trash2 className="size-3.5" />
-            </button>
-          )}
-        </div>
-      ))}
-
-      {draft && (
-        <div
-          className="absolute flex items-center gap-2"
-          style={{ left: draft.x, top: draft.y - panY }}
-        >
-          <div className="flex items-center gap-1 rounded-[10px] border border-accent bg-card/95 px-3.5 py-2 text-[22px] shadow-[0_0_0_4px_rgba(245,165,36,0.1)]">
-            {draft.latex ? <Tex>{draft.latex}</Tex> : <span className="text-faint">…</span>}
-            <span className="ml-0.5 h-6 w-0.5 animate-pulse bg-accent" />
-          </div>
-          <button
-            onClick={commitDraft}
-            aria-label="Place this block"
-            className="grid size-8 place-items-center rounded-[9px] bg-accent text-on-accent"
-          >
-            <Check className="size-4" />
-          </button>
-          <button
-            onClick={() => setDraft(null)}
-            aria-label="Discard this block"
-            className="grid size-8 place-items-center rounded-[9px] border border-strong bg-raised text-muted"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
-      )}
+              {b.latex.trim() ? <Tex>{b.latex}</Tex> : <span className="text-faint">…</span>}
+              {on && (
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={deleteActive}
+                  aria-label="Delete this block"
+                  className="ml-1 grid size-6 shrink-0 place-items-center rounded-md bg-raised text-muted hover:text-wrong-ink"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
 
       {tool === 'type' && (
-        <div className="absolute inset-x-4 bottom-12 flex items-center gap-3 rounded-md border border-strong bg-sunken px-4 py-3 shadow-[0_16px_40px_-16px_#000]">
-          <span className="shrink-0 font-mono text-[10px] tracking-[0.1em] text-accent">LATEX</span>
-          <input
-            value={draft?.latex ?? ''}
-            onChange={(e) =>
-              setDraft((d) => ({ x: d?.x ?? 40, y: d?.y ?? panY + 80, latex: e.target.value }))
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitDraft();
-              if (e.key === 'Escape') setDraft(null);
-            }}
-            placeholder="\frac{d}{dx}\ln(x)"
-            className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-ink2 outline-none placeholder:text-ghost"
-          />
-          <span className="shrink-0 font-mono text-[10px] tracking-[0.06em] text-faint">
-            TAP A LINE TO PLACE · ENTER COMMITS
-          </span>
+        <div className="absolute inset-x-4 bottom-12 flex flex-col items-start gap-2">
+          {/* The block itself may be anywhere on the surface, so the line being
+              typed is also shown right above the keys. */}
+          <AnimatePresence>
+            {active && active.latex.trim() !== '' && (
+              <motion.div
+                key="preview"
+                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                transition={SPRING}
+                className="scroll-x max-w-full rounded-md border border-accent/40 bg-overlay px-4 py-2.5 text-[22px] shadow-[0_16px_40px_-16px_#000]"
+              >
+                <Tex>{active.latex}</Tex>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="flex w-full items-center gap-3 rounded-md border border-strong bg-sunken px-4 py-3 shadow-[0_16px_40px_-16px_#000]">
+            <span className="shrink-0 font-mono text-[10px] tracking-[0.1em] text-accent">LATEX</span>
+            <input
+              ref={inputRef}
+              value={active?.latex ?? ''}
+              onChange={(e) => editActive(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') deselect();
+                if (e.key === 'Escape') deleteActive();
+              }}
+              placeholder="\frac{d}{dx}\ln(x)"
+              className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-ink2 outline-none placeholder:text-ghost"
+            />
+            {active && (
+              <button
+                onClick={deleteActive}
+                aria-label="Delete this block"
+                className="grid size-8 shrink-0 place-items-center rounded-[9px] border border-strong bg-raised text-muted hover:text-wrong-ink"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       <div className="pointer-events-none absolute bottom-4 left-4 font-mono text-[11px] tracking-[0.08em] text-ghost">
         {tool === 'type'
-          ? 'TYPING MATH · TAP A RULED LINE TO PLACE A BLOCK'
+          ? 'TYPING MATH · DRAG A BLOCK TO MOVE IT'
           : penOnly
             ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES'
             : 'FINGER DRAWS · 2-FINGER TAP UNDOES'}
