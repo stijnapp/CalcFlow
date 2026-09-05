@@ -63,7 +63,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const tapsRef = useRef(new TapDetector());
   const sizeRef = useRef({ w: 0, h: 0 });
   const panRef = useRef(0);
-  const panFromRef = useRef<{ y: number; pan: number } | null>(null);
+  /** The finger that is moving the page; `id: null` means the next one may. */
+  const panFromRef = useRef<{ id: number | null; y: number; pan: number } | null>(null);
   const drawingRef = useRef(false);
   const erasingRef = useRef(false);
   const penDownRef = useRef(false);
@@ -218,6 +219,16 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
   // ------------------------------------------------------------- pointer input
 
+  /**
+   * Whether a finger on the surface should move the page rather than mark it.
+   * Pen-only and type mode have nothing for a finger to draw, so it always
+   * pans there; where the finger does draw, the second one turns the gesture
+   * into a pan and it stays a pan until the last finger leaves.
+   */
+  function fingerPans(): boolean {
+    return penOnly || tool === 'type' || tapsRef.current.activeCount > 1 || panFromRef.current !== null;
+  }
+
   function pressure(e: { pointerType: string; pressure: number }): number {
     // 12-bit pressure on both target devices; the floor keeps a light touch visible.
     if (e.pointerType === 'pen' && e.pressure > 0) return 0.35 + e.pressure * 0.9;
@@ -235,16 +246,24 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     if (e.pointerType === 'touch') {
       tapsRef.current.down(e.pointerId, e.clientX, e.clientY);
       if (penDownRef.current) tapsRef.current.abort();
-      // Pen-only hands the finger the pan; type mode does too, because there is
-      // nothing to draw in it — and a second finger is a gesture, not a tap.
-      if (penOnly || tool === 'type') {
-        if (tapsRef.current.activeCount === 1) {
-          panFromRef.current = { y: e.clientY, pan: panRef.current };
-          flingRef.current.at = e.timeStamp;
-          tapRef.current = tool === 'type' ? { x: e.clientX, y: e.clientY, t: e.timeStamp } : null;
-        } else {
-          tapRef.current = null;
+      if (fingerPans()) {
+        // Whatever the first finger had started was the beginning of a
+        // two-finger gesture and not a mark. Drawing it and then undoing it is
+        // what used to leave a line across the page and eat the undo with it.
+        if (drawingRef.current) {
+          surfaceRef.current.discard();
+          drawingRef.current = false;
+          schedulePaint();
         }
+        erasingRef.current = false;
+        // The newest finger takes the pan, so putting one down cannot make the
+        // page jump by the distance between his fingers.
+        panFromRef.current = { id: e.pointerId, y: e.clientY, pan: panRef.current };
+        flingRef.current.at = e.timeStamp;
+        tapRef.current =
+          tool === 'type' && tapsRef.current.activeCount === 1
+            ? { x: e.clientX, y: e.clientY, t: e.timeStamp }
+            : null;
         return;
       }
     }
@@ -278,19 +297,25 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       if (tap && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > TAP_SLOP) {
         tapRef.current = null;
       }
-      if (penOnly || tool === 'type') {
+      if (fingerPans()) {
         const from = panFromRef.current;
-        if (from && tapsRef.current.activeCount === 1) {
-          const next = from.pan - (e.clientY - from.y);
-          const dt = e.timeStamp - flingRef.current.at;
-          // Blended rather than sampled, so one jittery frame cannot throw it.
-          if (dt > 0) {
-            const v = (Math.max(0, next) - panRef.current) / dt;
-            flingRef.current.v = flingRef.current.v * 0.6 + v * 0.4;
-            flingRef.current.at = e.timeStamp;
-          }
-          setPan(next);
+        // Nobody owns the pan yet — the finger that was carrying it has lifted
+        // and this one is still down, so it takes over from where it is.
+        if (!from || from.id === null) {
+          panFromRef.current = { id: e.pointerId, y: e.clientY, pan: panRef.current };
+          flingRef.current.at = e.timeStamp;
+          return;
         }
+        if (from.id !== e.pointerId) return;
+        const next = from.pan - (e.clientY - from.y);
+        const dt = e.timeStamp - flingRef.current.at;
+        // Blended rather than sampled, so one jittery frame cannot throw it.
+        if (dt > 0) {
+          const v = (Math.max(0, next) - panRef.current) / dt;
+          flingRef.current.v = flingRef.current.v * 0.6 + v * 0.4;
+          flingRef.current.at = e.timeStamp;
+        }
+        setPan(next);
         return;
       }
     }
@@ -318,14 +343,19 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
   function onPointerUp(e: ReactPointerEvent<HTMLCanvasElement>) {
     if (e.pointerType === 'touch') {
-      const panned = panFromRef.current !== null;
+      const from = panFromRef.current;
+      const panned = from !== null;
       const fingers = tapsRef.current.up(e.pointerId);
+      const left = tapsRef.current.activeCount;
       const tap = tapRef.current;
-      panFromRef.current = null;
       tapRef.current = null;
+      // The pan survives the finger that was carrying it: lifting one of two
+      // hands the page to the other rather than dropping it back into drawing.
+      if (left === 0) panFromRef.current = null;
+      else if (from?.id === e.pointerId) panFromRef.current = { id: null, y: 0, pan: panRef.current };
       // A pause before letting go means he stopped on purpose.
-      if (panned && e.timeStamp - flingRef.current.at < 90) startFling();
-      else flingRef.current.v = 0;
+      if (left === 0 && panned && e.timeStamp - flingRef.current.at < 90) startFling();
+      else if (left === 0) flingRef.current.v = 0;
       // Every gesture confirms itself: a tap that failed the movement threshold
       // is otherwise indistinguishable from an undo with nothing left to undo.
       if (fingers >= 3) redo();
@@ -544,7 +574,9 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
       {tool !== 'type' && (
         <div className="pointer-events-none absolute bottom-4 left-4 font-mono text-[11px] tracking-[0.08em] text-ghost">
-          {penOnly ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES' : 'FINGER DRAWS · 2-FINGER TAP UNDOES'}
+          {penOnly
+            ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES'
+            : 'FINGER DRAWS · 2 FINGERS PAN · 2-FINGER TAP UNDOES'}
         </div>
       )}
     </div>

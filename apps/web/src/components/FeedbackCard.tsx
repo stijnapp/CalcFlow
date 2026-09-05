@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 import type { ErrorClass } from '@calcflow/shared';
 import type { Problem } from '@calcflow/generators';
+import { Fit } from './Fit';
 import { Tex } from './Tex';
 import { Eyebrow } from './Eyebrow';
 import { cx } from '@/lib/cx';
@@ -65,9 +66,9 @@ export function FeedbackCard({
           <h2 className="text-[19px] font-semibold text-correct">Correct</h2>
           <span className="ml-auto text-xs text-faint">{meta}</span>
         </div>
-        <div className={compact ? 'text-xl' : 'text-2xl'}>
+        <Fit className={compact ? 'text-xl' : 'text-2xl'}>
           <Tex>{reference[0]!}</Tex>
-        </div>
+        </Fit>
       </div>
     );
   }
@@ -107,16 +108,18 @@ export function FeedbackCard({
 
       <div className="flex flex-col gap-1.5">
         <Eyebrow>YOU WROTE</Eyebrow>
-        <div className="scroll-x text-xl text-muted">
+        <Fit className="text-xl text-muted">
           <Tex>{answers.filter(Boolean).join(',\\ ') || '\\text{(nothing)}'}</Tex>
-        </div>
+        </Fit>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Eyebrow>ANSWER</Eyebrow>
-        <div className="scroll-x text-[22px]">
+        {/* The answer is the point of the whole card: it fits, it never asks
+            to be dragged sideways to be read. */}
+        <Fit className="text-[22px]">
           <Tex>{reference.join(',\\ ')}</Tex>
-        </div>
+        </Fit>
       </div>
 
       <div className="flex flex-col gap-2.5 border-t border-border pt-3">
@@ -138,9 +141,9 @@ export function FeedbackCard({
                 className="flex animate-rise items-center gap-3 rounded-[10px] border border-edge bg-page px-3.5 py-2.5"
               >
                 <span className="w-[108px] shrink-0 text-xs text-faint">{s.ruleLabel}</span>
-                <span className="min-w-0 scroll-x text-[17px]">
+                <Fit className="min-w-0 flex-1 text-[17px]">
                   <Tex>{s.expr}</Tex>
-                </span>
+                </Fit>
               </div>
             ))}
           </div>

@@ -40,16 +40,24 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2,ttf,svg,png}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: 'index.html',
+        // An update replaces the shell rather than living beside it, and takes
+        // over the open window instead of waiting for every tab to be closed.
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
       },
-      // So the install prompt can be judged against `npm run dev` too, and not
-      // only against a built bundle.
+      // Enough of a service worker for the install prompt to appear against
+      // `npm run dev`, but it can only precache what the dev server has already
+      // built — which is nothing. Offline is a property of the built app:
+      // `npm run build && npm run preview`, and install from there.
       devOptions: { enabled: true, type: 'module', navigateFallback: 'index.html' },
     }),
   ],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  // Chrome only offers a real install over a secure origin, so the dev server
-  // has to answer to the Tailscale name `tailscale serve` puts a certificate on.
+  // Chrome only offers a real install over a secure origin, so both servers
+  // have to answer to the Tailscale name `tailscale serve` puts a certificate
+  // on. The preview server is the one that is genuinely offline-capable.
   server: { host: true, allowedHosts: ['omarchy', 'prodesk', '.ts.net'] },
+  preview: { host: true, allowedHosts: ['omarchy', 'prodesk', '.ts.net'] },
 });

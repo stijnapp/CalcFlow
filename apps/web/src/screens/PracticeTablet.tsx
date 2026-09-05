@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ArrowLeft, Lightbulb } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { ScribbleCanvas } from '@/canvas/ScribbleCanvas';
@@ -34,6 +35,14 @@ export function PracticeTablet() {
   const store = useStore();
   const { problem, outcome } = session;
   const answered = outcome !== null;
+  const scroller = useRef<HTMLDivElement>(null);
+
+  // Submitting from the bottom of a long column would otherwise leave him
+  // looking at the last line of the verdict instead of at the verdict.
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+  }, [answered, problem.seed]);
+
   const filled = problem.answers.every((_, i) => (session.answers[i] ?? '').trim() !== '');
   const ready = filled && session.confidence !== null;
 
@@ -78,15 +87,15 @@ export function PracticeTablet() {
             {session.done.length + (answered ? 0 : 1)} / {session.target ?? '∞'}
           </span>
           <ProgressDots session={session} />
-          {!answered && (
-            <button
-              onClick={() => store.setHintsOpen(true)}
-              className="ml-auto flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 hover:border-accent"
-            >
-              <Lightbulb className="size-4 text-accent" />
-              <span className="text-[13px] text-ink2">Hint</span>
-            </button>
-          )}
+          {/* Still there after submitting: the rungs are worth reading most when
+              the answer turned out to be wrong. */}
+          <button
+            onClick={() => store.setHintsOpen(true)}
+            className="ml-auto flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 hover:border-accent"
+          >
+            <Lightbulb className="size-4 text-accent" />
+            <span className="text-[13px] text-ink2">Hint</span>
+          </button>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pt-5">
@@ -97,7 +106,10 @@ export function PracticeTablet() {
           {/* Everything under the question shares one scroll surface: two answer
               boxes, or a wrong answer with its full solution, do not fit a
               column this narrow. */}
-          <div className="scroll-y -mx-[26px] flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pb-[22px]">
+          <div
+            ref={scroller}
+            className="scroll-y -mx-[26px] flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pb-[22px]"
+          >
             {answered ? (
               <>
                 <FeedbackCard
@@ -161,7 +173,7 @@ export function PracticeTablet() {
         </div>
       </div>
 
-      <AnimatePresence>{session.hintsOpen && !answered && <HintPanel variant="panel" />}</AnimatePresence>
+      <AnimatePresence>{session.hintsOpen && <HintPanel variant="panel" />}</AnimatePresence>
 
       <AnimatePresence>
         {clearAsk && (
@@ -169,6 +181,7 @@ export function PracticeTablet() {
             title="Clear the canvas?"
             body="Every stroke on this problem goes. Undo can still bring them back until you move on."
             confirmLabel="Clear"
+            danger
             onConfirm={confirmClear}
             onCancel={() => setClearAsk(false)}
           />

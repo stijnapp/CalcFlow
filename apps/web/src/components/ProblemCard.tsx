@@ -1,4 +1,5 @@
 import type { Problem } from '@calcflow/generators';
+import { Fit } from './Fit';
 import { Tex } from './Tex';
 import { Eyebrow } from './Eyebrow';
 import { cx } from '@/lib/cx';
@@ -25,14 +26,11 @@ export function ProblemCard({ problem, compact }: Props) {
         <p className="text-sm leading-relaxed text-ink2 text-pretty">{problem.promptText}</p>
       )}
 
-      {/* `w-max` is the whole trick: KaTeX breaks a long expression between its
-          bases when it is told how wide it may be, so it is told nothing, and
-          the box around it scrolls instead. */}
-      <div className={cx('scroll-x', compact ? 'text-2xl' : 'text-[34px]')}>
-        <div className="w-max">
-          <Tex>{problem.prompt}</Tex>
-        </div>
-      </div>
+      {/* A long question shrinks to fit rather than wrapping or running off the
+          side: he wants to read the whole thing in one look. */}
+      <Fit className={compact ? 'text-2xl' : 'text-[34px]'}>
+        <Tex>{problem.prompt}</Tex>
+      </Fit>
 
       {problem.note && !compact && <p className="text-[13px] text-faint text-pretty">{problem.note}</p>}
     </div>

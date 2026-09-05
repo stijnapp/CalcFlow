@@ -1,6 +1,7 @@
 import { ruleById, type Problem } from '@calcflow/generators';
 import { useStore } from '@/state/store';
 import { Eyebrow } from './Eyebrow';
+import { Fit } from './Fit';
 import { Tex } from './Tex';
 
 /**
@@ -24,9 +25,9 @@ export function RulesUsed({ problem }: { problem: Problem }) {
             className="flex items-center gap-3.5 rounded-md border border-edge bg-card px-4 py-3 text-left hover:border-accent"
           >
             <span className="w-[132px] shrink-0 text-[13px] text-ink2">{rule.name}</span>
-            <span className="min-w-0 flex-1 scroll-x text-base text-muted">
+            <Fit className="min-w-0 flex-1 text-base text-muted">
               <Tex>{rule.tex}</Tex>
-            </span>
+            </Fit>
           </button>
         ))}
       </div>

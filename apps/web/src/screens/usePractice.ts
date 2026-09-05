@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { useBackGuard } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
 import type { CanvasHandle, CanvasTool } from '@/canvas/ScribbleCanvas';
 
@@ -11,6 +12,18 @@ export function usePractice() {
   const [leaveAsk, setLeaveAsk] = useState(false);
   const showToast = useStore((s) => s.showToast);
   const endSession = useStore((s) => s.endSession);
+  const setCanvasFullscreen = useStore((s) => s.setCanvasFullscreen);
+
+  // The back gesture used to walk straight out of the session and take the
+  // working with it. It asks first now — and while the canvas is filling the
+  // screen, it is read as a way out of that rather than out of the session.
+  useBackGuard(true, () => {
+    if (useStore.getState().canvasFullscreen) {
+      setCanvasFullscreen(false);
+      return;
+    }
+    setLeaveAsk(true);
+  });
 
   /** Tapping the pen a second time is what opens its width picker. */
   const setTool = useCallback(

@@ -17,6 +17,7 @@ import { AnswerField } from '@/components/AnswerField';
 import { ConfidenceRow } from '@/components/ConfidenceRow';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackCard } from '@/components/FeedbackCard';
+import { Fit } from '@/components/Fit';
 import { HintPanel } from '@/components/HintPanel';
 import { PenWidth } from '@/components/PenWidth';
 import { ProblemCard } from '@/components/ProblemCard';
@@ -86,6 +87,7 @@ export function PracticePhone() {
             title="Clear the canvas?"
             body="Every stroke on this problem goes. Undo can still bring them back until you move on."
             confirmLabel="Clear"
+            danger
             onConfirm={confirmClear}
             onCancel={() => setClearAsk(false)}
           />
@@ -111,11 +113,9 @@ export function PracticePhone() {
       <div className="relative flex h-full flex-col bg-canvas">
         {/* The problem stays readable while writing, as one thin bar. */}
         <div className="flex shrink-0 items-center gap-2.5 border-b border-edge bg-page/95 px-4 py-3.5">
-          <div className="min-w-0 scroll-x text-[17px]">
-            <div className="w-max">
-              <Tex>{problem.prompt}</Tex>
-            </div>
-          </div>
+          <Fit className="min-w-0 flex-1 text-[17px]">
+            <Tex>{problem.prompt}</Tex>
+          </Fit>
           <button
             onClick={() => setFullscreen(false)}
             className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-raised px-2.5 text-accent"
@@ -187,15 +187,15 @@ export function PracticePhone() {
           {session.done.length + (answered ? 0 : 1)} / {session.target ?? '∞'}
         </span>
         <ProgressDots session={session} />
-        {!answered && (
-          <button
-            onClick={() => store.setHintsOpen(true)}
-            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1"
-          >
-            <Lightbulb className="size-3.5 text-accent" />
-            <span className="text-[11px] text-ink2">Hint</span>
-          </button>
-        )}
+        {/* Still there after submitting: the rungs are worth reading most when
+            the answer turned out to be wrong. */}
+        <button
+          onClick={() => store.setHintsOpen(true)}
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1"
+        >
+          <Lightbulb className="size-3.5 text-accent" />
+          <span className="text-[11px] text-ink2">Hint</span>
+        </button>
       </header>
 
       <div className="shrink-0 px-4 pt-3">
@@ -279,10 +279,10 @@ export function PracticePhone() {
         <Sheet className="gap-3 px-4 pb-4">
           {/* The on-screen keyboard covers the card at the top of the screen, so
               the sheet carries the question with it. */}
-          <div className="scroll-x shrink-0 rounded-md border border-edge bg-page px-3 py-2 text-[19px]">
-            <div className="w-max">
+          <div className="shrink-0 rounded-md border border-edge bg-page px-3 py-2 text-[19px]">
+            <Fit>
               <Tex>{problem.prompt}</Tex>
-            </div>
+            </Fit>
           </div>
           <div className="scroll-y flex min-h-0 flex-1 flex-col gap-3">
             <AnswerField
@@ -310,7 +310,7 @@ export function PracticePhone() {
         </Sheet>
       )}
 
-      <AnimatePresence>{session.hintsOpen && !answered && <HintPanel variant="sheet" />}</AnimatePresence>
+      <AnimatePresence>{session.hintsOpen && <HintPanel variant="sheet" />}</AnimatePresence>
 
       {dialogs}
     </div>

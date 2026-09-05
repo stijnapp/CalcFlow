@@ -16,6 +16,8 @@ import { useEffect, useRef } from 'react';
 interface Entry {
   token: number;
   close(): void;
+  /** A guard puts its entry straight back: what it protects is still open. */
+  guard?: boolean;
 }
 
 const stack: Entry[] = [];
@@ -30,7 +32,15 @@ function onPop() {
     return;
   }
   // Only the topmost overlay owns the entry that was just popped.
-  stack.pop()?.close();
+  const entry = stack.pop();
+  if (!entry) return;
+  entry.close();
+  // A guard is not dismissed by being triggered — the screen behind it stays —
+  // so it takes a fresh entry immediately and can catch the next press too.
+  if (entry.guard) {
+    stack.push(entry);
+    window.history.pushState({ calcflowOverlay: entry.token }, '');
+  }
 }
 
 function listen() {
@@ -40,6 +50,20 @@ function listen() {
 }
 
 export function useBackDismiss(open: boolean, close: () => void): void {
+  useEntry(open, close, false);
+}
+
+/**
+ * Holds the back button on a screen that must not be left by accident. The
+ * same borrowed history entry, except pressing back spends it on a question —
+ * "leave this session?" — rather than on the move itself, and the entry is put
+ * back so the next press finds the guard still standing.
+ */
+export function useBackGuard(active: boolean, onBack: () => void): void {
+  useEntry(active, onBack, true);
+}
+
+function useEntry(open: boolean, close: () => void, guard: boolean): void {
   const closeRef = useRef(close);
   closeRef.current = close;
 
@@ -48,7 +72,7 @@ export function useBackDismiss(open: boolean, close: () => void): void {
     listen();
 
     const token = ++seq;
-    stack.push({ token, close: () => closeRef.current() });
+    stack.push({ token, guard, close: () => closeRef.current() });
     window.history.pushState({ calcflowOverlay: token }, '');
 
     return () => {
@@ -63,5 +87,5 @@ export function useBackDismiss(open: boolean, close: () => void): void {
       selfPops += 1;
       window.history.back();
     };
-  }, [open]);
+  }, [open, guard]);
 }

@@ -87,7 +87,29 @@
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+    /* No long-press callout over a drawing surface; the fields keep theirs. */
+    -webkit-touch-callout: none;
     -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-touch-callout: default;
+  }
+
+  /*
+   * Installed, the app owns the whole screen. Swiping in from an edge brings
+   * Android's bars back over it for a moment and shrinks the window with them,
+   * which shoved the layout up and down on every gesture. `lvh` is the height
+   * with those bars away, so the page keeps it and the bars pass over the top.
+   */
+  @media (display-mode: fullscreen), (display-mode: standalone) {
+    html,
+    body,
+    #root {
+      height: 100lvh;
+    }
   }
 
   /* It is a drawing app: a stray drag should never select text. */

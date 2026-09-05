@@ -69,6 +69,11 @@ export class Surface {
     this.live = null;
   }
 
+  /** Throws the live stroke away: it turned out to be a gesture, not a mark. */
+  discard(): void {
+    this.live = null;
+  }
+
   /** Removes whole strokes rather than pixels — cheap, and undo stays trivial. */
   eraseAt(x: number, y: number, radius = 12): boolean {
     const hit = this.strokes.findIndex((s) =>

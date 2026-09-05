@@ -296,6 +296,10 @@ function KeyEditor() {
             {chosen.map((key) => (
               <motion.button
                 key={key.id}
+                /* Position only, so the keys still on the row slide to their new
+                   places instead of jumping there. Animating the box as well
+                   would stretch the maths inside it while it travelled. */
+                layout="position"
                 initial={{ opacity: 0, scale: 0.85, y: HOP }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.85, y: HOP }}
@@ -321,6 +325,7 @@ function KeyEditor() {
             {rest.map((key) => (
               <motion.div
                 key={key.id}
+                layout="position"
                 initial={{ opacity: 0, scale: 0.85, y: -HOP }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.85, y: -HOP }}

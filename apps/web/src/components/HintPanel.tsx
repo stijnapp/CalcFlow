@@ -5,6 +5,7 @@ import { cx } from '@/lib/cx';
 import { useBackDismiss } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
 import { LatexField } from './LatexField';
+import { Fit } from './Fit';
 import { Sheet, SHEET_TALL } from './Sheet';
 import { Tex } from './Tex';
 import { buildRungs } from './hints';
@@ -112,11 +113,13 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
                   {rung.tex && (
                     <div
                       className={cx(
-                        'scroll-x rounded-[10px] border border-border bg-page',
+                        'rounded-[10px] border border-border bg-page',
                         panel ? 'px-4 py-3.5 text-xl' : 'px-2.5 py-2.5 text-[15px]',
                       )}
                     >
-                      <Tex>{rung.tex}</Tex>
+                      <Fit>
+                        <Tex>{rung.tex}</Tex>
+                      </Fit>
                     </div>
                   )}
                   {rung.ruleId && (

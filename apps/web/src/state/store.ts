@@ -150,12 +150,23 @@ export const useStore = create<Store>((set, get) => ({
   queued: 0,
 
   async init() {
-    const [settings, attempts, stored] = await Promise.all([
-      loadSettings(),
-      loadAttempts(),
-      loadStoredSession(),
-    ]);
-    const session = stored ? reviveSession(stored) : null;
+    let settings = DEFAULT_SETTINGS;
+    let attempts: Attempt[] = [];
+    let session: Session | null = null;
+    try {
+      const [loadedSettings, loadedAttempts, stored] = await Promise.all([
+        loadSettings(),
+        loadAttempts(),
+        loadStoredSession(),
+      ]);
+      settings = loadedSettings;
+      attempts = loadedAttempts;
+      session = stored ? reviveSession(stored) : null;
+    } catch (err) {
+      // A store that will not open — private mode, a corrupted database — must
+      // still leave a usable app rather than a splash screen that never ends.
+      console.error('CalcFlow: starting with an empty local store', err);
+    }
     set({ settings, attempts, stats: computeStats(attempts), session, ready: true });
     void get().refreshQueued();
 
@@ -222,7 +233,11 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   async refreshQueued() {
-    set({ queued: await queuedCount() });
+    try {
+      set({ queued: await queuedCount() });
+    } catch {
+      // The badge is a nicety; a store that cannot be read must not throw here.
+    }
   },
 
   syncNow() {
@@ -305,7 +320,12 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   setHintsOpen(hintsOpen) {
-    patchSession(set, get, (s) => ({ hintsOpen, rung: hintsOpen && s.rung === 0 ? 1 : s.rung }));
+    // Reading the hints after the answer is in costs nothing: the attempt is
+    // already written, and the rung it was solved at must not move under it.
+    patchSession(set, get, (s) => ({
+      hintsOpen,
+      rung: hintsOpen && s.rung === 0 && !s.outcome ? 1 : s.rung,
+    }));
   },
 
   revealRung(max) {
