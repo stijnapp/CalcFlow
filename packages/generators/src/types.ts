@@ -1,0 +1,110 @@
+import type { Domain, Expr } from '@calcflow/engine';
+
+export type Latex = string;
+
+/** Picks which on-screen keyboard the answer field gets. */
+export type KeyboardLayoutId = 'numeric' | 'algebra' | 'calculus' | 'trig' | 'logs';
+
+export type AnswerKind = 'expression' | 'number' | 'set' | 'interval' | 'choice' | 'boolean';
+
+/** One line of the worked solution, with the name of the rule that produced it. */
+export interface Step {
+  ruleId: string;
+  ruleLabel: string;
+  expr: Latex;
+  note?: string;
+  /**
+   * Setup lines still carrying an unapplied operator — `\frac{d}{dx}(...)` —
+   * cannot be evaluated, so they sit outside the step-chain invariant. Rare by
+   * design: every line that *can* be checked must be.
+   */
+  display?: boolean;
+}
+
+export interface AnswerSpec {
+  /** Shown beside the field when a problem has more than one, e.g. "|a|". */
+  label?: string;
+  kind: AnswerKind;
+  /** The reference answer as LaTeX — what gets shown when he gets it wrong. */
+  tex: Latex;
+  /** The same answer as an AST, for the equivalence check. */
+  value: Expr;
+  vars: string[];
+  domain?: Domain;
+  requires?: { plusC?: boolean; exact?: boolean; simplified?: boolean };
+  /** Antiderivatives are correct up to an additive constant. */
+  upToConstant?: boolean;
+  keyboard: KeyboardLayoutId;
+  choices?: string[];
+}
+
+/**
+ * An independent check on a generated problem, evaluated numerically by the fuzz
+ * harness. This is the part that catches an algebra slip in a generator: the
+ * declared answer is checked against the prompt itself, not against the
+ * generator's own working.
+ */
+export type Verification =
+  | { kind: 'derivative'; of: Latex; wrt: string }
+  | { kind: 'antiderivative'; of: Latex; wrt: string }
+  | { kind: 'definite-integral'; of: Latex; wrt: string; from: number; to: number }
+  | { kind: 'root'; equation: Latex; wrt: string }
+  | { kind: 'identity'; of: Latex };
+
+export interface Problem {
+  generatorId: string;
+  seed: string;
+  genVersion: number;
+  chapter: number;
+  /** Imperative label above the maths: "Differentiate", "Solve for x". */
+  instruction: string;
+  prompt: Latex;
+  /** Word problems carry prose instead of a bare expression. */
+  promptText?: string;
+  /** Conditions and the form wanted, e.g. "a is a positive constant." */
+  note?: string;
+  answers: AnswerSpec[];
+  solution: Step[];
+  ruleIds: string[];
+  verify?: Verification;
+  steps: number;
+  difficulty: number;
+}
+
+export interface Rng {
+  /** Uniform in [0, 1). */
+  next(): number;
+  /** Integer in [min, max], inclusive. */
+  int(min: number, max: number): number;
+  /** Integer in [min, max] excluding 0. */
+  nonZero(min: number, max: number): number;
+  pick<T>(items: readonly T[]): T;
+  /** +1 or -1. */
+  sign(): number;
+  bool(p?: number): boolean;
+}
+
+export interface GenContext {
+  steps: number;
+  difficulty: number;
+  rng: Rng;
+}
+
+/** What a generator returns; the registry stamps on the identifying fields. */
+export type Draft = Omit<
+  Problem,
+  'generatorId' | 'seed' | 'genVersion' | 'chapter' | 'steps' | 'difficulty'
+>;
+
+export interface Generator {
+  /** Stable id, e.g. "diff.chain-rule". Written into every attempt. */
+  id: string;
+  chapter: number;
+  title: string;
+  tags: string[];
+  /** Bump on any behaviour change, so old attempts stay reproducible. */
+  version: number;
+  supports: { steps: [number, number]; difficulty: [number, number] };
+  invariant: 'value-preserving' | 'solution-set-preserving';
+  generate(ctx: GenContext): Draft;
+}

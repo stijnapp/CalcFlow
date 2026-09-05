@@ -1,0 +1,265 @@
+@import 'tailwindcss';
+
+@import '@fontsource/geist-sans/300.css';
+@import '@fontsource/geist-sans/400.css';
+@import '@fontsource/geist-sans/500.css';
+@import '@fontsource/geist-sans/600.css';
+@import '@fontsource/geist-mono/400.css';
+@import '@fontsource/geist-mono/500.css';
+@import 'katex/dist/katex.min.css';
+
+/*
+ * Tokens lifted from the approved mockup. Four surface depths, one warm amber
+ * used only for interactive affordances, and green/red reserved strictly for
+ * correct/wrong so they never compete with the accent. A fifth colour — the
+ * muted amber `near` — carries the near misses, which are neither.
+ */
+@theme {
+  --font-sans: 'Geist Sans', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Surfaces, page outwards */
+  --color-void: #100e0c;
+  --color-page: #141210;
+  --color-card: #1d1a17;
+  --color-raised: #262220;
+  --color-overlay: #302a26;
+  --color-sunken: #211d1a;
+  --color-well: #0e0d0b;
+  --color-canvas: #171512;
+
+  /* Hairlines, weakest to strongest */
+  --color-line: #241f1c;
+  --color-edge: #2a2521;
+  --color-border: #332e29;
+  --color-soft: #3a332e;
+  --color-strong: #443c36;
+  --color-rail: #4a423a;
+
+  /* Type */
+  --color-ink: #f2ede6;
+  --color-ink2: #d8d0c6;
+  --color-muted: #a39a90;
+  --color-faint: #6e665e;
+  --color-ghost: #453e37;
+
+  /* Accent — interactive affordances and focus, nothing else */
+  --color-accent: #f5a524;
+  --color-accent-hi: #ffb63f;
+  --color-accent-dim: #8a5f18;
+  --color-on-accent: #1a1206;
+
+  /* Semantic — correct, wrong, and the near misses in between.
+   * Named `correct`, not `right`: `text-right` is an alignment utility. */
+  --color-correct: #3fb27f;
+  --color-correct-ink: #9fd9bd;
+  --color-wrong: #e5484d;
+  --color-wrong-ink: #e5848a;
+  --color-near: #b98a3c;
+  --color-near-ink: #d9a955;
+
+  --radius-xs: 9px;
+  --radius-sm: 11px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
+
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    /* The page itself never scrolls — only the canvas pans. */
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    /* No long-press callout over a drawing surface; the fields keep theirs. */
+    -webkit-touch-callout: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-touch-callout: default;
+  }
+
+  /*
+   * Installed, the app owns the whole screen. Swiping in from an edge brings
+   * Android's bars back over it for a moment and shrinks the window with them,
+   * which shoved the layout up and down on every gesture. `lvh` is the height
+   * with those bars away, so the page keeps it and the bars pass over the top.
+   */
+  @media (display-mode: fullscreen), (display-mode: standalone) {
+    html,
+    body,
+    #root {
+      height: 100lvh;
+    }
+  }
+
+  /* It is a drawing app: a stray drag should never select text. */
+  body,
+  button {
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-rail) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-rail);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .katex {
+    font-size: 1em;
+  }
+  /* KaTeX renders white by default; inherit so a muted context stays muted. */
+  .katex,
+  .katex * {
+    color: inherit;
+  }
+}
+
+@layer utilities {
+  .scroll-y {
+    overflow-y: auto;
+    /* Explicit: `overflow-y` alone makes the other axis compute to `auto`, and
+       the width a vertical scrollbar takes is then a sideways scroll of its own. */
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-rail) transparent;
+  }
+
+  .no-touch {
+    touch-action: none;
+  }
+
+  /* Wide maths scrolls sideways, but a scrollbar stub next to a fraction reads
+     as part of the formula. Drag still works. */
+  .scroll-x {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Motion budget: nothing may delay the gap between problems by more than
+ * ~200 ms. Every animation below is inside that.
+ */
+@keyframes cf-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-correct) 50%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+@keyframes cf-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+@keyframes cf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-correct {
+  animation: cf-pulse 400ms ease-out;
+}
+.animate-wrong {
+  animation: cf-shake 260ms ease-in-out;
+}
+.animate-rise {
+  animation: cf-rise 180ms var(--ease-out-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* The same switch, but driven by the in-app setting rather than the OS. */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+}
