@@ -82,7 +82,14 @@ export function Slider({ label, hint, value, stops, onChange }: Props) {
               className="absolute top-[13px] -ml-1 size-2 rounded-full"
               style={{
                 left: `${(i / last) * 100}%`,
-                background: i === value - 1 ? 'transparent' : i < value - 1 ? '#8a5f18' : '#443c36',
+                // Hidden under the resting handle, but shown again the moment the
+                // handle leaves it: that dot is where letting go would land.
+                background:
+                  !dragging && i === value - 1
+                    ? 'transparent'
+                    : i < value - 1
+                      ? '#8a5f18'
+                      : '#443c36',
               }}
             />
           ))}

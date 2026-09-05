@@ -1,28 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Database, Minus, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { DEFAULT_KEYS, type CanvasSurface } from '@calcflow/shared';
 import { GENERATORS } from '@calcflow/generators';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Eyebrow } from '@/components/Eyebrow';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
 import { cx } from '@/lib/cx';
 import { clockTime } from '@/lib/format';
-import { LATEX_KEYS, latexKey } from '@/lib/latexKeys';
-import { queuedCount } from '@/state/db';
+import { keyPool, resolveKeys } from '@/lib/latexKeys';
 import { useStore } from '@/state/store';
 
 const SURFACES: CanvasSurface[] = ['ruled', 'dots', 'blank'];
 
 export function Settings() {
   const settings = useStore((s) => s.settings);
-  const attempts = useStore((s) => s.attempts.length);
+  const queued = useStore((s) => s.queued);
   const store = useStore();
-  const [queued, setQueued] = useState(0);
-
-  useEffect(() => {
-    void queuedCount().then(setQueued);
-  }, []);
+  const [clearAsk, setClearAsk] = useState(false);
 
   return (
     <div className="flex h-full flex-col">
@@ -123,7 +119,7 @@ export function Settings() {
           </Row>
         </Group>
 
-        <Group title="HISTORY">
+        <Group title="LOCAL DATA">
           <Row label="Sample data" sub="a fake 400-attempt history for judging the stats screen">
             <button
               onClick={() => void store.loadSample()}
@@ -133,9 +129,16 @@ export function Settings() {
               Load
             </button>
           </Row>
-          <Row label="Clear history" sub={`${attempts} attempts on this device`}>
+          <Row
+            label="Clear local changes"
+            sub={
+              queued === 0
+                ? 'nothing waiting to be sent'
+                : `${queued} unsynced ${queued === 1 ? 'attempt' : 'attempts'}; synced history stays`
+            }
+          >
             <button
-              onClick={() => void store.clearAttempts()}
+              onClick={() => setClearAsk(true)}
               className="flex items-center gap-2 rounded-sm border border-strong bg-raised px-3 py-1.5 text-[13px] text-wrong-ink hover:border-wrong"
             >
               <Trash2 className="size-3.5" />
@@ -146,11 +149,7 @@ export function Settings() {
 
         <div className="mt-auto flex flex-col gap-2.5 pt-2">
           <button
-            onClick={() =>
-              store.showToast(
-                settings.backendUrl ? 'Sync lands with the backend' : 'Set a backend URL first',
-              )
-            }
+            onClick={store.syncNow}
             className="flex h-[50px] items-center justify-center gap-2.5 rounded-md border border-strong bg-overlay text-[15px]"
           >
             <RefreshCw className="size-4 text-correct" />
@@ -161,6 +160,23 @@ export function Settings() {
           </p>
         </div>
       </div>
+
+      <AnimatePresence>
+        {clearAsk && (
+          <ConfirmDialog
+            title="Clear local changes?"
+            body="Deletes every attempt on this device that the backend has not accepted yet. Anything already synced is untouched, and nothing on the server changes."
+            confirmLabel="Clear"
+            confirmWord="clear"
+            danger
+            onConfirm={() => {
+              setClearAsk(false);
+              void store.clearUnsynced();
+            }}
+            onCancel={() => setClearAsk(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -216,15 +232,40 @@ function TextField({
   );
 }
 
+const KEY_SPRING = { type: 'spring' as const, stiffness: 520, damping: 34 };
+/** Short on purpose: a key crosses the divider, it does not fly across the page. */
+const HOP = 14;
+
 /**
  * The notation row, edited in place: what is on it, in order, and what is left
- * to add. Everything a single tap, because this is a list he will fiddle with.
+ * to add. A key leaves each list towards the one it is joining, so the movement
+ * says where it went. Everything a single tap, because this is a list he will
+ * fiddle with.
  */
 function KeyEditor() {
   const keys = useStore((s) => s.settings.keys);
+  const custom = useStore((s) => s.settings.customKeys);
   const patchSettings = useStore((s) => s.patchSettings);
-  const chosen = keys.map(latexKey).filter((k) => k !== undefined);
-  const rest = LATEX_KEYS.filter((k) => !keys.includes(k.id));
+  const [face, setFace] = useState('');
+  const [insert, setInsert] = useState('');
+
+  const chosen = resolveKeys(keys, custom);
+  const rest = keyPool(custom).filter((k) => !keys.includes(k.id));
+  const customIds = new Set(custom.map((c) => c.id));
+
+  function addCustom() {
+    const tex = face.trim();
+    const body = insert.trim();
+    if (!tex || !body) return;
+    const id = `own-${Date.now().toString(36)}`;
+    patchSettings({ customKeys: [...custom, { id, tex, insert: body }], keys: [...keys, id] });
+    setFace('');
+    setInsert('');
+  }
+
+  function forget(id: string) {
+    patchSettings({ customKeys: custom.filter((c) => c.id !== id), keys: keys.filter((k) => k !== id) });
+  }
 
   return (
     <section className="flex flex-col gap-2">
@@ -246,11 +287,10 @@ function KeyEditor() {
             {chosen.map((key) => (
               <motion.button
                 key={key.id}
-                layout
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+                initial={{ opacity: 0, scale: 0.85, y: HOP }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: HOP }}
+                transition={KEY_SPRING}
                 onClick={() => patchSettings({ keys: keys.filter((id) => id !== key.id) })}
                 aria-label={`Remove ${key.name}`}
                 className="flex h-10 items-center gap-2 rounded-[10px] border border-accent bg-accent/10 px-3 text-[15px] text-ink"
@@ -270,26 +310,89 @@ function KeyEditor() {
         <div className="flex flex-wrap gap-1.5">
           <AnimatePresence initial={false} mode="popLayout">
             {rest.map((key) => (
-              <motion.button
+              <motion.div
                 key={key.id}
-                layout
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 34 }}
-                onClick={() => patchSettings({ keys: [...keys, key.id] })}
-                aria-label={`Add ${key.name}`}
-                className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-raised px-3 text-[15px] text-muted hover:border-accent hover:text-ink"
+                initial={{ opacity: 0, scale: 0.85, y: -HOP }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: -HOP }}
+                transition={KEY_SPRING}
+                className="flex h-10 items-center overflow-hidden rounded-[10px] border border-border bg-raised text-muted"
               >
-                <Tex>{key.tex}</Tex>
-                <Plus className="size-3 text-faint" />
-              </motion.button>
+                <button
+                  onClick={() => patchSettings({ keys: [...keys, key.id] })}
+                  aria-label={`Add ${key.name}`}
+                  className="flex h-full items-center gap-2 px-3 text-[15px] hover:text-ink"
+                >
+                  <Tex>{key.tex}</Tex>
+                  <Plus className="size-3 text-faint" />
+                </button>
+                {customIds.has(key.id) && (
+                  <button
+                    onClick={() => forget(key.id)}
+                    aria-label={`Delete the key for ${key.insert}`}
+                    className="grid h-full w-8 place-items-center border-l border-border hover:text-wrong-ink"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                )}
+              </motion.div>
             ))}
           </AnimatePresence>
-          {rest.length === 0 && (
-            <span className="py-2 text-[13px] text-faint">Every key is on the row.</span>
-          )}
+          {rest.length === 0 && <span className="py-2 text-[13px] text-faint">Every key is on the row.</span>}
         </div>
+
+        <div className="h-px bg-line" />
+
+        {/* His own keys: what the button shows, and what it types. */}
+        <div className="flex items-end gap-2">
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-[12px] text-faint">Key face</span>
+            <input
+              value={face}
+              onChange={(e) => setFace(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+              placeholder="\vec{a}"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="h-10 min-w-0 rounded-sm border border-border bg-well px-2.5 font-mono text-xs text-ink2 outline-none placeholder:text-ghost focus:border-accent"
+            />
+          </label>
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-[12px] text-faint">Types</span>
+            <input
+              value={insert}
+              onChange={(e) => setInsert(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+              placeholder="\vec{}"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="h-10 min-w-0 rounded-sm border border-border bg-well px-2.5 font-mono text-xs text-ink2 outline-none placeholder:text-ghost focus:border-accent"
+            />
+          </label>
+          <button
+            onClick={addCustom}
+            disabled={!face.trim() || !insert.trim()}
+            className={cx(
+              'grid h-10 w-10 shrink-0 place-items-center rounded-sm border transition-colors',
+              face.trim() && insert.trim()
+                ? 'border-accent bg-accent/15 text-accent'
+                : 'cursor-not-allowed border-border bg-raised text-ghost',
+            )}
+            aria-label="Add this key"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
+        {face.trim() && (
+          <div className="flex items-center gap-2.5 text-[13px] text-faint">
+            Preview
+            <span className="rounded-sm border border-border bg-raised px-2.5 py-1 text-[15px] text-ink">
+              <Tex>{face}</Tex>
+            </span>
+          </div>
+        )}
       </div>
     </section>
   );

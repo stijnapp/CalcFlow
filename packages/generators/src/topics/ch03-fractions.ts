@@ -81,10 +81,10 @@ export const rationalExpressions: Generator = {
       note: `x \\neq ${-k}.`,
       answers: [answer(result)],
       solution: [
-        step('notable-products', 'Factor the numerator', frac(`${paren(poly([[1, 1], [k, 0]]))}${paren(result)}`, poly([[1, 1], [k, 0]])), 'Difference of squares.'),
+        step('difference-of-squares', 'Factor the numerator', frac(`${paren(poly([[1, 1], [k, 0]]))}${paren(result)}`, poly([[1, 1], [k, 0]])), 'Difference of squares.'),
         step('fraction-simplify', 'Cancel the common factor', result),
       ],
-      ruleIds: ['fraction-simplify', 'notable-products'],
+      ruleIds: ['fraction-simplify', 'difference-of-squares'],
       verify: { kind: 'identity', of: prompt },
     };
   },

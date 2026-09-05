@@ -141,3 +141,17 @@ export async function clearQueue(ids: string[]): Promise<void> {
 export async function queuedIds(): Promise<string[]> {
   return (await db()).getAllKeys('syncQueue');
 }
+
+/**
+ * Drops attempts and their queue entries together. Only ever called with ids
+ * that are still queued, which is what makes "clear local changes" mean exactly
+ * that: anything the server has already accepted stays.
+ */
+export async function deleteAttempts(ids: string[]): Promise<void> {
+  const database = await db();
+  const tx = database.transaction(['attempts', 'syncQueue'], 'readwrite');
+  const attempts = tx.objectStore('attempts');
+  const queue = tx.objectStore('syncQueue');
+  await Promise.all(ids.flatMap((id) => [attempts.delete(id), queue.delete(id)]));
+  await tx.done;
+}

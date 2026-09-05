@@ -100,9 +100,9 @@ export const rationalise: Generator = {
             `${paren(`${rootOf(String(r))} ${b < 0 ? '-' : '+'} ${Math.abs(b)}`)}${paren(numerator)}`,
           ),
         ),
-        step('notable-products', 'Difference of squares', result, `The denominator becomes ${r} - ${b * b} = ${denominator}.`),
+        step('difference-of-squares', 'Difference of squares', result, `The denominator becomes ${r} - ${b * b} = ${denominator}.`),
       ],
-      ruleIds: ['rationalise', 'notable-products'],
+      ruleIds: ['rationalise', 'difference-of-squares'],
       verify: { kind: 'identity', of: prompt },
     };
   },

@@ -1,4 +1,3 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Eraser,
@@ -12,31 +11,30 @@ import {
   Type,
   Undo2,
 } from 'lucide-react';
-import { AnimatePresence, animate, motion, useDragControls, useMotionValue } from 'motion/react';
-import { chapterTitle } from '@calcflow/shared';
+import { AnimatePresence, motion } from 'motion/react';
 import { ScribbleCanvas } from '@/canvas/ScribbleCanvas';
 import { AnswerField } from '@/components/AnswerField';
 import { ConfidenceRow } from '@/components/ConfidenceRow';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackCard } from '@/components/FeedbackCard';
 import { HintPanel } from '@/components/HintPanel';
-import { LatexKeyRow } from '@/components/LatexKeyRow';
+import { PenWidth } from '@/components/PenWidth';
 import { ProblemCard } from '@/components/ProblemCard';
+import { ProgressDots } from '@/components/ProgressDots';
+import { Sheet, SHEET_PEEK } from '@/components/Sheet';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
 import { useStore } from '@/state/store';
 import { usePractice } from './usePractice';
 
 const CONFIDENCE_LABEL = { sure: 'sure', think: 'think so', guess: 'guessed' } as const;
-
-/** How much of the sheet stays on screen when it is down. */
-const PEEK = 34;
 const SPRING = { type: 'spring' as const, stiffness: 420, damping: 40 };
 
 /**
  * Stacked: problem on top, canvas in the middle, answer sheet pinned to the
- * bottom. The sheet sits over the canvas rather than shrinking it, so there is
- * always room to write.
+ * bottom. The sheet sits over the canvas rather than shrinking it, but the
+ * canvas still stops short of the bar it leaves behind, so the last line he
+ * writes is never hidden under it.
  */
 export function PracticePhone() {
   const session = useStore((s) => s.session)!;
@@ -46,8 +44,8 @@ export function PracticePhone() {
   const showToast = useStore((s) => s.showToast);
   const patchSettings = useStore((s) => s.patchSettings);
   const store = useStore();
-  const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } =
-    usePractice();
+  const practice = usePractice();
+  const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } = practice;
 
   const { problem, outcome } = session;
   const answered = outcome !== null;
@@ -57,11 +55,53 @@ export function PracticePhone() {
       ref={canvas}
       className="h-full w-full"
       tool={tool}
+      penWidth={settings.penWidth}
       penOnly={settings.penOnly}
       surface={settings.canvasSurface}
       problemKey={`${problem.generatorId}:${problem.seed}`}
       onToast={showToast}
     />
+  );
+
+  const penPicker = (
+    <AnimatePresence>
+      {practice.penMenu && tool === 'pen' && (
+        <PenWidth
+          key="pen-width"
+          width={settings.penWidth}
+          onChange={(penWidth) => patchSettings({ penWidth })}
+          className="absolute left-0 top-full mt-2"
+        />
+      )}
+    </AnimatePresence>
+  );
+
+  const dialogs = (
+    <>
+      <AnimatePresence>
+        {clearAsk && (
+          <ConfirmDialog
+            title="Clear the canvas?"
+            body="Every stroke on this problem goes. Undo can still bring them back until you move on."
+            confirmLabel="Clear"
+            onConfirm={confirmClear}
+            onCancel={() => setClearAsk(false)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {practice.leaveAsk && (
+          <ConfirmDialog
+            title="Leave this session?"
+            body="The problem you are on, its working and everything on the canvas are lost. Problems you have already submitted are kept."
+            confirmLabel="Leave"
+            danger
+            onConfirm={practice.confirmLeave}
+            onCancel={() => practice.setLeaveAsk(false)}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 
   if (fullscreen) {
@@ -84,14 +124,34 @@ export function PracticePhone() {
         <div className="relative min-h-0 flex-1">{canvasEl}</div>
 
         <div className="flex shrink-0 justify-center gap-2 px-4 pb-[22px] pt-3">
-          <PhoneTool active={tool === 'pen2'} onClick={() => setTool('pen2')} label="Pen">
-            <PenTool className="size-[18px]" />
-          </PhoneTool>
+          <div className="relative">
+            <PhoneTool active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
+              <PenTool className="size-[18px]" />
+            </PhoneTool>
+            <AnimatePresence>
+              {practice.penMenu && tool === 'pen' && (
+                <PenWidth
+                  key="pen-width"
+                  width={settings.penWidth}
+                  onChange={(penWidth) => patchSettings({ penWidth })}
+                  className="absolute bottom-full left-0 mb-2"
+                />
+              )}
+            </AnimatePresence>
+          </div>
           <PhoneTool active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser">
             <Eraser className="size-[18px]" />
           </PhoneTool>
           <PhoneTool active={tool === 'type'} onClick={() => setTool('type')} label="Type LaTeX">
             <Type className="size-[18px]" />
+          </PhoneTool>
+          <PhoneTool
+            tint
+            active={settings.penOnly}
+            onClick={() => patchSettings({ penOnly: !settings.penOnly })}
+            label="Pen-only mode"
+          >
+            <Hand className="size-[18px]" />
           </PhoneTool>
           <PhoneTool onClick={undo} label="Undo">
             <Undo2 className="size-[18px]" />
@@ -99,22 +159,12 @@ export function PracticePhone() {
           <PhoneTool onClick={redo} label="Redo">
             <Redo2 className="size-[18px]" />
           </PhoneTool>
-          <PhoneTool onClick={askClear} label="Clear">
+          <PhoneTool onClick={askClear} label="Clear the canvas">
             <Trash2 className="size-[18px]" />
           </PhoneTool>
         </div>
 
-        <AnimatePresence>
-          {clearAsk && (
-            <ConfirmDialog
-              title="Clear the canvas?"
-              body="Every stroke on this problem goes. Undo can still bring them back until you move on."
-              confirmLabel="Clear"
-              onConfirm={confirmClear}
-              onCancel={() => setClearAsk(false)}
-            />
-          )}
-        </AnimatePresence>
+        {dialogs}
       </div>
     );
   }
@@ -123,18 +173,16 @@ export function PracticePhone() {
     <div className="relative flex h-full flex-col overflow-hidden">
       <header className="flex shrink-0 items-center gap-2.5 px-4 pt-3">
         <button
-          onClick={store.endSession}
+          onClick={() => practice.setLeaveAsk(true)}
           aria-label="End this session"
-          className="grid size-8 place-items-center rounded-[10px] border border-border bg-card text-muted"
+          className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-border bg-card text-muted"
         >
           <ArrowLeft className="size-4" />
         </button>
-        <span className="rounded-full border border-border bg-card px-2.5 py-1 font-mono text-xs text-ink2">
+        <span className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1 font-mono text-xs text-ink2">
           {session.done.length + (answered ? 0 : 1)} / {session.target ?? '∞'}
         </span>
-        <span className="truncate rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] text-accent">
-          Ch {problem.chapter} · {chapterTitle(problem.chapter)}
-        </span>
+        <ProgressDots session={session} />
         {!answered && (
           <button
             onClick={() => store.setHintsOpen(true)}
@@ -150,13 +198,20 @@ export function PracticePhone() {
         <ProblemCard problem={problem} compact />
       </div>
 
-      <div className="relative mx-4 mb-4 mt-3 min-h-0 flex-1 overflow-hidden rounded-xl border border-edge">
+      {/* The canvas stops above the answer bar rather than behind it. */}
+      <div
+        className="relative mx-4 mt-3 min-h-0 flex-1 overflow-hidden rounded-xl border border-edge"
+        style={{ marginBottom: answered ? 16 : SHEET_PEEK + 12 }}
+      >
         {canvasEl}
         <div className="pointer-events-none absolute inset-x-3.5 top-3.5 flex justify-between">
           <div className="pointer-events-auto flex gap-1.5">
-            <PhoneTool small active={tool === 'pen2'} onClick={() => setTool('pen2')} label="Pen">
-              <PenTool className="size-[15px]" />
-            </PhoneTool>
+            <div className="relative">
+              <PhoneTool small active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
+                <PenTool className="size-[15px]" />
+              </PhoneTool>
+              {penPicker}
+            </div>
             <PhoneTool small active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser">
               <Eraser className="size-[15px]" />
             </PhoneTool>
@@ -168,6 +223,9 @@ export function PracticePhone() {
             </PhoneTool>
             <PhoneTool small onClick={redo} label="Redo">
               <Redo2 className="size-[15px]" />
+            </PhoneTool>
+            <PhoneTool small onClick={askClear} label="Clear the canvas">
+              <Trash2 className="size-[15px]" />
             </PhoneTool>
           </div>
           <div className="pointer-events-auto flex gap-1.5">
@@ -214,18 +272,19 @@ export function PracticePhone() {
           </button>
         </motion.div>
       ) : (
-        <AnswerSheet>
-          <AnswerField
-            specs={problem.answers}
-            values={session.answers}
-            activeField={session.activeField}
-            onFocusField={store.setActiveField}
-            onChange={store.setAnswer}
-            onSubmit={session.confidence === null ? undefined : store.submit}
-            state="editing"
-            compact
-          />
-          <LatexKeyRow compact />
+        <Sheet className="gap-3 px-4 pb-4">
+          <div className="scroll-y flex min-h-0 flex-1 flex-col gap-3">
+            <AnswerField
+              specs={problem.answers}
+              values={session.answers}
+              activeField={session.activeField}
+              onFocusField={store.setActiveField}
+              onChange={store.setAnswer}
+              onSubmit={session.confidence === null ? undefined : store.submit}
+              state="editing"
+              compact
+            />
+          </div>
           <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
           <button
             onClick={store.submit}
@@ -239,81 +298,13 @@ export function PracticePhone() {
           >
             {session.confidence === null ? 'Pick a confidence' : 'Submit'}
           </button>
-        </AnswerSheet>
+        </Sheet>
       )}
 
       <AnimatePresence>{session.hintsOpen && !answered && <HintPanel variant="sheet" />}</AnimatePresence>
 
-      <AnimatePresence>
-        {clearAsk && (
-          <ConfirmDialog
-            title="Clear the canvas?"
-            body="Every stroke on this problem goes. Undo can still bring them back until you move on."
-            confirmLabel="Clear"
-            onConfirm={confirmClear}
-            onCancel={() => setClearAsk(false)}
-          />
-        )}
-      </AnimatePresence>
+      {dialogs}
     </div>
-  );
-}
-
-/**
- * Two positions and nothing in between: down, where only the grab bar shows and
- * the canvas is his; or up, with the whole answer in reach. Dragging follows
- * the finger, and letting go picks the nearer of the two.
- */
-function AnswerSheet({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const controls = useDragControls();
-  const y = useMotionValue(0);
-  const [down, setDown] = useState(0);
-  const [open, setOpen] = useState(true);
-
-  useLayoutEffect(() => {
-    const el = ref.current!;
-    const ro = new ResizeObserver(() => setDown(Math.max(0, el.offsetHeight - PEEK)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const controls = animate(y, open ? 0 : down, SPRING);
-    return () => controls.stop();
-  }, [open, down, y]);
-
-  function settle(offset: number, velocity: number) {
-    const at = y.get();
-    const target = velocity > 500 ? false : velocity < -500 ? true : at < down / 2;
-    void offset;
-    setOpen(target);
-    animate(y, target ? 0 : down, SPRING);
-  }
-
-  return (
-    <motion.div
-      ref={ref}
-      style={{ y }}
-      drag="y"
-      dragListener={false}
-      dragControls={controls}
-      dragConstraints={{ top: 0, bottom: down }}
-      dragElastic={0.04}
-      onDragEnd={(_, info) => settle(info.offset.y, info.velocity.y)}
-      className="absolute inset-x-0 bottom-0 z-10 flex touch-none flex-col gap-3 rounded-t-3xl border-t border-border bg-card px-4 pb-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
-    >
-      {/* The bar is 4px; the target around it is not. */}
-      <button
-        onPointerDown={(e) => controls.start(e)}
-        onClick={() => setOpen((v) => !v)}
-        className="mx-auto flex h-[34px] w-24 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
-        aria-label={open ? 'Put the answer sheet down' : 'Bring the answer sheet up'}
-      >
-        <span className="h-1 w-11 rounded-full bg-rail" />
-      </button>
-      {children}
-    </motion.div>
   );
 }
 

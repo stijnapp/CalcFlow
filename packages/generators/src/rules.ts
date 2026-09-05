@@ -14,9 +14,16 @@ export const RULES: readonly RuleCard[] = [
   {
     id: 'notable-products',
     chapter: 2,
-    name: 'Notable products',
+    name: 'Squaring a binomial',
     tex: '(a\\pm b)^{2}=a^{2}\\pm 2ab+b^{2}',
-    note: 'And the difference of squares, (a+b)(a−b)=a²−b². The middle term is the one people drop.',
+    note: 'Square the first, twice the product, square the last. The middle term is the one people drop.',
+  },
+  {
+    id: 'difference-of-squares',
+    chapter: 2,
+    name: 'Difference of squares',
+    tex: '(a+b)(a-b)=a^{2}-b^{2}',
+    note: 'The two middle terms cancel, which is what makes it worth spotting rather than expanding.',
   },
   {
     id: 'power-rules',

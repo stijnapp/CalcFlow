@@ -42,11 +42,10 @@ export function RuleCardModal() {
               compact ? 'gap-3 rounded-2xl p-4' : 'max-w-[560px] gap-4 rounded-3xl p-[30px]',
             )}
           >
-            <div className={cx('flex gap-3', compact ? 'flex-wrap items-baseline' : 'items-center')}>
-              <span className="font-mono text-[11px] tracking-[0.12em] text-accent">
-                CH {rule.chapter} · RULE CARD
-              </span>
-              <h2 className={cx('font-semibold', compact ? 'text-[17px]' : 'text-[21px]')}>{rule.name}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className={cx('min-w-0 font-semibold', compact ? 'text-[17px]' : 'text-[21px]')}>
+                {rule.name}
+              </h2>
               <button
                 onClick={() => setOpenRule(null)}
                 aria-label="Close"

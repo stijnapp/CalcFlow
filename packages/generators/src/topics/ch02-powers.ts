@@ -55,8 +55,8 @@ export const notableProducts: Generator = {
       instruction: 'Expand and simplify',
       prompt,
       answers: [answer(result)],
-      solution: [step('notable-products', 'Difference of squares', result, 'The middle terms cancel.')],
-      ruleIds: ['notable-products'],
+      solution: [step('difference-of-squares', 'Difference of squares', result, 'The middle terms cancel.')],
+      ruleIds: ['difference-of-squares'],
       verify: { kind: 'identity', of: prompt },
     };
   },

@@ -1,3 +1,5 @@
+import type { CustomKey } from '@calcflow/shared';
+
 export interface LatexKey {
   id: string;
   /** Rendered on the key itself. */
@@ -13,27 +15,31 @@ export interface LatexKey {
 /**
  * Everything that is a chore to type by hand. Single characters (x, 2, +) are
  * left to the keyboard he already has.
+ *
+ * Key faces spell their placeholders as ordinary letters rather than `\square`:
+ * a row of empty boxes reads as glyphs that failed to load, which is exactly
+ * the wrong first impression for a key that is about to type real notation.
  */
 export const LATEX_KEYS: readonly LatexKey[] = [
-  { id: 'frac', name: 'fraction', tex: '\\frac{\\square}{\\square}', insert: '\\frac{}{}' },
-  { id: 'sqrt', name: 'square root', tex: '\\sqrt{\\square}', insert: '\\sqrt{}' },
-  { id: 'nthroot', name: 'nth root', tex: '\\sqrt[n]{\\square}', insert: '\\sqrt[]{}' },
-  { id: 'power', name: 'exponent', tex: '\\square^{n}', insert: '^{}' },
-  { id: 'sub', name: 'subscript', tex: '\\square_{n}', insert: '_{}' },
+  { id: 'frac', name: 'fraction', tex: '\\frac{a}{b}', insert: '\\frac{}{}' },
+  { id: 'sqrt', name: 'square root', tex: '\\sqrt{a}', insert: '\\sqrt{}' },
+  { id: 'nthroot', name: 'nth root', tex: '\\sqrt[n]{a}', insert: '\\sqrt[]{}' },
+  { id: 'power', name: 'exponent', tex: 'a^{n}', insert: '^{}' },
+  { id: 'sub', name: 'subscript', tex: 'a_{n}', insert: '_{}' },
   { id: 'ddx', name: 'derivative', tex: '\\frac{d}{dx}', insert: '\\frac{d}{dx}' },
   { id: 'dydx', name: 'dy/dx', tex: '\\frac{dy}{dx}', insert: '\\frac{dy}{dx}' },
-  { id: 'integral', name: 'integral', tex: '\\int\\square\\,dx', insert: '\\int \\, dx', caretAt: 4 },
-  { id: 'defint', name: 'definite integral', tex: '\\int_a^b', insert: '\\int_{}^{}', caretAt: 6 },
+  { id: 'integral', name: 'integral', tex: '\\int a\\,dx', insert: '\\int \\, dx', caretAt: 4 },
+  { id: 'defint', name: 'definite integral', tex: '\\int_{a}^{b}', insert: '\\int_{}^{}', caretAt: 6 },
   { id: 'lim', name: 'limit', tex: '\\lim_{x \\to 0}', insert: '\\lim_{x \\to }', caretAt: 12 },
-  { id: 'sum', name: 'sum', tex: '\\sum_{n}^{}', insert: '\\sum_{}^{}', caretAt: 6 },
-  { id: 'ln', name: 'natural log', tex: '\\ln', insert: '\\ln()', caretAt: 4 },
-  { id: 'log', name: 'log base n', tex: '\\log_{n}', insert: '\\log_{}()', caretAt: 6 },
+  { id: 'sum', name: 'sum', tex: '\\sum_{n}^{k}', insert: '\\sum_{}^{}', caretAt: 6 },
+  { id: 'ln', name: 'natural log', tex: '\\ln(a)', insert: '\\ln()', caretAt: 4 },
+  { id: 'log', name: 'log base n', tex: '\\log_{n}(a)', insert: '\\log_{}()', caretAt: 6 },
   { id: 'exp', name: 'e to the x', tex: 'e^{x}', insert: 'e^{}' },
   { id: 'sin', name: 'sine', tex: '\\sin', insert: '\\sin()', caretAt: 5 },
   { id: 'cos', name: 'cosine', tex: '\\cos', insert: '\\cos()', caretAt: 5 },
   { id: 'tan', name: 'tangent', tex: '\\tan', insert: '\\tan()', caretAt: 5 },
-  { id: 'abs', name: 'absolute value', tex: '|\\square|', insert: '\\left|\\right|', caretAt: 6 },
-  { id: 'paren', name: 'brackets', tex: '(\\square)', insert: '()', caretAt: 1 },
+  { id: 'abs', name: 'absolute value', tex: '|a|', insert: '\\left|\\right|', caretAt: 6 },
+  { id: 'paren', name: 'brackets', tex: '(a)', insert: '()', caretAt: 1 },
   { id: 'pi', name: 'pi', tex: '\\pi', insert: '\\pi' },
   { id: 'theta', name: 'theta', tex: '\\theta', insert: '\\theta' },
   { id: 'infty', name: 'infinity', tex: '\\infty', insert: '\\infty' },
@@ -46,8 +52,23 @@ export const LATEX_KEYS: readonly LatexKey[] = [
 
 const BY_ID = new Map(LATEX_KEYS.map((key) => [key.id, key]));
 
-export function latexKey(id: string): LatexKey | undefined {
-  return BY_ID.get(id);
+/** His own keys join the same pool, so nothing downstream has to know which. */
+export function asLatexKey(custom: CustomKey): LatexKey {
+  return { id: custom.id, name: custom.insert, tex: custom.tex, insert: custom.insert };
+}
+
+export function keyPool(custom: readonly CustomKey[]): LatexKey[] {
+  return [...LATEX_KEYS, ...custom.map(asLatexKey)];
+}
+
+export function latexKey(id: string, custom: readonly CustomKey[] = []): LatexKey | undefined {
+  const own = custom.find((c) => c.id === id);
+  return own ? asLatexKey(own) : BY_ID.get(id);
+}
+
+/** The ids on the row, resolved and in order, skipping anything since deleted. */
+export function resolveKeys(ids: readonly string[], custom: readonly CustomKey[]): LatexKey[] {
+  return ids.map((id) => latexKey(id, custom)).filter((k) => k !== undefined);
 }
 
 const EMPTY_PAIR = /\{\}|\[\]|\(\)/;

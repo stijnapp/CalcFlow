@@ -4,6 +4,8 @@ import { motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import { useBackDismiss } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
+import { LatexField } from './LatexField';
+import { Sheet } from './Sheet';
 import { Tex } from './Tex';
 import { buildRungs } from './hints';
 
@@ -17,43 +19,58 @@ interface Props {
 export function HintPanel({ variant }: Props) {
   const session = useStore((s) => s.session);
   const setHintsOpen = useStore((s) => s.setHintsOpen);
-  const revealRung = useStore((s) => s.revealRung);
-  const checkOnTrack = useStore((s) => s.checkOnTrack);
-  const setOpenRule = useStore((s) => s.setOpenRule);
-  const [line, setLine] = useState('');
-  const panel = variant === 'panel';
   useBackDismiss(true, () => setHintsOpen(false));
-
   if (!session) return null;
-  const rungs = buildRungs(session.problem);
-  const shown = session.rung;
+
+  const close = () => setHintsOpen(false);
+
+  if (variant === 'sheet') {
+    return (
+      <Sheet closeable onClose={close} restHeight={0.72} className="px-0">
+        <Body panel={false} onClose={close} />
+      </Sheet>
+    );
+  }
 
   return (
     <motion.div
       /* The tablet panel belongs to the right-hand column, so it arrives from
          that edge; the phone sheet still comes up from the thumb. */
-      initial={panel ? { x: '100%' } : { y: '100%' }}
-      animate={panel ? { x: 0 } : { y: 0 }}
-      exit={panel ? { x: '100%' } : { y: '100%' }}
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
       transition={SPRING}
-      className={cx(
-        'z-20 flex flex-col border-strong bg-raised',
-        panel
-          ? 'absolute inset-y-0 right-0 w-[38%] border-l shadow-[-30px_0_60px_-20px_rgba(0,0,0,0.6)]'
-          : 'absolute inset-x-0 bottom-0 h-[78%] rounded-t-4xl border-t shadow-[0_-30px_60px_-20px_rgba(0,0,0,0.6)]',
-      )}
+      className="absolute inset-y-0 right-0 z-20 flex w-[38%] flex-col border-l border-strong bg-raised shadow-[-30px_0_60px_-20px_rgba(0,0,0,0.6)]"
     >
-      {variant === 'sheet' && (
-        <div className="grid place-items-center pt-3">
-          <div className="h-1 w-11 rounded-full bg-rail" />
-        </div>
-      )}
+      <Body panel onClose={close} />
+    </motion.div>
+  );
+}
 
-      <div className="flex items-center gap-3 border-b border-soft px-6 py-[18px]">
+function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
+  const session = useStore((s) => s.session)!;
+  const revealRung = useStore((s) => s.revealRung);
+  const checkOnTrack = useStore((s) => s.checkOnTrack);
+  const setOpenRule = useStore((s) => s.setOpenRule);
+  const [line, setLine] = useState('');
+
+  const rungs = buildRungs(session.problem);
+  const shown = Math.min(session.rung, rungs.length);
+
+  return (
+    <>
+      <div
+        className={cx(
+          'flex shrink-0 items-center gap-3 border-b border-soft',
+          panel ? 'px-6 py-[18px]' : 'px-4 py-3',
+        )}
+      >
         <h2 className="text-[18px] font-semibold">Hints</h2>
-        <span className="font-mono text-xs text-faint">RUNG {shown} / 4</span>
+        <span className="font-mono text-xs text-faint">
+          RUNG {shown} / {rungs.length}
+        </span>
         <button
-          onClick={() => setHintsOpen(false)}
+          onClick={onClose}
           aria-label="Close hints"
           className="ml-auto grid size-8 place-items-center rounded-[9px] bg-overlay text-muted hover:text-ink"
         >
@@ -67,7 +84,9 @@ export function HintPanel({ variant }: Props) {
           return (
             <motion.div
               key={rung.num}
-              layout
+              /* Position only: animating the box itself scales its contents,
+                 which is what was squashing the button at the end of the list. */
+              layout="position"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: open ? 1 : 0.5, y: 0 }}
               transition={{ ...SPRING, delay: i * 0.04 }}
@@ -114,11 +133,11 @@ export function HintPanel({ variant }: Props) {
           );
         })}
 
-        {shown < 4 && (
+        {shown < rungs.length && (
           <motion.button
-            layout
+            layout="position"
             whileTap={{ scale: 0.98 }}
-            onClick={revealRung}
+            onClick={() => revealRung(rungs.length)}
             className="grid h-12 min-h-[48px] shrink-0 place-items-center rounded-md border border-dashed border-rail px-3 text-sm font-medium text-accent hover:bg-overlay"
           >
             Reveal {rungs[shown]!.title.toLowerCase()}
@@ -128,7 +147,7 @@ export function HintPanel({ variant }: Props) {
 
       <div
         className={cx(
-          'flex shrink-0 flex-col gap-3 border-t border-soft bg-sunken pb-[22px] pt-[18px]',
+          'flex shrink-0 flex-col gap-2.5 border-t border-soft bg-sunken pb-[22px] pt-[18px]',
           panel ? 'px-6' : 'px-4',
         )}
       >
@@ -136,22 +155,22 @@ export function HintPanel({ variant }: Props) {
           <h3 className="text-sm font-medium">Am I still on track?</h3>
           <span className="text-xs text-faint">type any line from your working</span>
         </div>
-        <div className="flex gap-2">
-          <input
-            value={line}
-            onChange={(e) => setLine(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && checkOnTrack(line)}
-            placeholder="\frac{1}{2\sqrt{x}}"
-            className="min-w-0 flex-1 rounded-sm border border-border bg-well px-4 font-mono text-[13px] text-ink2 outline-none placeholder:text-ghost focus:border-accent"
-            style={{ height: 48 }}
-          />
-          <button
-            onClick={() => checkOnTrack(line)}
-            className="w-[108px] shrink-0 rounded-sm border border-strong bg-overlay text-sm hover:border-accent"
-          >
-            Check
-          </button>
-        </div>
+        <LatexField
+          value={line}
+          onChange={setLine}
+          onSubmit={() => checkOnTrack(line)}
+          placeholder="\frac{1}{2\sqrt{x}}"
+          ariaLabel="A line from your working"
+          compact={!panel}
+          trailing={
+            <button
+              onClick={() => checkOnTrack(line)}
+              className="h-8 shrink-0 rounded-[9px] border border-strong bg-overlay px-3 text-[13px] hover:border-accent"
+            >
+              Check
+            </button>
+          }
+        />
 
         {session.onTrack === 'yes' && (
           <div className="flex items-center gap-2.5 rounded-sm border border-correct/30 bg-correct/10 px-3.5 py-2.5">
@@ -170,6 +189,6 @@ export function HintPanel({ variant }: Props) {
           </div>
         )}
       </div>
-    </motion.div>
+    </>
   );
 }

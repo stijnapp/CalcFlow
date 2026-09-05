@@ -1,6 +1,5 @@
 import { ArrowLeft, Lightbulb } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { chapterTitle } from '@calcflow/shared';
 import { ScribbleCanvas } from '@/canvas/ScribbleCanvas';
 import { AnswerField } from '@/components/AnswerField';
 import { ConfidenceRow } from '@/components/ConfidenceRow';
@@ -8,8 +7,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Eyebrow } from '@/components/Eyebrow';
 import { FeedbackCard } from '@/components/FeedbackCard';
 import { HintPanel } from '@/components/HintPanel';
-import { LatexKeyRow } from '@/components/LatexKeyRow';
 import { ProblemCard } from '@/components/ProblemCard';
+import { ProgressDots } from '@/components/ProgressDots';
 import { RulesUsed } from '@/components/RulesUsed';
 import { ToolRail } from '@/components/ToolRail';
 import { cx } from '@/lib/cx';
@@ -28,13 +27,12 @@ export function PracticeTablet() {
   const settings = useStore((s) => s.settings);
   const showToast = useStore((s) => s.showToast);
   const patchSettings = useStore((s) => s.patchSettings);
-  const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } =
-    usePractice();
+  const practice = usePractice();
+  const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } = practice;
 
   const store = useStore();
   const { problem, outcome } = session;
   const answered = outcome !== null;
-  const total = session.target ?? session.done.length + 1;
 
   return (
     <div className="relative flex h-full overflow-hidden">
@@ -42,6 +40,10 @@ export function PracticeTablet() {
         <ToolRail
           tool={tool}
           onTool={setTool}
+          penWidth={settings.penWidth}
+          onPenWidth={(penWidth) => patchSettings({ penWidth })}
+          penMenu={practice.penMenu}
+          onClosePenMenu={() => practice.setPenMenu(false)}
           penOnly={settings.penOnly}
           onPenOnly={(penOnly) => patchSettings({ penOnly })}
           onUndo={undo}
@@ -52,6 +54,7 @@ export function PracticeTablet() {
           ref={canvas}
           className="flex-1"
           tool={tool}
+          penWidth={settings.penWidth}
           penOnly={settings.penOnly}
           surface={settings.canvasSurface}
           problemKey={`${problem.generatorId}:${problem.seed}`}
@@ -62,32 +65,25 @@ export function PracticeTablet() {
       <div className="flex min-w-0 flex-1 flex-col border-l border-edge bg-page">
         <header className="flex items-center gap-3 px-[26px] pt-[22px]">
           <button
-            onClick={store.endSession}
+            onClick={() => practice.setLeaveAsk(true)}
             aria-label="End this session"
-            className="grid size-9 place-items-center rounded-md border border-border bg-card text-muted hover:text-ink"
+            className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card text-muted hover:text-ink"
           >
             <ArrowLeft className="size-4" />
           </button>
-          <span className="rounded-full border border-border bg-card px-3.5 py-1.5 font-mono text-sm text-ink2">
+          <span className="shrink-0 rounded-full border border-border bg-card px-3.5 py-1.5 font-mono text-sm text-ink2">
             {session.done.length + (answered ? 0 : 1)} / {session.target ?? '∞'}
           </span>
-          <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-[13px] text-accent">
-            Ch {problem.chapter} · {chapterTitle(problem.chapter)}
-          </span>
-          <div className="ml-auto flex gap-1">
-            {Array.from({ length: Math.min(total, 10) }, (_, i) => {
-              const item = session.done[i];
-              return (
-                <span
-                  key={i}
-                  className={cx(
-                    'size-[7px] rounded-full',
-                    item === undefined ? 'bg-border' : item.correct ? 'bg-correct' : 'bg-wrong',
-                  )}
-                />
-              );
-            })}
-          </div>
+          <ProgressDots session={session} />
+          {!answered && (
+            <button
+              onClick={() => store.setHintsOpen(true)}
+              className="ml-auto flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 hover:border-accent"
+            >
+              <Lightbulb className="size-4 text-accent" />
+              <span className="text-[13px] text-ink2">Hint</span>
+            </button>
+          )}
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pb-[22px] pt-5">
@@ -117,15 +113,6 @@ export function PracticeTablet() {
             </>
           ) : (
             <>
-              <button
-                onClick={() => store.setHintsOpen(true)}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card px-[18px] py-3.5 text-left hover:border-accent"
-              >
-                <Lightbulb className="size-[17px] text-accent" />
-                <span className="text-[15px] font-medium">Stuck? Show a hint</span>
-                <span className="ml-auto font-mono text-xs text-faint">4 RUNGS</span>
-              </button>
-
               <div className="flex flex-col gap-2.5">
                 <Eyebrow>YOUR ANSWER</Eyebrow>
                 <AnswerField
@@ -137,11 +124,6 @@ export function PracticeTablet() {
                   onSubmit={session.confidence === null ? undefined : store.submit}
                   state="editing"
                 />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Eyebrow>NOTATION</Eyebrow>
-                <LatexKeyRow />
               </div>
 
               <div className="mt-auto flex flex-col gap-3">
@@ -175,6 +157,19 @@ export function PracticeTablet() {
             confirmLabel="Clear"
             onConfirm={confirmClear}
             onCancel={() => setClearAsk(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {practice.leaveAsk && (
+          <ConfirmDialog
+            title="Leave this session?"
+            body="The problem you are on, its working and everything on the canvas are lost. Problems you have already submitted are kept."
+            confirmLabel="Leave"
+            danger
+            onConfirm={practice.confirmLeave}
+            onCancel={() => practice.setLeaveAsk(false)}
           />
         )}
       </AnimatePresence>

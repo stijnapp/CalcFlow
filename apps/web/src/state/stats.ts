@@ -36,8 +36,6 @@ export interface Stats {
   studyNext: ChapterStat | null;
   /** Right but slow — fluency practice rather than error correction. */
   buildSpeed: ChapterStat | null;
-  /** Consecutive days with at least one attempt, counting back from today. */
-  streak: number;
 }
 
 /** Only the recent past says anything about where he stands now. */
@@ -95,7 +93,6 @@ export function computeStats(attempts: Attempt[]): Stats {
     matrix,
     studyNext,
     buildSpeed,
-    streak: streakOf(attempts),
   };
 }
 
@@ -105,20 +102,6 @@ function speedOf(chapterMedian: number, overallMedian: number): Speed {
   if (ratio < 0.8) return 'fast';
   if (ratio > 1.25) return 'slow';
   return 'par';
-}
-
-function streakOf(attempts: Attempt[]): number {
-  if (attempts.length === 0) return 0;
-  const days = new Set(attempts.map((a) => new Date(a.ts).toDateString()));
-  let streak = 0;
-  const cursor = new Date();
-  // Today not being practised yet does not break yesterday's streak.
-  if (!days.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
-  while (days.has(cursor.toDateString())) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
 }
 
 /** Chapters ranked worst-first, for the "drill weak spots" session. */

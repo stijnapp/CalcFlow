@@ -11,12 +11,13 @@ import {
 import { Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { CanvasSurface } from '@calcflow/shared';
+import { LatexField } from '@/components/LatexField';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
 import { RULE_SPACING, Surface, type StrokePoint, type TexBlock } from './strokes';
 import { TapDetector } from './gestures';
 
-export type CanvasTool = 'pen1' | 'pen2' | 'eraser' | 'type';
+export type CanvasTool = 'pen' | 'eraser' | 'type';
 
 export interface CanvasHandle {
   undo(): void;
@@ -27,6 +28,7 @@ export interface CanvasHandle {
 
 interface Props {
   tool: CanvasTool;
+  penWidth: number;
   penOnly: boolean;
   surface: CanvasSurface;
   /** Changes when the problem does; strokes are discarded, not persisted. */
@@ -35,17 +37,20 @@ interface Props {
   className?: string;
 }
 
-const PEN_WIDTH: Record<string, number> = { pen1: 3.2, pen2: 6.4 };
 const SPRING = { type: 'spring' as const, stiffness: 480, damping: 36 };
 /** Roughly a block's height, so one hanging off the end still extends the surface. */
 const BLOCK_HEIGHT = 56;
+/** Per millisecond; a flick below this is a scroll that simply stopped. */
+const FLING_MIN = 0.06;
+/** Fraction of the fling speed left after a millisecond of coasting. */
+const FLING_DECAY = 0.9965;
 
 /**
  * A fixed viewport onto an infinitely tall surface. The page never scrolls —
  * he pans within the canvas instead.
  */
 const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanvas(
-  { tool, penOnly, surface, problemKey, onToast, className },
+  { tool, penWidth, penOnly, surface, problemKey, onToast, className },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -59,6 +64,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const erasingRef = useRef(false);
   const penDownRef = useRef(false);
   const frameRef = useRef(0);
+  /** Pan speed in px/ms, kept alive after the finger leaves. */
+  const flingRef = useRef({ v: 0, at: 0, frame: 0 });
 
   const [panY, setPanY] = useState(0);
   const [viewH, setViewH] = useState(0);
@@ -140,6 +147,38 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     [schedulePaint],
   );
 
+  // ------------------------------------------------------------------ momentum
+
+  const stopFling = useCallback(() => {
+    cancelAnimationFrame(flingRef.current.frame);
+    flingRef.current.frame = 0;
+    flingRef.current.v = 0;
+  }, []);
+
+  /** Coasts on after the finger leaves, so a long derivation is one flick away. */
+  const startFling = useCallback(() => {
+    const state = flingRef.current;
+    if (Math.abs(state.v) < FLING_MIN) return;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(48, now - last);
+      last = now;
+      state.v *= FLING_DECAY ** dt;
+      const next = panRef.current + state.v * dt;
+      setPan(next);
+      // Hitting the top is a wall, not a bounce.
+      if (next <= 0 || Math.abs(state.v) < 0.015) {
+        state.frame = 0;
+        state.v = 0;
+        return;
+      }
+      state.frame = requestAnimationFrame(tick);
+    };
+    state.frame = requestAnimationFrame(tick);
+  }, [setPan]);
+
+  useEffect(() => stopFling, [stopFling]);
+
   const toWorld = useCallback((e: { clientX: number; clientY: number }): StrokePoint => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top + panRef.current, p: 1 };
@@ -181,13 +220,17 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
   function onPointerDown(e: ReactPointerEvent<HTMLCanvasElement>) {
     canvasRef.current?.setPointerCapture(e.pointerId);
+    stopFling();
 
     if (e.pointerType === 'touch') {
       tapsRef.current.down(e.pointerId, e.clientX, e.clientY);
       if (penDownRef.current) tapsRef.current.abort();
       if (penOnly) {
         // Finger pans instead of drawing; that is what keeps the palm harmless.
-        if (tapsRef.current.activeCount === 1) panFromRef.current = { y: e.clientY, pan: panRef.current };
+        if (tapsRef.current.activeCount === 1) {
+          panFromRef.current = { y: e.clientY, pan: panRef.current };
+          flingRef.current.at = e.timeStamp;
+        }
         return;
       }
     }
@@ -197,6 +240,12 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     }
 
     if (tool === 'type') {
+      // A line in progress is settled by the next tap; only then does the tap
+      // after it start a new one, on the line he touched.
+      if (active && active.latex.trim() !== '') {
+        deselect();
+        return;
+      }
       const p = toWorld(e);
       placeBlock(p.x, Math.round(p.y / RULE_SPACING) * RULE_SPACING);
       return;
@@ -210,7 +259,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
     const point = toWorld(e);
     point.p = pressure(e);
-    surfaceRef.current.begin(point, PEN_WIDTH[tool] ?? 3.2);
+    surfaceRef.current.begin(point, penWidth);
     drawingRef.current = true;
     schedulePaint();
   }
@@ -220,7 +269,17 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       tapsRef.current.move(e.pointerId, e.clientX, e.clientY);
       if (penOnly) {
         const from = panFromRef.current;
-        if (from && tapsRef.current.activeCount === 1) setPan(from.pan - (e.clientY - from.y));
+        if (from && tapsRef.current.activeCount === 1) {
+          const next = from.pan - (e.clientY - from.y);
+          const dt = e.timeStamp - flingRef.current.at;
+          // Blended rather than sampled, so one jittery frame cannot throw it.
+          if (dt > 0) {
+            const v = (Math.max(0, next) - panRef.current) / dt;
+            flingRef.current.v = flingRef.current.v * 0.6 + v * 0.4;
+            flingRef.current.at = e.timeStamp;
+          }
+          setPan(next);
+        }
         return;
       }
     }
@@ -248,8 +307,12 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
   function onPointerUp(e: ReactPointerEvent<HTMLCanvasElement>) {
     if (e.pointerType === 'touch') {
+      const panned = panFromRef.current !== null;
       const fingers = tapsRef.current.up(e.pointerId);
       panFromRef.current = null;
+      // A pause before letting go means he stopped on purpose.
+      if (panned && e.timeStamp - flingRef.current.at < 90) startFling();
+      else flingRef.current.v = 0;
       // Every gesture confirms itself: a tap that failed the movement threshold
       // is otherwise indistinguishable from an undo with nothing left to undo.
       if (fingers >= 3) redo();
@@ -281,6 +344,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   }
 
   function onWheel(e: React.WheelEvent) {
+    stopFling();
     setPan(panRef.current + e.deltaY);
   }
 
@@ -424,57 +488,35 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       </AnimatePresence>
 
       {tool === 'type' && (
-        <div className="absolute inset-x-4 bottom-12 flex flex-col items-start gap-2">
-          {/* The block itself may be anywhere on the surface, so the line being
-              typed is also shown right above the keys. */}
-          <AnimatePresence>
-            {active && active.latex.trim() !== '' && (
-              <motion.div
-                key="preview"
-                initial={{ opacity: 0, y: 10, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.97 }}
-                transition={SPRING}
-                className="scroll-x max-w-full rounded-md border border-accent/40 bg-overlay px-4 py-2.5 text-[22px] shadow-[0_16px_40px_-16px_#000]"
-              >
-                <Tex>{active.latex}</Tex>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex w-full items-center gap-3 rounded-md border border-strong bg-sunken px-4 py-3 shadow-[0_16px_40px_-16px_#000]">
-            <span className="shrink-0 font-mono text-[10px] tracking-[0.1em] text-accent">LATEX</span>
-            <input
-              ref={inputRef}
-              value={active?.latex ?? ''}
-              onChange={(e) => editActive(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') deselect();
-                if (e.key === 'Escape') deleteActive();
-              }}
-              placeholder="\frac{d}{dx}\ln(x)"
-              className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-ink2 outline-none placeholder:text-ghost"
-            />
-            {active && (
-              <button
-                onClick={deleteActive}
-                aria-label="Delete this block"
-                className="grid size-8 shrink-0 place-items-center rounded-[9px] border border-strong bg-raised text-muted hover:text-wrong-ink"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            )}
-          </div>
+        <div className="absolute inset-x-3 bottom-3 rounded-lg shadow-[0_18px_44px_-16px_#000]">
+          <LatexField
+            fieldRef={inputRef}
+            value={active?.latex ?? ''}
+            onChange={editActive}
+            onSubmit={deselect}
+            placeholder="\frac{d}{dx}\ln(x)"
+            ariaLabel="The line you are placing on the canvas"
+            compact
+            trailing={
+              active && (
+                <button
+                  onClick={deleteActive}
+                  aria-label="Delete this block"
+                  className="grid size-7 shrink-0 place-items-center rounded-[9px] border border-strong bg-raised text-muted hover:text-wrong-ink"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )
+            }
+          />
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-4 left-4 font-mono text-[11px] tracking-[0.08em] text-ghost">
-        {tool === 'type'
-          ? 'TYPING MATH · DRAG A BLOCK TO MOVE IT'
-          : penOnly
-            ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES'
-            : 'FINGER DRAWS · 2-FINGER TAP UNDOES'}
-      </div>
+      {tool !== 'type' && (
+        <div className="pointer-events-none absolute bottom-4 left-4 font-mono text-[11px] tracking-[0.08em] text-ghost">
+          {penOnly ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES' : 'FINGER DRAWS · 2-FINGER TAP UNDOES'}
+        </div>
+      )}
     </div>
   );
 });

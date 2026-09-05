@@ -1,11 +1,16 @@
-import { Eraser, Hand, PenTool, Pencil, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Eraser, Hand, PenTool, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import type { CanvasTool } from '@/canvas/ScribbleCanvas';
+import { PenWidth } from './PenWidth';
 
 interface Props {
   tool: CanvasTool;
   onTool(tool: CanvasTool): void;
+  penWidth: number;
+  onPenWidth(next: number): void;
+  penMenu: boolean;
+  onClosePenMenu(): void;
   penOnly: boolean;
   onPenOnly(next: boolean): void;
   onUndo(): void;
@@ -13,26 +18,35 @@ interface Props {
   onClear(): void;
 }
 
-const TOOLS: Array<{ id: CanvasTool; icon: typeof Pencil; label: string }> = [
-  { id: 'pen1', icon: Pencil, label: 'Thin pen' },
-  { id: 'pen2', icon: PenTool, label: 'Thick pen' },
-  { id: 'eraser', icon: Eraser, label: 'Eraser' },
-  { id: 'type', icon: Type, label: 'Type LaTeX' },
-];
-
 /**
  * The S-Pen button is not readable from a web page on either target device, so
  * the eraser is a rail toggle with a persistent active state — the primary way
- * to erase, not a fallback.
+ * to erase, not a fallback. One pen, whose width lives behind a second tap.
  */
-export function ToolRail({ tool, onTool, penOnly, onPenOnly, onUndo, onRedo, onClear }: Props) {
+export function ToolRail({
+  tool,
+  onTool,
+  penWidth,
+  onPenWidth,
+  penMenu,
+  onClosePenMenu,
+  penOnly,
+  onPenOnly,
+  onUndo,
+  onRedo,
+  onClear,
+}: Props) {
   return (
-    <div className="flex w-[62px] shrink-0 flex-col items-center gap-2 border-r border-edge bg-card py-4">
-      {TOOLS.map(({ id, icon: Icon, label }) => (
-        <RailButton key={id} label={label} active={tool === id} onClick={() => onTool(id)}>
-          <Icon className="size-[17px]" />
-        </RailButton>
-      ))}
+    <div className="relative flex w-[62px] shrink-0 flex-col items-center gap-2 border-r border-edge bg-card py-4">
+      <RailButton label="Pen" active={tool === 'pen'} onClick={() => onTool('pen')}>
+        <PenTool className="size-[17px]" />
+      </RailButton>
+      <RailButton label="Eraser" active={tool === 'eraser'} onClick={() => onTool('eraser')}>
+        <Eraser className="size-[17px]" />
+      </RailButton>
+      <RailButton label="Type LaTeX" active={tool === 'type'} onClick={() => onTool('type')}>
+        <Type className="size-[17px]" />
+      </RailButton>
 
       <div className="my-1 h-px w-7 bg-border" />
 
@@ -51,6 +65,24 @@ export function ToolRail({ tool, onTool, penOnly, onPenOnly, onUndo, onRedo, onC
           <Hand className="size-4" />
         </RailButton>
       </div>
+
+      {penMenu && tool === 'pen' && (
+        <button
+          aria-label="Close the width picker"
+          onClick={onClosePenMenu}
+          className="fixed inset-0 z-20 cursor-default"
+        />
+      )}
+      <AnimatePresence>
+        {penMenu && tool === 'pen' && (
+          <PenWidth
+            key="pen-width"
+            width={penWidth}
+            onChange={onPenWidth}
+            className="absolute left-[70px] top-3"
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

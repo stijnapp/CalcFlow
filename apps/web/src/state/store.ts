@@ -14,6 +14,7 @@ import {
 import { ulid } from '@/lib/ulid';
 import {
   clearStoredSession,
+  deleteAttempts,
   loadAttempts,
   loadSettings,
   loadStoredSession,
@@ -21,6 +22,8 @@ import {
   saveAttempt,
   saveSettings,
   saveStoredSession,
+  queuedCount,
+  queuedIds,
   type StoredSession,
 } from './db';
 import { sampleAttempts } from './sample';
@@ -95,16 +98,22 @@ interface Store {
   toast: string | null;
   /** Set when a rule card is open over everything else. */
   openRule: string | null;
+  /** Attempts written here but not yet accepted by the server. */
+  queued: number;
 
   init(): Promise<void>;
   go(screen: Screen): void;
   showToast(message: string): void;
+  dismissToast(): void;
   patchSettings(patch: Partial<Settings>): void;
   toggleChapter(n: number): void;
   replaceAttempts(attempts: Attempt[]): Promise<void>;
   /** Fills the stats screen with a believable history, for judging the design. */
   loadSample(): Promise<void>;
-  clearAttempts(): Promise<void>;
+  /** Throws away everything the server has not seen yet, and only that. */
+  clearUnsynced(): Promise<void>;
+  refreshQueued(): Promise<void>;
+  syncNow(): void;
 
   startSession(mode: SessionMode, opts?: { only?: string[]; chapters?: number[] }): void;
   endSession(): void;
@@ -115,7 +124,7 @@ interface Store {
   setConfidence(c: Confidence): void;
 
   setHintsOpen(open: boolean): void;
-  revealRung(): void;
+  revealRung(max: number): void;
   checkOnTrack(latex: string): void;
   setOpenRule(id: string | null): void;
 
@@ -135,6 +144,7 @@ export const useStore = create<Store>((set, get) => ({
   canvasFullscreen: false,
   toast: null,
   openRule: null,
+  queued: 0,
 
   async init() {
     const [settings, attempts, stored] = await Promise.all([
@@ -144,6 +154,7 @@ export const useStore = create<Store>((set, get) => ({
     ]);
     const session = stored ? reviveSession(stored) : null;
     set({ settings, attempts, stats: computeStats(attempts), session, ready: true });
+    void get().refreshQueued();
 
     // Coming back after Android reclaimed the tab should land where he left off,
     // mid-problem, rather than on the home screen with the working lost.
@@ -163,6 +174,11 @@ export const useStore = create<Store>((set, get) => ({
     toastTimer = setTimeout(() => set({ toast: null }), 3300);
   },
 
+  dismissToast() {
+    clearTimeout(toastTimer);
+    set({ toast: null });
+  },
+
   patchSettings(patch) {
     const settings = { ...get().settings, ...patch, updatedAt: Date.now() };
     set({ settings });
@@ -180,6 +196,7 @@ export const useStore = create<Store>((set, get) => ({
   async replaceAttempts(attempts) {
     set({ attempts, stats: computeStats(attempts) });
     await putAttempts(attempts, true);
+    await get().refreshQueued();
   },
 
   async loadSample() {
@@ -188,9 +205,31 @@ export const useStore = create<Store>((set, get) => ({
     get().showToast(`Loaded ${attempts.length} sample attempts`);
   },
 
-  async clearAttempts() {
-    await get().replaceAttempts([]);
-    get().showToast('History cleared');
+  async clearUnsynced() {
+    const ids = new Set(await queuedIds());
+    if (ids.size === 0) {
+      get().showToast('Nothing local to clear');
+      return;
+    }
+    await deleteAttempts([...ids]);
+    const attempts = get().attempts.filter((a) => !ids.has(a.id));
+    set({ attempts, stats: computeStats(attempts) });
+    await get().refreshQueued();
+    get().showToast(`Cleared ${ids.size} unsynced ${ids.size === 1 ? 'attempt' : 'attempts'}`);
+  },
+
+  async refreshQueued() {
+    set({ queued: await queuedCount() });
+  },
+
+  syncNow() {
+    const { settings, queued } = get();
+    if (!settings.backendUrl) {
+      get().showToast('Set a backend URL first');
+      return;
+    }
+    // The transport lands with the backend; the button and its count are real.
+    get().showToast(`Sync lands with the backend — ${queued} queued`);
   },
 
   startSession(mode, opts) {
@@ -266,8 +305,8 @@ export const useStore = create<Store>((set, get) => ({
     patchSession(set, get, (s) => ({ hintsOpen, rung: hintsOpen && s.rung === 0 ? 1 : s.rung }));
   },
 
-  revealRung() {
-    patchSession(set, get, (s) => ({ rung: Math.min(4, s.rung + 1) }));
+  revealRung(max) {
+    patchSession(set, get, (s) => ({ rung: Math.min(max, s.rung + 1) }));
   },
 
   checkOnTrack(latex) {
@@ -324,7 +363,7 @@ export const useStore = create<Store>((set, get) => ({
     };
 
     const attempts = [...get().attempts, attempt];
-    void saveAttempt(attempt);
+    void saveAttempt(attempt).then(() => get().refreshQueued());
 
     set({
       attempts,

@@ -1,6 +1,15 @@
 export type SessionMode = 'set10' | 'endless' | 'weak' | 'speed';
 export type CanvasSurface = 'ruled' | 'dots' | 'blank';
 
+/** A notation key he wrote himself: what it shows, and what it types. */
+export interface CustomKey {
+  id: string;
+  /** Rendered on the key face. */
+  tex: string;
+  /** Inserted verbatim at the caret. */
+  insert: string;
+}
+
 export interface Settings {
   /** Chapter numbers currently selected on the home screen. May be empty. */
   chapters: number[];
@@ -15,6 +24,10 @@ export interface Settings {
   canvasSurface: CanvasSurface;
   /** Ids of the LaTeX insert buttons shown above the answer field, in order. */
   keys: string[];
+  /** His own additions to that pool, referenced from `keys` by id. */
+  customKeys: CustomKey[];
+  /** Stroke width for the one pen, in CSS pixels at full pressure. */
+  penWidth: number;
   deviceName: string;
   backendUrl: string;
   token: string;
@@ -44,6 +57,8 @@ export const DEFAULT_SETTINGS: Settings = {
   reducedMotion: false,
   canvasSurface: 'ruled',
   keys: DEFAULT_KEYS,
+  customKeys: [],
+  penWidth: 3.6,
   deviceName: 'this device',
   backendUrl: '',
   token: '',
