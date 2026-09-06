@@ -52,7 +52,9 @@ tailscale serve --bg --https=443 http://localhost:8787
 The container listens on loopback only; `tailscale serve` is what puts it on the
 tailnet with a certificate, and Chrome wants that certificate before it will
 offer to install the app. The same `CALCFLOW_TOKEN` goes on each device under
-Settings → Sync. Attempts live in a Docker volume at `/data/calcflow.db`.
+Settings → Sync; the backend field can stay blank there, because the app served
+by the container talks to the container. Attempts live in a Docker volume at
+`/data/calcflow.db`.
 
 ## How it works
 
@@ -78,11 +80,14 @@ pulls from the cursor it last saw, and both ends agree — there is no conflict
 resolution because there are no conflicts. Stats are always computed locally
 from the merged log, so the stats screen works offline too.
 
+The exchange runs when the app comes to the front, when the network comes back,
+every minute it is being looked at, and on the sync button. A failed one changes
+nothing — the queue is intact and the cursor has not moved — so the next one
+picks up exactly where it stopped. Settings ride along on last-write-wins, minus
+the four fields that describe the device holding them.
+
 ## What is not built yet
 
-- The client half of sync. The server is up (`apps/server`) and the settings
-  screen collects the backend URL and token, but `syncNow()` is still a stub:
-  attempts queue in IndexedDB and nothing sends yet.
 - Chapters 1, 5 and 12, which need graph and vector rendering.
 - Chapter 13 (limits), deliberately left out so that adding it later exercises
   `docs/adding-a-topic.md` for real.

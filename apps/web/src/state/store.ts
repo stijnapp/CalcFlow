@@ -13,19 +13,33 @@ import {
 } from '@calcflow/shared';
 import { ulid } from '@/lib/ulid';
 import {
+  attemptsById,
+  clearQueue,
   clearStoredSession,
   deleteAttempts,
   loadAttempts,
+  loadCursor,
   loadSettings,
   loadStoredSession,
+  mergeAttempts,
   putAttempts,
   saveAttempt,
+  saveCursor,
   saveSettings,
   saveStoredSession,
   queuedCount,
   queuedIds,
   type StoredSession,
 } from './db';
+import {
+  DEVICE_LOCAL,
+  SyncError,
+  backendOrigin,
+  runSync,
+  type SyncPorts,
+  type SyncReport,
+  type Target,
+} from './sync';
 import { sampleAttempts } from './sample';
 import { computeStats, slowChapters, weakChapters, type Stats } from './stats';
 
@@ -102,6 +116,10 @@ interface Store {
   openRule: string | null;
   /** Attempts written here but not yet accepted by the server. */
   queued: number;
+  /** An exchange with the backend is in flight. */
+  syncing: boolean;
+  /** Why the last exchange failed, for the settings screen. Cleared by a good one. */
+  syncError: string | null;
 
   init(): Promise<void>;
   go(screen: Screen): void;
@@ -115,7 +133,10 @@ interface Store {
   /** Throws away everything the server has not seen yet, and only that. */
   clearUnsynced(): Promise<void>;
   refreshQueued(): Promise<void>;
+  /** Exchanges with the backend and says how it went. */
   syncNow(): void;
+  /** The same exchange, with nothing to say unless it fails. */
+  syncQuietly(): void;
 
   startSession(mode: SessionMode, opts?: { only?: string[]; chapters?: number[] }): void;
   endSession(): void;
@@ -148,6 +169,8 @@ export const useStore = create<Store>((set, get) => ({
   toastId: 0,
   openRule: null,
   queued: 0,
+  syncing: false,
+  syncError: null,
 
   async init() {
     let settings = DEFAULT_SETTINGS;
@@ -175,6 +198,10 @@ export const useStore = create<Store>((set, get) => ({
     if (session && window.location.pathname === SCREEN_PATH.home) {
       navigateFn?.(SCREEN_PATH.practice, { replace: true });
     }
+
+    // Only now: a sync that started before the local log was read would merge
+    // into an empty store and then be overwritten by it.
+    startAutoSync();
   },
 
   go(screen) {
@@ -198,7 +225,15 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   patchSettings(patch) {
-    const settings = { ...get().settings, ...patch, updatedAt: Date.now() };
+    // A device's own name, address and key are not part of the document that
+    // travels, so editing one must not make this device win the next race for
+    // everything else in it.
+    const shared = Object.keys(patch).some((key) => !LOCAL_FIELD.has(key));
+    const settings = {
+      ...get().settings,
+      ...patch,
+      ...(shared ? { updatedAt: Date.now() } : {}),
+    };
     set({ settings });
     void saveSettings(settings);
   },
@@ -245,13 +280,11 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   syncNow() {
-    const { settings, queued } = get();
-    if (!settings.backendUrl) {
-      get().showToast('Set a backend URL first');
-      return;
-    }
-    // The transport lands with the backend; the button and its count are real.
-    get().showToast(`Sync lands with the backend — ${queued} queued`);
+    launchSync(true);
+  },
+
+  syncQuietly() {
+    launchSync(false);
   },
 
   startSession(mode, opts) {
@@ -461,6 +494,131 @@ export const useStore = create<Store>((set, get) => ({
     set({ canvasFullscreen });
   },
 }));
+
+// ---------------------------------------------------------------------- sync
+
+const LOCAL_FIELD = new Set<string>(DEVICE_LOCAL);
+
+/**
+ * The local half of the exchange. `merge` also folds what arrived into the
+ * screens, because pulling the tablet's afternoon in should show up on the
+ * stats page without a reload.
+ */
+const ports: SyncPorts = {
+  queuedIds,
+  attemptsById,
+  markSent: clearQueue,
+  cursor: loadCursor,
+  setCursor: saveCursor,
+
+  async merge(incoming) {
+    const fresh = await mergeAttempts(incoming);
+    if (fresh.length > 0) {
+      const attempts = [...useStore.getState().attempts, ...fresh].sort((a, b) => a.ts - b.ts);
+      useStore.setState({ attempts, stats: computeStats(attempts) });
+    }
+    return fresh;
+  },
+
+  async settings() {
+    return useStore.getState().settings;
+  },
+
+  async adoptSettings(settings) {
+    // Straight in, not through `patchSettings`: the stamp came from the device
+    // that won, and restamping it here would make this one win the next round
+    // with the same document.
+    useStore.setState({ settings });
+    await saveSettings(settings);
+  },
+};
+
+/**
+ * Where the API is. An empty field means wherever the app was served from,
+ * which is the deployed case: one container answering for both halves. In dev
+ * there is no such server behind Vite, so an empty field means unconfigured.
+ */
+function backend(): Target | 'unset' | 'unusable' {
+  const { backendUrl, token } = useStore.getState().settings;
+  const sameOrigin = import.meta.env.DEV ? undefined : window.location.origin;
+  if (!backendUrl.trim() && !sameOrigin) return 'unset';
+  const origin = backendOrigin(backendUrl, sameOrigin);
+  return origin ? { origin, token } : 'unusable';
+}
+
+let inFlight = false;
+
+/** One exchange at a time; a second request while one is running is that one. */
+function launchSync(loud: boolean): void {
+  if (inFlight) return;
+  inFlight = true;
+  void exchange(loud).finally(() => {
+    inFlight = false;
+  });
+}
+
+async function exchange(loud: boolean): Promise<void> {
+  const store = useStore.getState();
+  const target = backend();
+  if (target === 'unset') {
+    if (loud) store.showToast('Set a backend URL first');
+    return;
+  }
+  if (target === 'unusable') {
+    if (loud) store.showToast('That backend address is not a URL');
+    return;
+  }
+
+  useStore.setState({ syncing: true });
+  try {
+    const report = await runSync(ports, target);
+    useStore.setState({ syncError: null });
+    useStore.getState().patchSettings({ lastSyncedAt: Date.now() });
+    await useStore.getState().refreshQueued();
+    if (loud) useStore.getState().showToast(summarise(report));
+  } catch (err) {
+    // A failed exchange changes nothing: the queue is intact and the cursor has
+    // not moved, so the next one picks up exactly where this one stopped.
+    const message = err instanceof SyncError ? err.message : 'Sync failed';
+    if (!(err instanceof SyncError)) console.error('CalcFlow: sync failed', err);
+    useStore.setState({ syncError: message });
+    if (loud) useStore.getState().showToast(message);
+  } finally {
+    useStore.setState({ syncing: false });
+  }
+}
+
+function summarise(report: SyncReport): string {
+  const parts: string[] = [];
+  if (report.sent > 0) parts.push(`sent ${report.sent}`);
+  if (report.received > 0) parts.push(`received ${report.received}`);
+  if (report.settings === 'received') parts.push('settings updated');
+  return parts.length > 0 ? `Synced — ${parts.join(' · ')}` : 'Already up to date';
+}
+
+let autoSync = false;
+
+/**
+ * Flushes when the app comes to the front, when the network comes back, and
+ * every minute it is being looked at. A hidden tab syncing is battery spent for
+ * nobody: what it would have sent is still there when he returns to it.
+ */
+function startAutoSync(): void {
+  if (autoSync || typeof window === 'undefined') return;
+  autoSync = true;
+
+  const tick = (): void => {
+    if (document.visibilityState !== 'visible') return;
+    if (navigator.onLine === false) return;
+    useStore.getState().syncQuietly();
+  };
+
+  window.addEventListener('focus', tick);
+  window.addEventListener('online', tick);
+  document.addEventListener('visibilitychange', tick);
+  setInterval(tick, 60_000);
+  tick();
+}
 
 // --------------------------------------------------------------- persistence
 

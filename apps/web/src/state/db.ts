@@ -61,12 +61,17 @@ interface CalcFlowDB extends DBSchema {
     key: string;
     value: { id: string; queuedAt: number };
   };
+  /** Sync bookkeeping that belongs to this device alone — currently the cursor. */
+  meta: {
+    key: string;
+    value: number;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<CalcFlowDB>> | null = null;
 
 function db() {
-  dbPromise ??= openDB<CalcFlowDB>('calcflow', 2, {
+  dbPromise ??= openDB<CalcFlowDB>('calcflow', 3, {
     upgrade(database, from) {
       if (from < 1) {
         const attempts = database.createObjectStore('attempts', { keyPath: 'id' });
@@ -77,6 +82,9 @@ function db() {
       }
       if (from < 2) {
         database.createObjectStore('session');
+      }
+      if (from < 3) {
+        database.createObjectStore('meta');
       }
     },
   });
@@ -140,6 +148,40 @@ export async function clearQueue(ids: string[]): Promise<void> {
 
 export async function queuedIds(): Promise<string[]> {
   return (await db()).getAllKeys('syncQueue');
+}
+
+/** The queued attempts themselves. Ids whose attempt is gone are simply absent. */
+export async function attemptsById(ids: string[]): Promise<Attempt[]> {
+  const database = await db();
+  const tx = database.transaction('attempts', 'readonly');
+  const found = await Promise.all(ids.map((id) => tx.store.get(id)));
+  await tx.done;
+  return found.filter((a): a is Attempt => a !== undefined);
+}
+
+/**
+ * Folds pulled attempts into the local log and answers with the ones that were
+ * new. They deliberately do not join the sync queue: the server is where they
+ * came from, and sending them back would only cost a round trip to be told so.
+ */
+export async function mergeAttempts(incoming: Attempt[]): Promise<Attempt[]> {
+  if (incoming.length === 0) return [];
+  const database = await db();
+  const tx = database.transaction('attempts', 'readwrite');
+  const known = await Promise.all(incoming.map((a) => tx.store.getKey(a.id)));
+  const fresh = incoming.filter((_, i) => known[i] === undefined);
+  await Promise.all(fresh.map((a) => tx.store.put(a)));
+  await tx.done;
+  return fresh;
+}
+
+/** How far into the server's log this device has read. */
+export async function loadCursor(): Promise<number> {
+  return (await (await db()).get('meta', 'syncCursor')) ?? 0;
+}
+
+export async function saveCursor(cursor: number): Promise<void> {
+  await (await db()).put('meta', cursor, 'syncCursor');
 }
 
 /**

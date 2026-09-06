@@ -17,6 +17,8 @@ const SURFACES: CanvasSurface[] = ['ruled', 'dots', 'blank'];
 export function Settings() {
   const settings = useStore((s) => s.settings);
   const queued = useStore((s) => s.queued);
+  const syncing = useStore((s) => s.syncing);
+  const syncError = useStore((s) => s.syncError);
   const store = useStore();
   const [clearAsk, setClearAsk] = useState(false);
 
@@ -99,7 +101,7 @@ export function Settings() {
                 placeholder="tab-s11"
               />
             </Row>
-            <Row label="Backend" sub="reachable over Tailscale">
+            <Row label="Backend" sub="blank = wherever this app is served from">
               <TextField
                 value={settings.backendUrl}
                 onChange={(backendUrl) => store.patchSettings({ backendUrl })}
@@ -119,6 +121,11 @@ export function Settings() {
                 {settings.lastSyncedAt ? clockTime(settings.lastSyncedAt) : 'never'}
               </span>
             </Row>
+            {/* Only when there is something wrong to say. A sync that works is
+                already reported by the line above it. */}
+            {syncError && (
+              <p className="border-t border-raised px-4 py-3 text-xs text-wrong-ink">{syncError}</p>
+            )}
           </Group>
 
           <Group title="LOCAL DATA">
@@ -152,10 +159,11 @@ export function Settings() {
           <div className="mt-auto flex flex-col gap-2.5 pt-2">
             <button
               onClick={store.syncNow}
-              className="flex h-[50px] items-center justify-center gap-2.5 rounded-md border border-strong bg-overlay text-[15px]"
+              disabled={syncing}
+              className="flex h-[50px] items-center justify-center gap-2.5 rounded-md border border-strong bg-overlay text-[15px] disabled:text-muted"
             >
-              <RefreshCw className="size-4 text-correct" />
-              Sync now — {queued} queued
+              <RefreshCw className={cx('size-4 text-correct', syncing && 'animate-spin')} />
+              {syncing ? 'Syncing…' : `Sync now — ${queued} queued`}
             </button>
             <p className="text-center font-mono text-[11px] text-ghost">
               CALCFLOW 0.1.0 · {GENERATORS.length} GENERATORS · 9 CHAPTERS
