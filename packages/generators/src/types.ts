@@ -9,7 +9,11 @@ export type AnswerKind = 'expression' | 'number' | 'set' | 'interval' | 'choice'
 
 /** One line of the worked solution, with the name of the rule that produced it. */
 export interface Step {
-  ruleId: string;
+  /**
+   * The boxed rule this line applies, if it applies one. Collecting like terms
+   * or tidying a numerator is not a rule anybody looks up — see `tidy`.
+   */
+  ruleId?: string;
   ruleLabel: string;
   expr: Latex;
   note?: string;
@@ -65,6 +69,16 @@ export interface Problem {
   note?: string;
   answers: AnswerSpec[];
   solution: Step[];
+  /**
+   * Every rule card this problem touches, **headline rule first**. Hint rung 1
+   * is "which rule", and it names this one — so it has to be the thing he has
+   * to spot, not the first mechanical move. `(x²−25)/(x+5)` listed cancelling
+   * first and rung 1 duly said "Cancelling" for a problem whose whole point is
+   * the difference of squares.
+   *
+   * The harness checks that the list is complete; nothing can check that the
+   * first one is the interesting one, so that part is on the author.
+   */
   ruleIds: string[];
   verify?: Verification;
   steps: number;

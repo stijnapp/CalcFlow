@@ -1,4 +1,4 @@
-import { answer, paren, poly, power, step, term } from '../authoring.js';
+import { answer, paren, poly, power, step, term, tidy } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
 export const notableProducts: Generator = {
@@ -26,7 +26,7 @@ export const notableProducts: Generator = {
         answers: [answer(result)],
         solution: [
           step('notable-products', 'Notable products', `${poly([[1, 2], [2 * k, 1], [k * k, 0]])} - ${paren(poly([[1, 2], [-2 * k, 1], [k * k, 0]]))}`),
-          step('fraction-simplify', 'Collect', result, 'The squares and the constants cancel; only the middle terms survive.'),
+          tidy('Collect', result, 'The squares and the constants cancel; only the middle terms survive.'),
         ],
         ruleIds: ['notable-products'],
         verify: { kind: 'identity', of: prompt },

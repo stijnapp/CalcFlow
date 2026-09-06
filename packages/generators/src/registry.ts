@@ -1,6 +1,11 @@
 import { makeRng, newSeed } from './rng.js';
 import type { Generator, Problem } from './types.js';
 
+import {
+  distributiveShortcut,
+  rationalEquation,
+  signedArithmetic,
+} from './topics/ch01-numbers.js';
 import { notableProducts, powerRules } from './topics/ch02-powers.js';
 import { combineNumeric, rationalExpressions } from './topics/ch03-fractions.js';
 import { fractionalExponents, rationalise, simplifySurd } from './topics/ch04-roots.js';
@@ -12,6 +17,9 @@ import { antiderivativePower, linearInner } from './topics/ch10-antiderivatives.
 import { areaBetween, definitePolynomial } from './topics/ch11-integration.js';
 
 export const GENERATORS: readonly Generator[] = [
+  signedArithmetic,
+  distributiveShortcut,
+  rationalEquation,
   notableProducts,
   powerRules,
   combineNumeric,

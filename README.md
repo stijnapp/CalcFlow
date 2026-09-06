@@ -88,6 +88,9 @@ the four fields that describe the device holding them.
 
 ## What is not built yet
 
-- Chapters 1, 5 and 12, which need graph and vector rendering.
+- Chapters 5 and 12, which need graph and vector rendering.
+- Chapter 1's set-membership questions (∈, ⊂). Every answer field today takes an
+  expression; the `set` and `choice` answer kinds exist in the types but nothing
+  renders them yet.
 - Chapter 13 (limits), deliberately left out so that adding it later exercises
   `docs/adding-a-topic.md` for real.

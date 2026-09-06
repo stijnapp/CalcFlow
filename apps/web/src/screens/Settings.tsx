@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { ArrowLeft, Database, Minus, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Database, Download, Minus, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { DEFAULT_KEYS, type CanvasSurface } from '@calcflow/shared';
+import { CHAPTERS, DEFAULT_KEYS, type CanvasSurface } from '@calcflow/shared';
 import { GENERATORS } from '@calcflow/generators';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Eyebrow } from '@/components/Eyebrow';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
 import { cx } from '@/lib/cx';
+import { detectDeviceName } from '@/lib/deviceName';
+import { isInstalled, promptInstall, useCanInstall } from '@/lib/install';
 import { clockTime } from '@/lib/format';
 import { keyPool, resolveKeys } from '@/lib/latexKeys';
 import { useStore } from '@/state/store';
@@ -39,6 +41,8 @@ export function Settings() {
           moves the list; the reading column is centred inside it. */}
       <div className="scroll-y min-h-0 flex-1">
         <div className="mx-auto flex min-h-full w-full max-w-[620px] flex-col gap-5 px-5 pb-16 pt-2">
+          <InstallRow />
+
           <Group title="PRACTICE">
             <Row label="Pen-only mode" sub="finger pans instead of drawing">
               <Toggle
@@ -94,11 +98,13 @@ export function Settings() {
           <KeyEditor />
 
           <Group title="SYNC">
-            <Row label="Device name">
+            {/* The placeholder is not a suggestion — it is what leaving this
+                blank will actually stamp on every attempt. */}
+            <Row label="Device name" sub="blank = what this browser calls itself">
               <TextField
                 value={settings.deviceName}
                 onChange={(deviceName) => store.patchSettings({ deviceName })}
-                placeholder="tab-s11"
+                placeholder={detectDeviceName()}
               />
             </Row>
             <Row label="Backend" sub="blank = wherever this app is served from">
@@ -166,7 +172,7 @@ export function Settings() {
               {syncing ? 'Syncing…' : `Sync now — ${queued} queued`}
             </button>
             <p className="text-center font-mono text-[11px] text-ghost">
-              CALCFLOW 0.1.0 · {GENERATORS.length} GENERATORS · 9 CHAPTERS
+              CALCFLOW 0.1.0 · {GENERATORS.length} GENERATORS · {CHAPTERS.length} CHAPTERS
             </p>
           </div>
         </div>
@@ -189,6 +195,34 @@ export function Settings() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * Only ever on screen in a browser tab that could become an app, and gone the
+ * moment it is one. Chrome will not offer this over plain http, so on the LAN
+ * during development there is nothing to show and nothing to explain.
+ */
+function InstallRow() {
+  const canInstall = useCanInstall();
+  const showToast = useStore((s) => s.showToast);
+  if (!canInstall || isInstalled()) return null;
+
+  return (
+    <button
+      onClick={() => {
+        void promptInstall().then((accepted) => {
+          if (!accepted) showToast('Not installed — the button stays here');
+        });
+      }}
+      className="flex items-center gap-3.5 rounded-lg border border-accent bg-accent/10 px-4 py-3.5 text-left"
+    >
+      <Download className="size-[18px] shrink-0 text-accent" />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm text-ink">Install CalcFlow</span>
+        <span className="text-xs text-faint">works offline, and no address bar</span>
+      </span>
+    </button>
   );
 }
 
@@ -316,7 +350,7 @@ function KeyEditor() {
                 aria-label={`Remove ${key.name}`}
                 className="flex h-10 items-center gap-2 rounded-[10px] border border-accent bg-accent/10 px-3 text-[15px] text-ink"
               >
-                <Tex>{key.tex}</Tex>
+                <Tex copy={false}>{key.tex}</Tex>
                 <Minus className="size-3 text-accent" />
               </motion.button>
             ))}
@@ -345,7 +379,7 @@ function KeyEditor() {
                   aria-label={`Add ${key.name}`}
                   className="flex h-full items-center gap-2 px-3 text-[15px] hover:text-ink"
                 >
-                  <Tex>{key.tex}</Tex>
+                  <Tex copy={false}>{key.tex}</Tex>
                   <Plus className="size-3 text-faint" />
                 </button>
                 {customIds.has(key.id) && (

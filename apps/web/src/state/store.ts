@@ -11,6 +11,7 @@ import {
   type SessionMode,
   type Settings,
 } from '@calcflow/shared';
+import { deviceLabel } from '@/lib/deviceName';
 import { ulid } from '@/lib/ulid';
 import {
   attemptsById,
@@ -407,7 +408,7 @@ export const useStore = create<Store>((set, get) => ({
 
     const attempt: Attempt = {
       id: ulid(),
-      device: settings.deviceName,
+      device: deviceLabel(settings.deviceName),
       ts: Date.now(),
       generatorId: session.problem.generatorId,
       seed: session.problem.seed,

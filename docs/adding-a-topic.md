@@ -37,7 +37,7 @@ declaring one too narrow just means the topic comes up less often.
 | `note` | Conditions and the form wanted: "a is a positive constant." |
 | `answers` | One `AnswerSpec` per input field. Build them with `answer(tex)`. |
 | `solution` | The worked steps, each naming the rule it applied. |
-| `ruleIds` | Rule cards this touches. Every id needs a card in `rules.ts`. |
+| `ruleIds` | Rule cards this touches, **headline rule first**. Every id needs a card in `rules.ts`. |
 | `verify` | An independent numeric check. See below. |
 
 ### Write the answer once
@@ -54,6 +54,23 @@ The hint panel is read straight off `solution`. That is why hints need no
 handwriting recognition: he taps until he reaches a line he did not already
 know. Give each step a `note` saying *why*, not just *what* — the note is the
 sentence he reads.
+
+Not every line applies a rule. Collecting like terms or tidying a numerator is
+not something anybody looks up, and naming a card for it puts a rule in the
+rules-used list that the problem never taught. Use `tidy(label, expr, note?)`
+from `authoring.ts` for those, and `step(ruleId, …)` only where a boxed rule is
+genuinely being applied.
+
+### `ruleIds[0]` is the headline
+
+Hint rung 1 is "which rule", and it names `ruleIds[0]` — so that has to be the
+thing he has to *spot*, not the first mechanical move. `(x²−25)/(x+5)` listed
+cancelling first and duly told him "Cancelling" for a problem whose whole point
+is the difference of squares.
+
+The harness checks the list is *complete* — every `ruleId` a solution step
+applies has to appear in it. Nothing can check that the first one is the
+interesting one; that part is on the author.
 
 A step that still carries an unapplied operator (`\frac{d}{dx}(…)`, a `±`, a
 bracket with bounds) cannot be evaluated. Mark it `display: true`. Use this
@@ -93,7 +110,8 @@ that:
 - the prompt and every answer parse;
 - the answer evaluates to a finite number somewhere in its domain;
 - the answer is not just the prompt again (which catches degenerate parameters);
-- every ruleId has a rule card;
+- every ruleId has a rule card, and every rule a solution step applies is
+  declared in `ruleIds`;
 - every checkable solution line is equivalent to the answer — for a
   `solution-set-preserving` generator, every checkable line has the declared root
   as a solution;

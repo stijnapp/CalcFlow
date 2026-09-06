@@ -1,6 +1,9 @@
 node_modules/
 dist/
 dev-dist/
+# Vite's dependency pre-bundling cache. It lands here rather than in
+# node_modules/.vite because the workspace has none of its own.
+.vite/
 *.tsbuildinfo
 .DS_Store
 data/

@@ -1,4 +1,4 @@
-import { answer, frac, gcd, paren, poly, power, rootOf, step, term, times } from '../authoring.js';
+import { answer, frac, gcd, paren, poly, power, rootOf, step, term, tidy, times } from '../authoring.js';
 import type { Draft, GenContext, Generator, Rng } from '../types.js';
 
 /**
@@ -136,7 +136,7 @@ export const chainRule: Generator = {
         : "Give f'(x) in exact, fully simplified form.",
       answers: [answer(derivative, { keyboard: 'calculus' })],
       solution,
-      ruleIds: ['chain-rule', outer.ruleId],
+      ruleIds: [...new Set(['chain-rule', outer.ruleId, 'standard-derivatives'])],
       verify: { kind: 'derivative', of: built, wrt: 'x' },
     };
   },
@@ -317,7 +317,7 @@ export const productQuotient: Generator = {
           ),
           step('fraction-simplify', 'Simplify', frac(numerator, power(paren(v), 2)), 'The x terms in the numerator cancel.'),
         ],
-        ruleIds: ['quotient-rule'],
+        ruleIds: ['quotient-rule', 'fraction-simplify'],
         verify: { kind: 'derivative', of: fx, wrt: 'x' },
       };
     }
@@ -331,7 +331,7 @@ export const productQuotient: Generator = {
       answers: [answer(expanded, { keyboard: 'calculus' })],
       solution: [
         step('product-rule', 'Product rule', `${a}${paren(v)} + ${c}${paren(u)}`, "u'v + uv′ — both terms, always."),
-        step('fraction-simplify', 'Collect', expanded),
+        tidy('Collect', expanded),
       ],
       ruleIds: ['product-rule'],
       verify: { kind: 'derivative', of: fx, wrt: 'x' },

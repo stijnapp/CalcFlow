@@ -1,4 +1,4 @@
-import { answer, frac, fracTex, gcd, paren, poly, step } from '../authoring.js';
+import { answer, frac, fracTex, gcd, paren, poly, step, tidy } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
 export const combineNumeric: Generator = {
@@ -64,7 +64,7 @@ export const rationalExpressions: Generator = {
         answers: [answer(result)],
         solution: [
           step('fraction-add', 'Common denominator', frac(`${a}${paren(poly([[1, 1], [b, 0]]))} + ${c}x`, `x${paren(poly([[1, 1], [b, 0]]))}`)),
-          step('fraction-simplify', 'Collect the numerator', result),
+          tidy('Collect the numerator', result),
         ],
         ruleIds: ['fraction-add'],
         verify: { kind: 'identity', of: prompt },
@@ -84,7 +84,7 @@ export const rationalExpressions: Generator = {
         step('difference-of-squares', 'Factor the numerator', frac(`${paren(poly([[1, 1], [k, 0]]))}${paren(result)}`, poly([[1, 1], [k, 0]])), 'Difference of squares.'),
         step('fraction-simplify', 'Cancel the common factor', result),
       ],
-      ruleIds: ['fraction-simplify', 'difference-of-squares'],
+      ruleIds: ['difference-of-squares', 'fraction-simplify'],
       verify: { kind: 'identity', of: prompt },
     };
   },

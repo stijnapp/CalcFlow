@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import { caretOffset, resolveKeys, type LatexKey } from '@/lib/latexKeys';
 import { useStore } from '@/state/store';
+import { HoverLabel } from './HoverLabel';
 import { Tex } from './Tex';
 
 export type FieldTone = 'editing' | 'correct' | 'wrong' | 'near';
@@ -97,8 +98,8 @@ export function LatexField({
         <div className={cx('flex items-stretch gap-1.5 border-b border-edge', compact ? 'p-1.5' : 'p-2')}>
           <div className="scroll-x flex min-w-0 flex-1 gap-1.5">
             {keys.map((key) => (
+              <HoverLabel key={key.id} label={key.name} className="flex shrink-0">
               <motion.button
-                key={key.id}
                 whileTap={{ scale: 0.92 }}
                 transition={{ type: 'spring', stiffness: 700, damping: 30 }}
                 onPointerDown={(e) => e.preventDefault()}
@@ -109,8 +110,9 @@ export function LatexField({
                   compact ? 'h-9 min-w-[42px] text-[14px]' : 'h-10 min-w-[46px] text-[16px]',
                 )}
               >
-                <Tex>{key.tex}</Tex>
+                <Tex copy={false}>{key.tex}</Tex>
               </motion.button>
+              </HoverLabel>
             ))}
             {keys.length === 0 && (
               <div className="grid h-9 flex-1 place-items-center text-[13px] text-faint">

@@ -75,7 +75,7 @@ is handed.
 ## Locally
 
 ```
-CALCFLOW_TOKEN=$(openssl rand -base64url 24) npm run dev:server
+CALCFLOW_TOKEN=$(openssl rand -base64 24) npm run dev:server
 ```
 
 `npm test` covers it: the token, paging, idempotency, validation, settings, and

@@ -116,7 +116,13 @@ export async function putAttempts(attempts: Attempt[], clearFirst: boolean): Pro
 
 export async function loadSettings(): Promise<Settings> {
   const stored = await (await db()).get('settings', 'current');
-  return stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS;
+  if (!stored) return DEFAULT_SETTINGS;
+  const settings = { ...DEFAULT_SETTINGS, ...stored };
+  // "this device" used to be the default, so it is sitting in installs that
+  // never touched the field. It names nothing, and blank now means the browser
+  // is asked instead — which is what he wanted it to have meant all along.
+  if (settings.deviceName === 'this device') settings.deviceName = '';
+  return settings;
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

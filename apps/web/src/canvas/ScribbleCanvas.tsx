@@ -531,7 +531,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
               )}
               style={{ left: b.x, top: b.y - panY }}
             >
-              {b.latex.trim() ? <Tex>{b.latex}</Tex> : <span className="text-faint">…</span>}
+              {/* The block is dragged by holding it, so a hold cannot also copy. */}
+              {b.latex.trim() ? <Tex copy={false}>{b.latex}</Tex> : <span className="text-faint">…</span>}
               {on && (
                 <button
                   onPointerDown={(e) => e.stopPropagation()}

@@ -28,6 +28,7 @@ export interface Settings {
   customKeys: CustomKey[];
   /** Stroke width for the one pen, in CSS pixels at full pressure. */
   penWidth: number;
+  /** Blank means "whatever this browser calls itself" — see `detectDeviceName`. */
   deviceName: string;
   backendUrl: string;
   token: string;
@@ -59,7 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keys: DEFAULT_KEYS,
   customKeys: [],
   penWidth: 3.6,
-  deviceName: 'this device',
+  deviceName: '',
   backendUrl: '',
   token: '',
   lastSyncedAt: null,

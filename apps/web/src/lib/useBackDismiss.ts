@@ -2,23 +2,39 @@ import { useEffect, useRef } from 'react';
 
 /**
  * Makes overlays answer the device back button. While anything dismissable is
- * open the app holds one extra history entry — the sentinel — at the same URL.
- * Back spends it, the innermost overlay closes instead of the app, and the
- * sentinel is taken again if anything is still open.
+ * open the app keeps a small reserve of history entries — sentinels — at the
+ * same URL. A press spends one, the innermost overlay closes instead of the
+ * app, and the reserve is topped back up the next time he touches the screen.
  *
- * One entry for all of them, rather than one each, and it is re-armed by
- * stepping *forward* onto the entry the press just left rather than by pushing
- * a fresh one. Both of those are Chrome's doing. Its history-manipulation
- * intervention marks every same-document entry as skippable the moment a page
- * calls `pushState` without a live user gesture — and a back press is not a
- * gesture, so re-arming from inside `popstate` marked the whole session,
- * homepage included. The next press then skipped the lot and left the site.
- * That is invisible to `history.back()` and to a test driver, which navigate by
- * entry and never skip: it only ever showed up under a real thumb.
+ * The reserve is why there is more than one of them. Chrome's history
+ * manipulation intervention marks a same-document entry skippable the moment a
+ * page calls `pushState` without a live user gesture, and a back press is not a
+ * gesture — so an entry pushed to replace the one a press has just spent gets
+ * skipped by the *next* press, along with every other same-document entry, and
+ * the app closes. Stepping forward onto the spent entry instead escapes the
+ * mark, but it is an asynchronous traversal: a second press beating it there
+ * finds nothing behind the current entry, and a traversal that cannot land —
+ * the entry it wanted is gone — never reports back at all, wedging the
+ * mechanism for the rest of the session. Both of those read as "back twice
+ * without touching anything closes the app", and both go away once a press no
+ * longer has to be answered before the next one arrives.
  *
- * So: push only while a tap is still warm, and travel to an entry that already
- * exists the rest of the time.
+ * The practice screen is what makes this constant rather than occasional: its
+ * guard is never dismissed by being triggered, so something is always open and
+ * every single press has to be answered.
+ *
+ * So: push only while a tap is warm, keep one in hand, and never push at any
+ * other time.
+ *
+ * How deep the reserve is lives in `history.state` rather than in a variable
+ * here. A router navigation writes its own state over ours, which reads back as
+ * an empty reserve on its own, and no amount of traversing can leave the two
+ * disagreeing about what is on the stack.
  */
+
+/** One to spend on the press, one still in hand for the press after it. */
+const RESERVE = 2;
+
 interface Entry {
   token: number;
   close(): void;
@@ -27,47 +43,55 @@ interface Entry {
 }
 
 const stack: Entry[] = [];
-/** Our sentinel is the entry the browser is standing on. */
-let live = false;
-/** The sentinel sits one step forward, spent but not yet gone. */
-let spare = false;
-/** A move of our own is in flight; the `popstate` it lands is not a press. */
-let pending: 'arm' | 'disarm' | null = null;
+/** `depth()` as of the last time we looked, so a press can be told from a move. */
+let seen = 0;
+/** Our own unwind is in flight; the `popstate` it lands is not a press. */
+let unwinding = false;
 let scheduled = false;
 let seq = 0;
 let listening = false;
 
-function onSentinel(): boolean {
-  const state = window.history.state as { calcflowOverlay?: boolean } | null;
-  return state?.calcflowOverlay === true;
+interface SentinelState {
+  calcflowDepth?: number;
 }
 
-/** Brings the history entry into line with whatever is open. */
+/** How many sentinels sit at and below the entry we are standing on. */
+function depth(): number {
+  const state = window.history.state as SentinelState | null;
+  const n = state?.calcflowDepth;
+  return typeof n === 'number' && n > 0 ? n : 0;
+}
+
+/**
+ * Tops the reserve up. Only ever called where a gesture is still warm, because
+ * an entry pushed without one is an entry the next press walks straight past.
+ */
+function arm(): void {
+  if (!navigator.userActivation?.isActive) return;
+  for (let n = depth(); n < RESERVE; n += 1) {
+    window.history.pushState({ ...window.history.state, calcflowDepth: n + 1 }, '');
+  }
+  seen = depth();
+}
+
+/** Brings the history entries into line with whatever is open. */
 function sync(): void {
-  if (pending) return;
-  const want = stack.length > 0;
-  if (want === live) return;
+  if (unwinding) return;
+  seen = depth();
 
-  if (!want) {
-    live = false;
-    // A dialog that navigates on its way out — "leave this session" — has
-    // already replaced the sentinel. Stepping back now would undo that move.
-    if (!onSentinel()) return;
-    pending = 'disarm';
-    window.history.back();
+  // Nothing left open but sentinels still underfoot — the summary screen
+  // reached by finishing a session lands here. One hop clears the lot, rather
+  // than a back press each that appears to do nothing.
+  if (stack.length === 0) {
+    const n = depth();
+    if (n > 0) {
+      unwinding = true;
+      window.history.go(-n);
+    }
     return;
   }
 
-  // A tap is what makes a new entry safe to create; the rest of the time the
-  // sentinel is still there, one step forward, and going to it costs nothing.
-  if (!navigator.userActivation?.isActive && spare) {
-    pending = 'arm';
-    window.history.forward();
-    return;
-  }
-  live = true;
-  spare = false;
-  window.history.pushState({ ...window.history.state, calcflowOverlay: true }, '');
+  arm();
 }
 
 /** Several overlays can open and close in one commit; they settle together. */
@@ -81,21 +105,25 @@ function schedule(): void {
 }
 
 function onPop(): void {
-  if (pending) {
-    live = pending === 'arm';
-    spare = pending === 'disarm';
-    pending = null;
+  if (unwinding) {
+    unwinding = false;
+    seen = depth();
     schedule();
     return;
   }
-  // Not ours: a real move between screens. Whatever lies forward is not the
-  // sentinel any more, so it cannot be reclaimed.
-  if (!live) {
-    spare = false;
+
+  const now = depth();
+  const before = seen;
+  seen = now;
+
+  // No shallower than we were: a move between screens, or the reserve being
+  // rejoined. Either way no sentinel was spent, so nothing here was dismissed.
+  if (now >= before) {
+    schedule();
     return;
   }
-  live = false;
-  spare = true;
+
+  // One press, one overlay, however many entries the browser chose to skip.
   const entry = stack.pop();
   if (entry) {
     entry.close();
@@ -107,6 +135,13 @@ function onPop(): void {
 function listen(): void {
   if (listening || typeof window === 'undefined') return;
   window.addEventListener('popstate', onPop);
+  // The reserve can only be refilled while a gesture is warm, and this is where
+  // they come from. Capture, so it still counts when the target stops the event.
+  const touched = () => {
+    if (stack.length > 0) schedule();
+  };
+  window.addEventListener('pointerdown', touched, { capture: true, passive: true });
+  window.addEventListener('keydown', touched, { capture: true, passive: true });
   listening = true;
 }
 

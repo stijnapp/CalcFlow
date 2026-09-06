@@ -22,6 +22,15 @@ export function step(ruleId: string, ruleLabel: string, expr: Latex, note?: stri
   return note ? { ruleId, ruleLabel, expr, note } : { ruleId, ruleLabel, expr };
 }
 
+/**
+ * A line that applies no boxed rule — collecting like terms, tidying a
+ * numerator. Naming one of the cards here would put a rule in the rules-used
+ * list that the problem never actually taught.
+ */
+export function tidy(ruleLabel: string, expr: Latex, note?: string): Step {
+  return note ? { ruleLabel, expr, note } : { ruleLabel, expr };
+}
+
 // ---------------------------------------------------------------- LaTeX bits
 
 export const frac = (a: Latex, b: Latex): Latex => `\\frac{${a}}{${b}}`;

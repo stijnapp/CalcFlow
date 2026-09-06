@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
+import { watchForInstall } from './lib/install';
 import { useStore } from './state/store';
 import './styles/index.css';
 
@@ -44,6 +45,9 @@ document.addEventListener('contextmenu', (e) => {
 if (import.meta.env.DEV) {
   (window as unknown as { calcflow: typeof useStore }).calcflow = useStore;
 }
+
+// Before the render, because Chrome fires the event whether we are ready or not.
+watchForInstall();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

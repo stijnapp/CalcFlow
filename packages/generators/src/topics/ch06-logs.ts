@@ -96,7 +96,7 @@ export const exponentialEquation: Generator = {
         step('exp-log-inverse', 'Take ln of both sides', `${k}x = \\ln${paren(fracTex(m, a))}`),
         step('linear-solve', 'Divide', result),
       ],
-      ruleIds: ['exponential-equation', 'exp-log-inverse'],
+      ruleIds: ['exponential-equation', 'exp-log-inverse', 'linear-solve'],
       verify: { kind: 'root', equation, wrt: 'x' },
     };
   },

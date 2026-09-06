@@ -70,6 +70,15 @@ export function checkProblem(problem: Problem, generator: Generator): string[] {
     if (!ruleById(id)) push(`ruleId "${id}" has no rule card`);
   }
 
+  // A rule the working applies but never declares is missing from the rules-used
+  // list under the answer, and from the sheet he can open from it. The order of
+  // `ruleIds` is an authoring judgement and cannot be checked; being complete can.
+  for (const s of problem.solution) {
+    if (s.ruleId && !problem.ruleIds.includes(s.ruleId)) {
+      push(`solution step "${s.ruleLabel}" applies "${s.ruleId}", which is not in ruleIds`);
+    }
+  }
+
   // Every checkable solution line must be equivalent to the answer, for a
   // value-preserving generator. A lying hint fails the build.
   if (generator.invariant === 'value-preserving') {

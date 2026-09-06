@@ -1,4 +1,4 @@
-/** The nine chapters of the RU Mathematics Practice Book that ship in v1. */
+/** The chapters of the RU Mathematics Practice Book that ship in v1. */
 export interface Chapter {
   readonly n: number;
   readonly title: string;
@@ -7,6 +7,7 @@ export interface Chapter {
 }
 
 export const CHAPTERS: readonly Chapter[] = [
+  { n: 1, title: 'Numbers & arithmetic', short: 'Numbers' },
   { n: 2, title: 'Powers', short: 'Powers' },
   { n: 3, title: 'Fractions', short: 'Fractions' },
   { n: 4, title: 'Roots', short: 'Roots' },

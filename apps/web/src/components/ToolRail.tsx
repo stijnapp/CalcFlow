@@ -2,6 +2,7 @@ import { Eraser, Hand, PenTool, Redo2, Trash2, Type, Undo2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import type { CanvasTool } from '@/canvas/ScribbleCanvas';
+import { HoverLabel } from './HoverLabel';
 import { PenWidth } from './PenWidth';
 
 interface Props {
@@ -96,25 +97,31 @@ interface RailButtonProps {
   children: React.ReactNode;
 }
 
+/*
+ * The name comes up on hover rather than in a `title`: Chrome on Android never
+ * shows those, and hovering the pen over the rail is exactly when he wants to
+ * know which of six similar glyphs he is about to press.
+ */
 function RailButton({ label, active, tint, onClick, children }: RailButtonProps) {
   return (
-    <motion.button
-      whileTap={{ scale: 0.9 }}
-      transition={{ type: 'spring', stiffness: 700, damping: 30 }}
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cx(
-        'grid size-[42px] place-items-center rounded-[11px] border transition-colors',
-        active
-          ? tint
-            ? 'border-accent bg-accent/15 text-accent'
-            : 'border-accent bg-accent text-on-accent'
-          : 'border-border bg-raised text-muted hover:text-ink',
-      )}
-    >
-      {children}
-    </motion.button>
+    <HoverLabel label={label} className="flex">
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: 'spring', stiffness: 700, damping: 30 }}
+        aria-label={label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cx(
+          'grid size-[42px] place-items-center rounded-[11px] border transition-colors',
+          active
+            ? tint
+              ? 'border-accent bg-accent/15 text-accent'
+              : 'border-accent bg-accent text-on-accent'
+            : 'border-border bg-raised text-muted hover:text-ink',
+        )}
+      >
+        {children}
+      </motion.button>
+    </HoverLabel>
   );
 }

@@ -10,7 +10,38 @@ export interface RuleCard {
   note: string;
 }
 
+/**
+ * Several of the boxed rules are really a handful of them under one heading.
+ * Run together on one line they read as a wall and wrap wherever the column
+ * happens to end; a line each, aligned on the equals sign, is how the book
+ * prints them and how they are actually memorised.
+ */
+function lines(parts: string[]): string {
+  return `\\begin{aligned}${parts.join('\\\\')}\\end{aligned}`;
+}
+
 export const RULES: readonly RuleCard[] = [
+  {
+    id: 'sign-rules',
+    chapter: 1,
+    name: 'Signs',
+    tex: lines(['a - (-b) &= a + b', '-(a + b) &= -a - b']),
+    note: 'Two minus signs in a row make a plus. A minus in front of a bracket flips everything inside it.',
+  },
+  {
+    id: 'distributive',
+    chapter: 1,
+    name: 'Distributive law',
+    tex: 'a(b \\pm c) = ab \\pm ac',
+    note: 'Read right to left it also factorises. It is what makes 47·99 = 4700 − 47 a thing you can do in your head.',
+  },
+  {
+    id: 'rational-equation',
+    chapter: 1,
+    name: 'Unknown in a denominator',
+    tex: '\\frac{a}{b} = \\frac{c}{d} \\iff ad = bc',
+    note: 'Multiply out both bars first. Whatever makes a denominator zero was never a solution — check the answer against it.',
+  },
   {
     id: 'notable-products',
     chapter: 2,
@@ -29,7 +60,7 @@ export const RULES: readonly RuleCard[] = [
     id: 'power-rules',
     chapter: 2,
     name: 'Power rules',
-    tex: 'a^{m}a^{n}=a^{m+n},\\quad \\frac{a^{m}}{a^{n}}=a^{m-n},\\quad (a^{m})^{n}=a^{mn}',
+    tex: lines(['a^{m}a^{n} &= a^{m+n}', '\\frac{a^{m}}{a^{n}} &= a^{m-n}', '(a^{m})^{n} &= a^{mn}']),
     note: 'Exponents add when the bases multiply, and multiply only when the powers are nested.',
   },
   {
@@ -78,7 +109,7 @@ export const RULES: readonly RuleCard[] = [
     id: 'log-laws',
     chapter: 6,
     name: 'Log laws',
-    tex: '\\log_a(xy)=\\log_a x+\\log_a y,\\quad \\log_a(x^{n})=n\\log_a x',
+    tex: lines(['\\log_a(xy) &= \\log_a x + \\log_a y', '\\log_a(x^{n}) &= n\\log_a x']),
     note: 'Products become sums, powers come out front. There is no rule for log(x+y).',
   },
   {
@@ -92,7 +123,7 @@ export const RULES: readonly RuleCard[] = [
     id: 'exp-log-inverse',
     chapter: 6,
     name: 'exp and ln undo each other',
-    tex: 'e^{\\ln x}=x,\\quad \\ln(e^{x})=x',
+    tex: lines(['e^{\\ln x} &= x', '\\ln(e^{x}) &= x']),
     note: 'So e^{3 ln t} is t³ — bring the 3 inside first.',
   },
   {
@@ -120,14 +151,18 @@ export const RULES: readonly RuleCard[] = [
     id: 'double-angle',
     chapter: 7,
     name: 'Double angle',
-    tex: '\\sin 2x=2\\sin x\\cos x,\\quad \\cos 2x=1-2\\sin^{2}x',
+    tex: lines(['\\sin 2x &= 2\\sin x\\cos x', '\\cos 2x &= 1 - 2\\sin^{2}x']),
     note: 'cos 2x has three equivalent forms; pick whichever leaves the tidier expression.',
   },
   {
     id: 'exact-values',
     chapter: 7,
     name: 'Exact values',
-    tex: '\\sin\\tfrac{\\pi}{6}=\\tfrac{1}{2},\\quad \\sin\\tfrac{\\pi}{4}=\\tfrac{1}{2}\\sqrt{2},\\quad \\sin\\tfrac{\\pi}{3}=\\tfrac{1}{2}\\sqrt{3}',
+    tex: lines([
+      '\\sin\\tfrac{\\pi}{6} &= \\tfrac{1}{2}',
+      '\\sin\\tfrac{\\pi}{4} &= \\tfrac{1}{2}\\sqrt{2}',
+      '\\sin\\tfrac{\\pi}{3} &= \\tfrac{1}{2}\\sqrt{3}',
+    ]),
     note: 'Know the 30–60–90 and 45–45–90 triangles and the rest follow.',
   },
   {
@@ -176,7 +211,12 @@ export const RULES: readonly RuleCard[] = [
     id: 'standard-derivatives',
     chapter: 9,
     name: 'Standard derivatives',
-    tex: '(\\sin x)\'=\\cos x,\\quad (\\cos x)\'=-\\sin x,\\quad (e^{x})\'=e^{x},\\quad (\\ln x)\'=\\tfrac{1}{x}',
+    tex: lines([
+      "(\\sin x)' &= \\cos x",
+      "(\\cos x)' &= -\\sin x",
+      "(e^{x})' &= e^{x}",
+      "(\\ln x)' &= \\tfrac{1}{x}",
+    ]),
     note: 'The minus on the derivative of cos is the one that gets forgotten.',
   },
   {
