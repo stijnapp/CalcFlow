@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @calcflow/web",
+    "dev:server": "npm run dev --workspace @calcflow/server",
     "build": "npm run build --workspace @calcflow/web",
+    "build:server": "npm run build --workspace @calcflow/server",
     "preview": "npm run preview --workspace @calcflow/web",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,6 +21,7 @@
     "vitest": "^3.2.4"
   },
   "allowScripts": {
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "better-sqlite3@12.11.1": true
   }
 }

@@ -20,6 +20,7 @@ export function Home({ compact }: { compact?: boolean }) {
   const settings = useStore((s) => s.settings);
   const stats = useStore((s) => s.stats);
   const queued = useStore((s) => s.queued);
+  const syncing = useStore((s) => s.syncing);
   const store = useStore();
 
   const { steps, difficulty } = levelSpec(settings.level);
@@ -230,7 +231,7 @@ export function Home({ compact }: { compact?: boolean }) {
                 title={`${queued} waiting to sync`}
                 className="grid h-10 shrink-0 place-items-center rounded-md border border-correct/40 bg-correct/10 text-correct"
               >
-                <RefreshCw className="size-[17px]" />
+                <RefreshCw className={cx('size-[17px]', syncing && 'animate-spin')} />
               </motion.button>
             )}
           </AnimatePresence>

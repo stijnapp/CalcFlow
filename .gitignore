@@ -8,3 +8,6 @@ data/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+*.db
+*.db-wal
+*.db-shm

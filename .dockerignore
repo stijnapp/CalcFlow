@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/dev-dist
+**/*.tsbuildinfo
+.git
+.github
+.env
+data
+*.db
+*.db-wal
+*.db-shm
+.playwright-mcp
+docs
