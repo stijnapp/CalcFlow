@@ -70,6 +70,8 @@ export function PracticeTablet() {
           penOnly={settings.penOnly}
           surface={settings.canvasSurface}
           problemKey={`${problem.generatorId}:${problem.seed}`}
+          getInitial={practice.getCanvas}
+          onPersist={practice.saveCanvas}
           onToast={showToast}
         />
       </div>

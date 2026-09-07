@@ -2,11 +2,12 @@
 export type Confidence = 'sure' | 'think' | 'guess';
 
 /**
- * Why an answer was not accepted. `plus-c`, `not-exact` and `not-simplified` are
- * near misses — the maths is right but the form is not — and are tracked apart
- * from a flat wrong so they can be worded differently and counted separately.
+ * Why an answer was not accepted. `plus-c`, `not-exact`, `not-simplified` and
+ * `notation` are near misses — the maths is right but the form is not — and are
+ * tracked apart from a flat wrong so they can be worded differently and counted
+ * separately.
  */
-export type ErrorClass = 'plus-c' | 'not-exact' | 'not-simplified' | 'wrong';
+export type ErrorClass = 'plus-c' | 'not-exact' | 'not-simplified' | 'notation' | 'wrong';
 
 /**
  * One answered problem. Append-only: an attempt is never edited after it lands,

@@ -19,7 +19,6 @@ export interface Settings {
   adaptive: boolean;
   /** Pen draws, finger pans. On by default on tablet. */
   penOnly: boolean;
-  wordProblems: boolean;
   reducedMotion: boolean;
   canvasSurface: CanvasSurface;
   /** Ids of the LaTeX insert buttons shown above the answer field, in order. */
@@ -49,12 +48,11 @@ export const DEFAULT_KEYS = [
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
-  chapters: [2, 3, 4, 6, 8, 9, 10, 11],
+  chapters: [],
   level: 3,
   mode: 'set10',
   adaptive: false,
   penOnly: true,
-  wordProblems: true,
   reducedMotion: false,
   canvasSurface: 'ruled',
   keys: DEFAULT_KEYS,

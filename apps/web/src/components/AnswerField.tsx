@@ -7,6 +7,7 @@ interface Props {
   values: string[];
   activeField: number;
   onFocusField(index: number): void;
+  onBlurField?(): void;
   onChange(value: string): void;
   onSubmit?(): void;
   state: FieldTone;
@@ -24,6 +25,7 @@ export function AnswerField({
   values,
   activeField,
   onFocusField,
+  onBlurField,
   onChange,
   onSubmit,
   state,
@@ -50,6 +52,7 @@ export function AnswerField({
               onChange={onChange}
               onSubmit={onSubmit}
               onFocus={() => onFocusField(i)}
+              onBlur={onBlurField}
               active={i === activeField}
               tone={state}
               compact={compact}

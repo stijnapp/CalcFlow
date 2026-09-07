@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
+import { readDerivative } from '@calcflow/engine';
 import type { ErrorClass } from '@calcflow/shared';
 import type { Problem } from '@calcflow/generators';
+import { ClaudeMark } from './ClaudeMark';
 import { Fit } from './Fit';
+import { HoverLabel } from './HoverLabel';
 import { Tex } from './Tex';
 import { Eyebrow } from './Eyebrow';
+import { claudePrompt } from '@/lib/claudePrompt';
+import { copyText } from '@/lib/copyText';
 import { cx } from '@/lib/cx';
 import { duration } from '@/lib/format';
+import { useStore } from '@/state/store';
 
 interface Props {
   problem: Problem;
@@ -39,6 +45,11 @@ const NEAR_MISS: Record<string, { title: string; body: string; glyph: string }> 
     body: 'Equivalent to the answer, but there is still something to collapse.',
     glyph: '⁄',
   },
+  notation: {
+    title: 'Check the notation',
+    body: 'The derivative itself is right; the label in front of it does not say what you meant.',
+    glyph: '′',
+  },
 };
 
 export function FeedbackCard({
@@ -52,7 +63,15 @@ export function FeedbackCard({
   compact,
 }: Props) {
   const [showSteps, setShowSteps] = useState(false);
+  const showToast = useStore((s) => s.showToast);
   const near = errorClass ? NEAR_MISS[errorClass] : undefined;
+  // The notation complaint is specific to what he wrote, so it is read back off
+  // the answer rather than kept in the outcome the attempt was logged with.
+  const derivative = problem.verify?.kind === 'derivative' ? problem.verify : undefined;
+  const nearBody =
+    (errorClass === 'notation' && derivative
+      ? readDerivative(answers[0] ?? '', { wrt: derivative.wrt, of: derivative.of }).complaint
+      : null) ?? near?.body;
   const reference = problem.answers.map((a) => a.tex);
   const meta = `${confidence} · ${duration(durationMs)} · ${hintsUsed === 0 ? 'no hints' : `${hintsUsed} hint`}`;
 
@@ -82,7 +101,7 @@ export function FeedbackCard({
           </span>
           <h2 className="text-[19px] font-semibold text-near-ink">{near.title}</h2>
         </div>
-        <p className="text-sm leading-relaxed text-ink2 text-pretty">{near.body}</p>
+        <p className="text-sm leading-relaxed text-ink2 text-pretty">{nearBody}</p>
         <div className="flex flex-wrap items-center gap-3.5 text-[22px]">
           <span className="text-muted">
             <Tex>{answers[0] || '\\text{—}'}</Tex>
@@ -146,6 +165,22 @@ export function FeedbackCard({
                 </Fit>
               </div>
             ))}
+
+            {/* The steps say what the answer was. When that is not the same as
+                knowing why his own line was wrong, this hands the pair over to
+                somewhere he can ask about it. */}
+            <HoverLabel label="Copy the question and your answer, to ask Claude yourself">
+              <button
+                onClick={async () => {
+                  const ok = await copyText(claudePrompt(problem, answers));
+                  showToast(ok ? 'Copied — paste it into Claude' : 'Could not reach the clipboard');
+                }}
+                className="flex items-center gap-2 self-start rounded-md border border-border bg-page px-3 py-2 text-[13px] text-ink2 hover:border-accent hover:text-ink"
+              >
+                <ClaudeMark className="size-4 shrink-0 text-accent" />
+                Copy for Claude
+              </button>
+            </HoverLabel>
           </div>
         )}
       </div>

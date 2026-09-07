@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { ChevronRight, Check, X } from 'lucide-react';
 import { motion } from 'motion/react';
+import { ruleById } from '@calcflow/generators';
 import { cx } from '@/lib/cx';
 import { useBackDismiss } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
@@ -53,7 +53,8 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
   const revealRung = useStore((s) => s.revealRung);
   const checkOnTrack = useStore((s) => s.checkOnTrack);
   const setOpenRule = useStore((s) => s.setOpenRule);
-  const [line, setLine] = useState('');
+  const setLine = useStore((s) => s.setOnTrackLine);
+  const line = session.onTrackLine;
 
   const rungs = buildRungs(session.problem);
   const shown = Math.min(session.rung, rungs.length);
@@ -122,13 +123,25 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
                       </Fit>
                     </div>
                   )}
-                  {rung.ruleId && (
-                    <button
-                      onClick={() => setOpenRule(rung.ruleId!)}
-                      className="self-start border-b border-accent/40 text-[13px] text-accent"
-                    >
-                      Open the rule card
-                    </button>
+                  {/* Every card the problem leans on, each one a tap from its
+                      statement and a worked example of it. */}
+                  {rung.ruleIds && rung.ruleIds.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      {rung.ruleIds.map((id) => {
+                        const card = ruleById(id);
+                        if (!card) return null;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => setOpenRule(id)}
+                            className="flex items-center gap-2 rounded-md border border-border bg-page px-3 py-2 text-left text-[13px] text-accent hover:border-accent"
+                          >
+                            {card.name}
+                            <ChevronRight className="ml-auto size-3.5 shrink-0 text-faint" />
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}

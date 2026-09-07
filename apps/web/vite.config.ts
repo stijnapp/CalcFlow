@@ -32,7 +32,11 @@ export default defineConfig({
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          // Square and full-bleed on purpose. Android crops a maskable icon to
+          // whatever shape the launcher uses, so the rounded one would come back
+          // with its corners bitten off; this one hands over the whole tile and
+          // lets the launcher round it.
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

@@ -3,7 +3,7 @@ import { equivalent, type Domain } from './equivalent.js';
 import { hasPlusC, isExact, isSimplified, stripPlusC } from './form.js';
 import { tryParse } from './parse.js';
 
-export type ErrorClass = 'plus-c' | 'not-exact' | 'not-simplified' | 'wrong';
+export type ErrorClass = 'plus-c' | 'not-exact' | 'not-simplified' | 'notation' | 'wrong';
 
 export interface Requirements {
   /** Indefinite integrals need the constant of integration. */

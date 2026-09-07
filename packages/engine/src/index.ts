@@ -4,3 +4,4 @@ export * from './evaluate.js';
 export * from './equivalent.js';
 export * from './form.js';
 export * from './grade.js';
+export * from './notation.js';

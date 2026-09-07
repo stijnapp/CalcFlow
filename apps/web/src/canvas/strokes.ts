@@ -14,6 +14,34 @@ export interface Stroke {
   color: string;
 }
 
+/**
+ * A stroke as it goes to storage: the points flattened to `[x, y, p, …]` and
+ * rounded to a tenth of a pixel. A pen sampling at 480 Hz fills a page with
+ * tens of thousands of points, and `{x,y,p}` per point is four times the JSON
+ * of three numbers for a precision nothing can see.
+ */
+export interface StoredStroke {
+  w: number;
+  pts: number[];
+}
+
+/** A rectangle in world coordinates. */
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Everything on the canvas, small enough to sit inside the stored session. */
+export interface CanvasState {
+  /** The problem it belongs to; a canvas is never restored onto another one. */
+  key: string;
+  strokes: StoredStroke[];
+  blocks: TexBlock[];
+  pan: number;
+}
+
 export interface TexBlock {
   id: number;
   /** World coordinates — the block pans with the strokes. */
@@ -124,6 +152,78 @@ export class Surface {
     return max;
   }
 
+  /**
+   * Every stroke with at least one point inside the loop. The smallest part
+   * counts, which is what makes lassoing a line of working forgiving: he
+   * circles roughly, and the tails of the letters come along.
+   */
+  selectIn(loop: readonly StrokePoint[]): number[] {
+    if (loop.length < 3) return [];
+    return this.strokes.filter((s) => s.pts.some((p) => inside(p, loop))).map((s) => s.id);
+  }
+
+  /** The box around a set of strokes, in world coordinates. */
+  boundsOf(ids: ReadonlySet<number>): Box | null {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const s of this.strokes) {
+      if (!ids.has(s.id)) continue;
+      for (const p of s.pts) {
+        if (p.x < x0) x0 = p.x;
+        if (p.y < y0) y0 = p.y;
+        if (p.x > x1) x1 = p.x;
+        if (p.y > y1) y1 = p.y;
+      }
+    }
+    return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+
+  /** Moves a selection bodily. Undo does not follow it — it is not a mark. */
+  translate(ids: ReadonlySet<number>, dx: number, dy: number): void {
+    for (const s of this.strokes) {
+      if (!ids.has(s.id)) continue;
+      for (const p of s.pts) {
+        p.x += dx;
+        p.y += dy;
+      }
+    }
+    this.dirty = true;
+  }
+
+  /** Where the topmost mark sits. Zero on an empty surface. */
+  contentTop(): number {
+    let min = Infinity;
+    for (const s of this.strokes) {
+      for (const p of s.pts) if (p.y < min) min = p.y;
+    }
+    return min === Infinity ? 0 : min;
+  }
+
+  /** The committed strokes only: a live one is a gesture that has not landed. */
+  serialize(): StoredStroke[] {
+    return this.strokes.map((s) => {
+      const pts: number[] = [];
+      for (const p of s.pts) pts.push(round(p.x), round(p.y), round(p.p));
+      return { w: s.width, pts };
+    });
+  }
+
+  /** Redo is deliberately not restored: it belongs to the sitting, not the page. */
+  restore(list: StoredStroke[]): void {
+    this.strokes = list.map((s) => {
+      const pts: StrokePoint[] = [];
+      for (let i = 0; i + 2 < s.pts.length; i += 3) {
+        pts.push({ x: s.pts[i]!, y: s.pts[i + 1]!, p: s.pts[i + 2]! });
+      }
+      return { id: this.nextId++, pts, width: s.w, color: INK };
+    });
+    this.undone = [];
+    this.live = null;
+    this.dirty = true;
+  }
+
   draw(
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -180,6 +280,27 @@ export class Surface {
     for (const s of this.strokes) paintStroke(ctx, s);
     this.dirty = false;
   }
+}
+
+/** Ray casting, so a loop he drew over itself still reads as one region. */
+export function loopContains(loop: readonly StrokePoint[], x: number, y: number): boolean {
+  return inside({ x, y }, loop);
+}
+
+function inside(p: { x: number; y: number }, loop: readonly StrokePoint[]): boolean {
+  let hit = false;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i, i += 1) {
+    const a = loop[i]!;
+    const b = loop[j]!;
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
+      hit = !hit;
+    }
+  }
+  return hit;
+}
+
+function round(n: number): number {
+  return Math.round(n * 10) / 10;
 }
 
 function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke): void {

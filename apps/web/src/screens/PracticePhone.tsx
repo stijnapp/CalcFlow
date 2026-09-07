@@ -1,7 +1,9 @@
+import { useRef, useState } from 'react';
 import {
   ArrowLeft,
   Eraser,
   Hand,
+  Lasso,
   Lightbulb,
   Maximize,
   Minimize,
@@ -19,6 +21,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackCard } from '@/components/FeedbackCard';
 import { Fit } from '@/components/Fit';
 import { HintPanel } from '@/components/HintPanel';
+import { HoverLabel } from '@/components/HoverLabel';
 import { PenWidth } from '@/components/PenWidth';
 import { ProblemCard } from '@/components/ProblemCard';
 import { ProgressDots } from '@/components/ProgressDots';
@@ -48,6 +51,24 @@ export function PracticePhone() {
   const practice = usePractice();
   const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } = practice;
 
+  /**
+   * While the caret is in the answer, everything under it goes: the confidence
+   * row and the submit button sat between the field and the on-screen keyboard,
+   * and every pixel they held was a line of his working he could not see. They
+   * come back the moment he taps away, which is also when he needs them.
+   */
+  const [typing, setTyping] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function startTyping() {
+    clearTimeout(blurTimer.current);
+    setTyping(true);
+  }
+  /** Moving between two answer boxes is a blur and a focus; it is not leaving. */
+  function stopTyping() {
+    clearTimeout(blurTimer.current);
+    blurTimer.current = setTimeout(() => setTyping(false), 120);
+  }
+
   const { problem, outcome } = session;
   const answered = outcome !== null;
   const filled = problem.answers.every((_, i) => (session.answers[i] ?? '').trim() !== '');
@@ -62,6 +83,8 @@ export function PracticePhone() {
       penOnly={settings.penOnly}
       surface={settings.canvasSurface}
       problemKey={`${problem.generatorId}:${problem.seed}`}
+      getInitial={practice.getCanvas}
+      onPersist={practice.saveCanvas}
       onToast={showToast}
     />
   );
@@ -73,7 +96,7 @@ export function PracticePhone() {
           key="pen-width"
           width={settings.penWidth}
           onChange={(penWidth) => patchSettings({ penWidth })}
-          className="absolute left-0 top-full mt-2"
+          className="pointer-events-auto absolute left-0 top-full mt-2"
         />
       )}
     </AnimatePresence>
@@ -116,9 +139,20 @@ export function PracticePhone() {
           <Fit className="min-w-0 flex-1 text-[17px]">
             <Tex>{problem.prompt}</Tex>
           </Fit>
+          {/* Pen-only is a mode he flips mid-thought, so it keeps a fixed place
+              up here rather than sliding away with the scrolling tools. */}
+          <PhoneTool
+            small
+            tint
+            active={settings.penOnly}
+            onClick={() => patchSettings({ penOnly: !settings.penOnly })}
+            label="Pen-only mode"
+          >
+            <Hand className="size-[15px]" />
+          </PhoneTool>
           <button
             onClick={() => setFullscreen(false)}
-            className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-raised px-2.5 text-accent"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-raised px-2.5 text-accent"
           >
             <Minimize className="size-3.5" />
             <span className="font-mono text-[10px] tracking-[0.08em]">EXIT</span>
@@ -127,45 +161,47 @@ export function PracticePhone() {
 
         <div className="relative min-h-0 flex-1">{canvasEl}</div>
 
-        <div className="flex shrink-0 justify-center gap-2 px-4 pb-[22px] pt-3">
-          <div className="relative">
+        {/* More tools than the phone is wide, so the row scrolls. The picker
+            has to live outside the scroller: a box that clips horizontally
+            clips vertically too, and it opens upwards out of the row. */}
+        <div className="relative shrink-0 px-4 pb-[22px] pt-3">
+          <div className="scroll-x flex gap-2">
             <PhoneTool active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
               <PenTool className="size-[18px]" />
             </PhoneTool>
-            <AnimatePresence>
-              {practice.penMenu && tool === 'pen' && (
-                <PenWidth
-                  key="pen-width"
-                  width={settings.penWidth}
-                  onChange={(penWidth) => patchSettings({ penWidth })}
-                  className="absolute bottom-full left-0 mb-2"
-                />
-              )}
-            </AnimatePresence>
+            <PhoneTool active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser">
+              <Eraser className="size-[18px]" />
+            </PhoneTool>
+            <PhoneTool active={tool === 'type'} onClick={() => setTool('type')} label="Type LaTeX">
+              <Type className="size-[18px]" />
+            </PhoneTool>
+            <PhoneTool
+              active={tool === 'lasso'}
+              onClick={() => setTool('lasso')}
+              label="Select and move"
+            >
+              <Lasso className="size-[18px]" />
+            </PhoneTool>
+            <PhoneTool onClick={undo} label="Undo">
+              <Undo2 className="size-[18px]" />
+            </PhoneTool>
+            <PhoneTool onClick={redo} label="Redo">
+              <Redo2 className="size-[18px]" />
+            </PhoneTool>
+            <PhoneTool onClick={askClear} label="Clear the canvas">
+              <Trash2 className="size-[18px]" />
+            </PhoneTool>
           </div>
-          <PhoneTool active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser">
-            <Eraser className="size-[18px]" />
-          </PhoneTool>
-          <PhoneTool active={tool === 'type'} onClick={() => setTool('type')} label="Type LaTeX">
-            <Type className="size-[18px]" />
-          </PhoneTool>
-          <PhoneTool
-            tint
-            active={settings.penOnly}
-            onClick={() => patchSettings({ penOnly: !settings.penOnly })}
-            label="Pen-only mode"
-          >
-            <Hand className="size-[18px]" />
-          </PhoneTool>
-          <PhoneTool onClick={undo} label="Undo">
-            <Undo2 className="size-[18px]" />
-          </PhoneTool>
-          <PhoneTool onClick={redo} label="Redo">
-            <Redo2 className="size-[18px]" />
-          </PhoneTool>
-          <PhoneTool onClick={askClear} label="Clear the canvas">
-            <Trash2 className="size-[18px]" />
-          </PhoneTool>
+          <AnimatePresence>
+            {practice.penMenu && tool === 'pen' && (
+              <PenWidth
+                key="pen-width"
+                width={settings.penWidth}
+                onChange={(penWidth) => patchSettings({ penWidth })}
+                className="absolute bottom-full left-4 mb-1"
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         {dialogs}
@@ -208,19 +244,27 @@ export function PracticePhone() {
         style={{ marginBottom: answered ? 16 : SHEET_PEEK + 12 }}
       >
         {canvasEl}
-        <div className="pointer-events-none absolute inset-x-3.5 top-3.5 flex justify-between">
-          <div className="pointer-events-auto flex gap-1.5">
-            <div className="relative">
-              <PhoneTool small active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
-                <PenTool className="size-[15px]" />
-              </PhoneTool>
-              {penPicker}
-            </div>
+        {/* The tools scroll; pen-only and fullscreen do not. Those two are how
+            he gets his hand out of the way and how he gets more room, and
+            hunting for either by swiping a row is exactly the wrong moment. */}
+        <div className="pointer-events-none absolute inset-x-3.5 top-3.5 flex items-start gap-1.5">
+          <div className="scroll-x pointer-events-auto flex min-w-0 flex-1 gap-1.5">
+            <PhoneTool small active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
+              <PenTool className="size-[15px]" />
+            </PhoneTool>
             <PhoneTool small active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser">
               <Eraser className="size-[15px]" />
             </PhoneTool>
             <PhoneTool small active={tool === 'type'} onClick={() => setTool('type')} label="Type LaTeX">
               <Type className="size-[15px]" />
+            </PhoneTool>
+            <PhoneTool
+              small
+              active={tool === 'lasso'}
+              onClick={() => setTool('lasso')}
+              label="Select and move"
+            >
+              <Lasso className="size-[15px]" />
             </PhoneTool>
             <PhoneTool small onClick={undo} label="Undo">
               <Undo2 className="size-[15px]" />
@@ -232,7 +276,7 @@ export function PracticePhone() {
               <Trash2 className="size-[15px]" />
             </PhoneTool>
           </div>
-          <div className="pointer-events-auto flex gap-1.5">
+          <div className="pointer-events-auto flex shrink-0 gap-1.5">
             <PhoneTool
               small
               tint
@@ -246,6 +290,7 @@ export function PracticePhone() {
               <Maximize className="size-[15px] text-accent" />
             </PhoneTool>
           </div>
+          {penPicker}
         </div>
       </div>
 
@@ -289,24 +334,45 @@ export function PracticePhone() {
               specs={problem.answers}
               values={session.answers}
               activeField={session.activeField}
-              onFocusField={store.setActiveField}
+              onFocusField={(i) => {
+                store.setActiveField(i);
+                startTyping();
+              }}
+              onBlurField={stopTyping}
               onChange={store.setAnswer}
               onSubmit={ready ? store.submit : undefined}
               state="editing"
               compact
             />
           </div>
-          <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
-          <button
-            onClick={store.submit}
-            disabled={!ready}
-            className={cx(
-              'grid h-[52px] shrink-0 place-items-center rounded-md text-[17px] font-semibold',
-              ready ? 'bg-accent text-on-accent' : 'cursor-not-allowed bg-raised text-faint',
+          <AnimatePresence initial={false}>
+            {!typing && (
+              <motion.div
+                key="commit"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={SPRING}
+                className="flex shrink-0 flex-col gap-3 overflow-hidden"
+              >
+                <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
+                <button
+                  onClick={store.submit}
+                  disabled={!ready}
+                  className={cx(
+                    'grid h-[52px] shrink-0 place-items-center rounded-md text-[17px] font-semibold',
+                    ready ? 'bg-accent text-on-accent' : 'cursor-not-allowed bg-raised text-faint',
+                  )}
+                >
+                  {!filled
+                    ? 'Type an answer'
+                    : session.confidence === null
+                      ? 'Pick a confidence'
+                      : 'Submit'}
+                </button>
+              </motion.div>
             )}
-          >
-            {!filled ? 'Type an answer' : session.confidence === null ? 'Pick a confidence' : 'Submit'}
-          </button>
+          </AnimatePresence>
         </Sheet>
       )}
 
@@ -326,25 +392,32 @@ interface PhoneToolProps {
   tint?: boolean;
 }
 
+/*
+ * The S-Pen hovers on the phone too, so the names are here as well. The small
+ * row runs along the top of the canvas and the label goes beside it; the tall
+ * row sits at the bottom of the screen, where beside would run off the edge.
+ */
 function PhoneTool({ children, label, onClick, active, small, tint }: PhoneToolProps) {
   return (
-    <motion.button
-      whileTap={{ scale: 0.9 }}
-      transition={{ type: 'spring', stiffness: 700, damping: 30 }}
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={active}
-      className={cx(
-        'grid place-items-center rounded-[10px] border',
-        small ? 'size-[34px]' : 'size-[46px] rounded-md',
-        active
-          ? tint
-            ? 'border-accent bg-accent/15 text-accent'
-            : 'border-accent bg-accent text-on-accent'
-          : 'border-border bg-raised text-muted',
-      )}
-    >
-      {children}
-    </motion.button>
+    <HoverLabel label={label} side={small ? 'right' : 'top'}>
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: 'spring', stiffness: 700, damping: 30 }}
+        onClick={onClick}
+        aria-label={label}
+        aria-pressed={active}
+        className={cx(
+          'grid shrink-0 place-items-center rounded-[10px] border',
+          small ? 'size-[34px]' : 'size-[46px] rounded-md',
+          active
+            ? tint
+              ? 'border-accent bg-accent/15 text-accent'
+              : 'border-accent bg-accent text-on-accent'
+            : 'border-border bg-raised text-muted',
+        )}
+      >
+        {children}
+      </motion.button>
+    </HoverLabel>
   );
 }

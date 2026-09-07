@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useBackGuard } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
 import type { CanvasHandle, CanvasTool } from '@/canvas/ScribbleCanvas';
+import type { CanvasState } from '@/canvas/strokes';
 
 /** The chrome both practice layouts share: tool state and the two dialogs. */
 export function usePractice() {
@@ -13,6 +14,14 @@ export function usePractice() {
   const showToast = useStore((s) => s.showToast);
   const endSession = useStore((s) => s.endSession);
   const setCanvasFullscreen = useStore((s) => s.setCanvasFullscreen);
+
+  // Read and written straight off the store rather than through props: the
+  // canvas is memoised on purpose, and a page of strokes flowing back down
+  // through it on every save would undo that.
+  const getCanvas = useCallback(() => useStore.getState().session?.canvas ?? null, []);
+  const saveCanvas = useCallback((canvas: CanvasState) => {
+    useStore.getState().setCanvasState(canvas);
+  }, []);
 
   // The back gesture used to walk straight out of the session and take the
   // working with it. It asks first now — and while the canvas is filling the
@@ -55,6 +64,8 @@ export function usePractice() {
 
   return {
     canvas,
+    getCanvas,
+    saveCanvas,
     tool,
     setTool,
     penMenu,

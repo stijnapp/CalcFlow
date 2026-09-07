@@ -51,13 +51,6 @@ export function Settings() {
                 label="Pen-only mode"
               />
             </Row>
-            <Row label="Word problems" sub="parameterised templates">
-              <Toggle
-                checked={settings.wordProblems}
-                onChange={(wordProblems) => store.patchSettings({ wordProblems })}
-                label="Word problems"
-              />
-            </Row>
             <Row label="Adaptive difficulty" sub="follows how the session is going">
               <Toggle
                 checked={settings.adaptive}
@@ -220,7 +213,7 @@ function InstallRow() {
       <Download className="size-[18px] shrink-0 text-accent" />
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="text-sm text-ink">Install CalcFlow</span>
-        <span className="text-xs text-faint">works offline, and no address bar</span>
+        <span className="text-xs text-faint">adds it to your home screen; keeps working offline</span>
       </span>
     </button>
   );
@@ -297,6 +290,7 @@ function KeyEditor() {
   const keys = useStore((s) => s.settings.keys);
   const custom = useStore((s) => s.settings.customKeys);
   const patchSettings = useStore((s) => s.patchSettings);
+  const showToast = useStore((s) => s.showToast);
   const [face, setFace] = useState('');
   const [insert, setInsert] = useState('');
 
@@ -314,8 +308,18 @@ function KeyEditor() {
     setInsert('');
   }
 
+  /**
+   * Deleting a key hands it back to the two boxes below rather than dropping it
+   * on the floor: a mis-tap costs nothing, and editing a key he already made is
+   * delete-then-add without having to retype what it was.
+   */
   function forget(id: string) {
+    const gone = custom.find((c) => c.id === id);
     patchSettings({ customKeys: custom.filter((c) => c.id !== id), keys: keys.filter((k) => k !== id) });
+    if (!gone) return;
+    setFace(gone.tex);
+    setInsert(gone.insert);
+    showToast('Key moved back to the boxes below');
   }
 
   return (

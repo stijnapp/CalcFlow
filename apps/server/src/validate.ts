@@ -1,7 +1,7 @@
 import type { Attempt, Confidence, ErrorClass } from '@calcflow/shared';
 
 const CONFIDENCE = ['sure', 'think', 'guess'] as const;
-const ERROR_CLASS = ['plus-c', 'not-exact', 'not-simplified', 'wrong'] as const;
+const ERROR_CLASS = ['plus-c', 'not-exact', 'not-simplified', 'notation', 'wrong'] as const;
 
 /*
  * These two lists are the string unions written out at runtime, and the two

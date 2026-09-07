@@ -7,6 +7,7 @@ import {
   type SessionMode,
   type Settings,
 } from '@calcflow/shared';
+import type { CanvasState } from '@/canvas/strokes';
 
 /** A problem referred to by seed rather than stored — it rebuilds exactly. */
 export interface ProblemRef {
@@ -37,6 +38,10 @@ export interface StoredSession {
   activeField: number;
   confidence: Confidence | null;
   rung: number;
+  /** Absent in sessions stored before the hint box was remembered. */
+  onTrackLine?: string;
+  /** Absent in sessions stored before the canvas was kept. */
+  canvas?: CanvasState;
   answered: boolean;
   savedAt: number;
 }

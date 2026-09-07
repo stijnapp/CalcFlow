@@ -1,4 +1,4 @@
-import { Eraser, Hand, PenTool, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
+import { Eraser, Hand, Lasso, PenTool, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import type { CanvasTool } from '@/canvas/ScribbleCanvas';
@@ -47,6 +47,9 @@ export function ToolRail({
       </RailButton>
       <RailButton label="Type LaTeX" active={tool === 'type'} onClick={() => onTool('type')}>
         <Type className="size-[17px]" />
+      </RailButton>
+      <RailButton label="Select and move" active={tool === 'lasso'} onClick={() => onTool('lasso')}>
+        <Lasso className="size-[17px]" />
       </RailButton>
 
       <div className="my-1 h-px w-7 bg-border" />
@@ -100,11 +103,12 @@ interface RailButtonProps {
 /*
  * The name comes up on hover rather than in a `title`: Chrome on Android never
  * shows those, and hovering the pen over the rail is exactly when he wants to
- * know which of six similar glyphs he is about to press.
+ * know which of six similar glyphs he is about to press. It sits beside the
+ * button rather than above it — above is where the previous tool is.
  */
 function RailButton({ label, active, tint, onClick, children }: RailButtonProps) {
   return (
-    <HoverLabel label={label} className="flex">
+    <HoverLabel label={label} side="right">
       <motion.button
         whileTap={{ scale: 0.9 }}
         transition={{ type: 'spring', stiffness: 700, damping: 30 }}

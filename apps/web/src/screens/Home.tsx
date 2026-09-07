@@ -3,10 +3,12 @@ import { AnimatePresence, motion } from 'motion/react';
 import { CHAPTERS, LEVELS, levelSpec, type SessionMode } from '@calcflow/shared';
 import { candidates } from '@calcflow/generators';
 import { Eyebrow } from '@/components/Eyebrow';
+import { HoverLabel } from '@/components/HoverLabel';
 import { Slider } from '@/components/Slider';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
 import { cx } from '@/lib/cx';
+import { clockTime } from '@/lib/format';
 import { useStore } from '@/state/store';
 
 const MODES: Array<{ id: SessionMode; label: string; meta(n: number): string }> = [
@@ -28,10 +30,15 @@ export function Home({ compact }: { compact?: boolean }) {
   const sample = pool[0];
   const none = settings.chapters.length === 0;
   const flagged = stats.byChapter.filter((c) => c.attempts >= 3 && c.mastery < 70).length;
+  // The button only says "there is something to send"; hovering it says how
+  // much, and whether the last attempt to send anything got through.
+  const syncLabel = `${queued} ${queued === 1 ? 'attempt' : 'attempts'} waiting · ${
+    settings.lastSyncedAt ? `last synced ${clockTime(settings.lastSyncedAt)}` : 'never synced'
+  }`;
   const slow = stats.byChapter.filter((c) => c.attempts >= 3 && c.speed === 'slow').length;
 
   const level = (
-    <section className="flex shrink-0 flex-col gap-5 rounded-2xl border border-border bg-card px-[26px] py-6">
+    <section className="flex shrink-0 flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-4.5">
       <Slider
         label="Level"
         hint="more steps, harder numbers"
@@ -199,7 +206,7 @@ export function Home({ compact }: { compact?: boolean }) {
     >
       <div className="flex shrink-0 flex-wrap items-end gap-5">
         <h1 className={cx('font-semibold tracking-[-0.02em]', compact ? 'text-2xl' : 'text-[32px]')}>
-          Ready to practice
+          Practice
         </h1>
 
         <div className="ml-auto flex items-center gap-2.5">
@@ -220,19 +227,19 @@ export function Home({ compact }: { compact?: boolean }) {
           {/* Only ever there when there is something to send. */}
           <AnimatePresence>
             {queued > 0 && (
-              <motion.button
-                key="sync"
-                initial={{ opacity: 0, scale: 0.8, width: 0 }}
-                animate={{ opacity: 1, scale: 1, width: 40 }}
-                exit={{ opacity: 0, scale: 0.8, width: 0 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 34 }}
-                onClick={store.syncNow}
-                aria-label={`Sync ${queued} unsent ${queued === 1 ? 'attempt' : 'attempts'}`}
-                title={`${queued} waiting to sync`}
-                className="grid h-10 shrink-0 place-items-center rounded-md border border-correct/40 bg-correct/10 text-correct"
-              >
-                <RefreshCw className={cx('size-[17px]', syncing && 'animate-spin')} />
-              </motion.button>
+              <HoverLabel key="sync" label={syncLabel}>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8, width: 0 }}
+                  animate={{ opacity: 1, scale: 1, width: 40 }}
+                  exit={{ opacity: 0, scale: 0.8, width: 0 }}
+                  transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+                  onClick={store.syncNow}
+                  aria-label={`Sync ${queued} unsent ${queued === 1 ? 'attempt' : 'attempts'}`}
+                  className="grid h-10 shrink-0 place-items-center rounded-md border border-correct/40 bg-correct/10 text-correct"
+                >
+                  <RefreshCw className={cx('size-[17px]', syncing && 'animate-spin')} />
+                </motion.button>
+              </HoverLabel>
             )}
           </AnimatePresence>
           <button

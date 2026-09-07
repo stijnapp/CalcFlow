@@ -1,10 +1,18 @@
-import { useRef, type ReactNode, type RefObject } from 'react';
+import {
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { TapDetector } from '@/canvas/gestures';
 import { cx } from '@/lib/cx';
 import { caretOffset, resolveKeys, type LatexKey } from '@/lib/latexKeys';
+import { useEditHistory } from '@/lib/useEditHistory';
 import { useStore } from '@/state/store';
-import { HoverLabel } from './HoverLabel';
+import { NotationRow } from './NotationRow';
 import { Tex } from './Tex';
 
 export type FieldTone = 'editing' | 'correct' | 'wrong' | 'near';
@@ -14,6 +22,7 @@ interface Props {
   onChange(next: string): void;
   onSubmit?(): void;
   onFocus?(): void;
+  onBlur?(): void;
   /** Dims the field when a sibling owns the caret. */
   active?: boolean;
   tone?: FieldTone;
@@ -28,8 +37,12 @@ interface Props {
   fieldRef?: RefObject<HTMLInputElement | null>;
 }
 
+/**
+ * A verdict is worth a coloured edge whether or not the caret is in the box.
+ * `editing` is not a verdict, so it is left to the focus ring below.
+ */
 const BORDER: Record<FieldTone, string> = {
-  editing: 'border-accent',
+  editing: '',
   correct: 'border-correct',
   wrong: 'border-wrong',
   near: 'border-near',
@@ -46,6 +59,7 @@ export function LatexField({
   onChange,
   onSubmit,
   onFocus,
+  onBlur,
   active = true,
   tone = 'editing',
   placeholder = 'type LaTeX',
@@ -58,9 +72,39 @@ export function LatexField({
 }: Props) {
   const ownRef = useRef<HTMLInputElement>(null);
   const inputRef = fieldRef ?? ownRef;
+  // Which box the keyboard is typing into is worth saying out loud: on a screen
+  // with a notation row, an answer field and a hint field all in accent, an
+  // edge that is always lit says nothing at all.
+  const [focused, setFocused] = useState(false);
   const ids = useStore((s) => s.settings.keys);
   const custom = useStore((s) => s.settings.customKeys);
   const keys = resolveKeys(ids, custom);
+  const showToast = useStore((s) => s.showToast);
+
+  /**
+   * Two fingers step back, three step forward — the same tap he already uses on
+   * the canvas, on the one part of the field big enough to land both on.
+   */
+  const history = useEditHistory(value, onChange);
+  const taps = useRef(new TapDetector());
+  /** A gesture that fired must not also count as a tap into the field. */
+  const gestured = useRef(false);
+
+  function tapDown(e: ReactPointerEvent) {
+    if (e.pointerType !== 'touch') return;
+    if (taps.current.activeCount === 0) gestured.current = false;
+    taps.current.down(e.pointerId, e.clientX, e.clientY);
+  }
+
+  function tapUp(e: ReactPointerEvent) {
+    if (e.pointerType !== 'touch') return;
+    const fingers = taps.current.up(e.pointerId);
+    if (fingers < 2) return;
+    gestured.current = true;
+    const moved = fingers >= 3 ? history.redo() : history.undo();
+    if (fingers >= 3) showToast(moved ? 'Redo' : 'Nothing to redo');
+    else showToast(moved ? 'Undo' : 'Nothing to undo');
+  }
 
   /** Puts the caret back where the key left it, after React has repainted. */
   function place(caret: number) {
@@ -90,36 +134,13 @@ export function LatexField({
   return (
     <div
       className={cx(
-        'flex min-w-0 flex-col rounded-lg border bg-well',
-        active ? BORDER[tone] : 'border-border',
+        'flex min-w-0 flex-col rounded-lg border bg-well transition-colors',
+        BORDER[tone] || (focused ? 'border-accent' : 'border-border'),
       )}
     >
       {!readOnly && (
         <div className={cx('flex items-stretch gap-1.5 border-b border-edge', compact ? 'p-1.5' : 'p-2')}>
-          <div className="scroll-x flex min-w-0 flex-1 gap-1.5">
-            {keys.map((key) => (
-              <HoverLabel key={key.id} label={key.name} className="flex shrink-0">
-              <motion.button
-                whileTap={{ scale: 0.92 }}
-                transition={{ type: 'spring', stiffness: 700, damping: 30 }}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => insert(key)}
-                aria-label={key.name}
-                className={cx(
-                  'grid shrink-0 place-items-center rounded-[9px] border border-border bg-raised px-2.5 text-ink transition-colors hover:border-accent active:bg-overlay',
-                  compact ? 'h-9 min-w-[42px] text-[14px]' : 'h-10 min-w-[46px] text-[16px]',
-                )}
-              >
-                <Tex copy={false}>{key.tex}</Tex>
-              </motion.button>
-              </HoverLabel>
-            ))}
-            {keys.length === 0 && (
-              <div className="grid h-9 flex-1 place-items-center text-[13px] text-faint">
-                Add keys in settings
-              </div>
-            )}
-          </div>
+          <NotationRow keys={keys} compact={compact} onInsert={insert} />
           {(['left', 'right'] as const).map((dir) => (
             <motion.button
               key={dir}
@@ -145,7 +166,16 @@ export function LatexField({
         type="button"
         tabIndex={-1}
         aria-label="Edit this line"
-        onClick={() => inputRef.current?.focus()}
+        onPointerDown={tapDown}
+        onPointerMove={(e) => {
+          if (e.pointerType === 'touch') taps.current.move(e.pointerId, e.clientX, e.clientY);
+        }}
+        onPointerUp={tapUp}
+        onPointerCancel={(e) => taps.current.cancel(e.pointerId)}
+        onClick={() => {
+          if (gestured.current) return;
+          inputRef.current?.focus();
+        }}
         className={cx(
           'flex min-w-0 items-center scroll-x text-left',
           compact ? 'min-h-[34px] px-3.5 pt-2 text-xl' : 'min-h-[44px] px-5 pt-2.5 text-[26px]',
@@ -162,7 +192,14 @@ export function LatexField({
           value={value}
           readOnly={readOnly}
           autoFocus={autoFocus}
-          onFocus={onFocus}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && onSubmit) {

@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import { grade, tryParse, equivalent, stripPlusC, type GradeResult } from '@calcflow/engine';
+import {
+  grade,
+  readDerivative,
+  tryParse,
+  equivalent,
+  stripPlusC,
+  type GradeResult,
+} from '@calcflow/engine';
 import { draw, rebuild, type Problem } from '@calcflow/generators';
 import {
   DEFAULT_SETTINGS,
@@ -11,6 +18,7 @@ import {
   type SessionMode,
   type Settings,
 } from '@calcflow/shared';
+import type { CanvasState } from '@/canvas/strokes';
 import { deviceLabel } from '@/lib/deviceName';
 import { ulid } from '@/lib/ulid';
 import {
@@ -101,6 +109,14 @@ export interface Session {
   rung: number;
   outcome: Outcome | null;
   onTrack: 'yes' | 'no' | null;
+  /** What is typed into the hint panel's "am I on track" box. */
+  onTrackLine: string;
+  /**
+   * The working on the canvas. It is state like any other: closing the app and
+   * coming back, or dropping the canvas into fullscreen — which remounts it —
+   * used to throw the derivation away and leave him with the question again.
+   */
+  canvas: CanvasState | null;
 }
 
 interface Store {
@@ -149,6 +165,8 @@ interface Store {
 
   setHintsOpen(open: boolean): void;
   revealRung(max: number): void;
+  setOnTrackLine(latex: string): void;
+  setCanvasState(canvas: CanvasState): void;
   checkOnTrack(latex: string): void;
   setOpenRule(id: string | null): void;
 
@@ -321,6 +339,8 @@ export const useStore = create<Store>((set, get) => ({
         rung: 0,
         outcome: null,
         onTrack: null,
+        onTrackLine: '',
+        canvas: null,
       },
     });
     navigateFn?.(SCREEN_PATH.practice);
@@ -368,6 +388,17 @@ export const useStore = create<Store>((set, get) => ({
 
   revealRung(max) {
     patchSession(set, get, (s) => ({ rung: Math.min(max, s.rung + 1) }));
+  },
+
+  // The line he is checking belongs to the problem, not to the panel: closing
+  // the hints to look at his working and opening them again is the most likely
+  // thing to happen between typing it and pressing Check.
+  setOnTrackLine(onTrackLine) {
+    patchSession(set, get, () => ({ onTrackLine }));
+  },
+
+  setCanvasState(canvas) {
+    patchSession(set, get, () => ({ canvas }));
   },
 
   checkOnTrack(latex) {
@@ -487,6 +518,8 @@ export const useStore = create<Store>((set, get) => ({
         rung: 0,
         outcome: null,
         onTrack: null,
+        onTrackLine: '',
+        canvas: null,
       },
     });
   },
@@ -677,6 +710,8 @@ function freezeSession(s: Session): StoredSession {
     activeField: s.activeField,
     confidence: s.confidence,
     rung: s.rung,
+    onTrackLine: s.onTrackLine,
+    canvas: s.canvas ?? undefined,
     answered: s.outcome !== null,
     savedAt: Date.now(),
   };
@@ -734,6 +769,8 @@ function reviveSession(stored: StoredSession): Session | null {
     rung: stored.rung,
     outcome,
     onTrack: null,
+    onTrackLine: stored.onTrackLine ?? '',
+    canvas: stored.canvas ?? null,
   };
 }
 
@@ -751,16 +788,31 @@ function patchSession(
   set({ session: { ...session, ...patch(session) } });
 }
 
+/**
+ * A derivative may be written with any of the notations in the book, so the
+ * label in front of it — `f'(x) =`, `\frac{dy}{dx} =`, `D_x(6x^3) =` — is read
+ * off before the expression is graded. A label that does not say what he meant
+ * it to say is a near miss, not a wrong answer: the maths behind it is right.
+ */
 function gradeFields(problem: Problem, answers: string[]): GradeResult[] {
-  return problem.answers.map((spec, i) =>
-    grade({
-      raw: answers[i] ?? '',
+  const derivative = problem.verify?.kind === 'derivative' ? problem.verify : undefined;
+  return problem.answers.map((spec, i) => {
+    const raw = answers[i] ?? '';
+    const read = derivative
+      ? readDerivative(raw, { wrt: derivative.wrt, of: derivative.of })
+      : undefined;
+    const result = grade({
+      raw: read?.body ?? raw,
       reference: spec.value,
       domain: spec.domain,
       requires: spec.requires,
       upToConstant: spec.upToConstant ?? false,
-    }),
-  );
+    });
+    if (result.correct && read?.complaint) {
+      return { ...result, correct: false, errorClass: 'notation' as const };
+    }
+    return result;
+  });
 }
 
 /**
@@ -770,7 +822,7 @@ function gradeFields(problem: Problem, answers: string[]): GradeResult[] {
  */
 function worstClass(fields: GradeResult[]): ErrorClass {
   if (fields.some((f) => f.errorClass === 'wrong')) return 'wrong';
-  const order: ErrorClass[] = ['plus-c', 'not-exact', 'not-simplified'];
+  const order: ErrorClass[] = ['notation', 'plus-c', 'not-exact', 'not-simplified'];
   for (const cls of order) {
     if (fields.some((f) => f.errorClass === cls)) return cls;
   }

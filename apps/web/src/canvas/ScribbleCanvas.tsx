@@ -14,10 +14,18 @@ import type { CanvasSurface } from '@calcflow/shared';
 import { LatexField } from '@/components/LatexField';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
-import { RULE_SPACING, Surface, type StrokePoint, type TexBlock } from './strokes';
+import {
+  RULE_SPACING,
+  Surface,
+  loopContains,
+  type Box,
+  type CanvasState,
+  type StrokePoint,
+  type TexBlock,
+} from './strokes';
 import { TapDetector } from './gestures';
 
-export type CanvasTool = 'pen' | 'eraser' | 'type';
+export type CanvasTool = 'pen' | 'eraser' | 'type' | 'lasso';
 
 export interface CanvasHandle {
   undo(): void;
@@ -31,8 +39,16 @@ interface Props {
   penWidth: number;
   penOnly: boolean;
   surface: CanvasSurface;
-  /** Changes when the problem does; strokes are discarded, not persisted. */
+  /** Changes when the problem does; a canvas from another problem is dropped. */
   problemKey: string;
+  /**
+   * Read on the way in rather than passed as a value, so restoring costs no
+   * re-render and always sees the newest save — the canvas remounts every time
+   * it goes fullscreen, and what it must come back with is what it had a
+   * moment ago, not what the props held when the screen first rendered.
+   */
+  getInitial?(): CanvasState | null;
+  onPersist?(state: CanvasState): void;
   onToast(message: string): void;
   className?: string;
 }
@@ -48,17 +64,24 @@ const FLING_DECAY = 0.9965;
 const TAP_SLOP = 10;
 /** A finger resting this long is not tapping any more. */
 const TAP_HOLD_MS = 700;
+/** Quiet after a mark before the page is written back. */
+const SAVE_MS = 600;
+/** A typed block has no measured width here; this is enough to draw a box round. */
+const BLOCK_WIDTH = 96;
+/** Breathing room between the selection box and what it holds. */
+const SELECT_PAD = 10;
+/** The accent, as canvas cannot read a CSS variable. */
+const ACCENT = '#f5a524';
 
 /**
  * A fixed viewport onto an infinitely tall surface. The page never scrolls —
  * he pans within the canvas instead.
  */
 const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanvas(
-  { tool, penWidth, penOnly, surface, problemKey, onToast, className },
+  { tool, penWidth, penOnly, surface, problemKey, getInitial, onPersist, onToast, className },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const surfaceRef = useRef(new Surface());
   const tapsRef = useRef(new TapDetector());
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -73,16 +96,58 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const flingRef = useRef({ v: 0, at: 0, frame: 0 });
   /** A single finger that has not travelled yet — a candidate tap in type mode. */
   const tapRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  /** The loop being drawn, in world coordinates; null when none is. */
+  const lassoRef = useRef<StrokePoint[] | null>(null);
+  /** As far up as the page goes, recomputed each render from where the ink is. */
+  const minPanRef = useRef(0);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Handlers are recreated every render; the writer they call must not be. */
+  const persistRef = useRef<(() => void) | undefined>(undefined);
 
   const [panY, setPanY] = useState(0);
   const [viewH, setViewH] = useState(0);
   /** How far the committed strokes reach; mirrored into state to size the thumb. */
   const [inkBottom, setInkBottom] = useState(0);
+  /** And where they start, which is as far up as he is allowed to scroll. */
+  const [inkTop, setInkTop] = useState(0);
   const [blocks, setBlocks] = useState<TexBlock[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
+  /** What the lasso caught, and the box he drags to move it. */
+  const [selection, setSelection] = useState<{
+    strokes: number[];
+    blocks: number[];
+    box: Box;
+  } | null>(null);
   const nextBlockId = useRef(1);
 
   const active = blocks.find((b) => b.id === activeId) ?? null;
+
+  const getInitialRef = useRef(getInitial);
+  getInitialRef.current = getInitial;
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
+  persistRef.current = () => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = undefined;
+    onPersist?.({
+      key: problemKey,
+      strokes: surfaceRef.current.serialize(),
+      blocks: blocksRef.current,
+      pan: panRef.current,
+    });
+  };
+
+  /** Written back once he stops, so a page of working is never a page of writes. */
+  const markDirty = useCallback(() => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => persistRef.current?.(), SAVE_MS);
+  }, []);
+
+  // Leaving takes the page with it, debounce or no debounce: going fullscreen
+  // unmounts this canvas and mounts another one a frame later.
+  useEffect(() => () => persistRef.current?.(), []);
+
+  useEffect(markDirty, [blocks, markDirty]);
 
   const paint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -93,6 +158,25 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     surfaceRef.current.draw(ctx, w, h, panRef.current, surface, dpr);
+
+    // The loop he is drawing lives here rather than in the surface: it is a
+    // gesture, and it must never end up in the ink or in the undo stack.
+    const loop = lassoRef.current;
+    if (loop && loop.length > 1) {
+      ctx.save();
+      ctx.translate(0, -Math.round(panRef.current * dpr) / dpr);
+      ctx.beginPath();
+      ctx.moveTo(loop[0]!.x, loop[0]!.y);
+      for (let i = 1; i < loop.length; i += 1) ctx.lineTo(loop[i]!.x, loop[i]!.y);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(245,165,36,0.08)';
+      ctx.fill();
+      ctx.setLineDash([6, 5]);
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
   }, [surface]);
 
   /** Coalesce paints into one per frame; a 480 Hz pen would otherwise flood. */
@@ -103,6 +187,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       paint();
       // Unchanged while a stroke is still live, so this is a no-op mid-scribble.
       setInkBottom(surfaceRef.current.contentBottom());
+      setInkTop(surfaceRef.current.contentTop());
     });
   }, [paint]);
 
@@ -130,28 +215,39 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     paint();
   }, [paint, surface]);
 
-  // Strokes belong to one problem and are thrown away with it.
+  // A canvas belongs to one problem: it comes back with that problem and goes
+  // when it does. This runs on the way in as well, which is what makes a
+  // remount — going fullscreen, or reopening the app — pick the page back up.
   useEffect(() => {
+    const saved = getInitialRef.current?.();
+    const mine = saved && saved.key === problemKey ? saved : null;
     surfaceRef.current.reset();
-    setBlocks([]);
+    if (mine) surfaceRef.current.restore(mine.strokes);
+    setBlocks(mine?.blocks ?? []);
+    setSelection(null);
+    lassoRef.current = null;
+    nextBlockId.current = (mine?.blocks ?? []).reduce((m, b) => Math.max(m, b.id), 0) + 1;
     setActiveId(null);
-    setInkBottom(0);
-    panRef.current = 0;
-    setPanY(0);
+    setInkBottom(surfaceRef.current.contentBottom());
+    setInkTop(surfaceRef.current.contentTop());
+    panRef.current = mine?.pan ?? 0;
+    setPanY(panRef.current);
     schedulePaint();
   }, [problemKey, schedulePaint]);
 
   /**
    * Down is unbounded — he can always scroll into empty paper, and the thumb
-   * shrinks to say so. Coming back up, the surface shrinks to the ink again.
+   * shrinks to say so. Up stops half a screen above the topmost mark, which is
+   * the headroom that lets him park the first line clear of the keyboard.
    */
   const setPan = useCallback(
     (value: number) => {
-      panRef.current = Math.max(0, value);
+      panRef.current = Math.max(minPanRef.current, value);
       setPanY(panRef.current);
       schedulePaint();
+      markDirty();
     },
-    [schedulePaint],
+    [markDirty, schedulePaint],
   );
 
   // ------------------------------------------------------------------ momentum
@@ -174,7 +270,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       const next = panRef.current + state.v * dt;
       setPan(next);
       // Hitting the top is a wall, not a bounce.
-      if (next <= 0 || Math.abs(state.v) < 0.015) {
+      if (next <= minPanRef.current || Math.abs(state.v) < 0.015) {
         state.frame = 0;
         state.v = 0;
         return;
@@ -194,12 +290,14 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const undo = useCallback(() => {
     onToast(surfaceRef.current.undo() ? 'Undo' : 'Nothing to undo');
     schedulePaint();
-  }, [onToast, schedulePaint]);
+    markDirty();
+  }, [markDirty, onToast, schedulePaint]);
 
   const redo = useCallback(() => {
     onToast(surfaceRef.current.redo() ? 'Redo' : 'Nothing to redo');
     schedulePaint();
-  }, [onToast, schedulePaint]);
+    markDirty();
+  }, [markDirty, onToast, schedulePaint]);
 
   useImperativeHandle(
     ref,
@@ -211,10 +309,11 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
         setBlocks([]);
         setActiveId(null);
         schedulePaint();
+        markDirty();
       },
       isEmpty: () => surfaceRef.current.isEmpty && blocks.length === 0,
     }),
-    [undo, redo, schedulePaint, blocks.length],
+    [undo, redo, markDirty, schedulePaint, blocks.length],
   );
 
   // ------------------------------------------------------------- pointer input
@@ -255,6 +354,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
           drawingRef.current = false;
           schedulePaint();
         }
+        if (lassoRef.current) {
+          lassoRef.current = null;
+          schedulePaint();
+        }
         erasingRef.current = false;
         // The newest finger takes the pan, so putting one down cannot make the
         // page jump by the distance between his fingers.
@@ -272,6 +375,12 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       tapsRef.current.abort();
     }
 
+    if (tool === 'lasso') {
+      setSelection(null);
+      lassoRef.current = [toWorld(e)];
+      schedulePaint();
+      return;
+    }
     if (tool === 'type') {
       typeTap(e);
       return;
@@ -279,7 +388,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     if (tool === 'eraser') {
       erasingRef.current = true;
       const p = toWorld(e);
-      if (surfaceRef.current.eraseAt(p.x, p.y)) schedulePaint();
+      if (surfaceRef.current.eraseAt(p.x, p.y)) {
+        schedulePaint();
+        markDirty();
+      }
       return;
     }
 
@@ -311,7 +423,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
         const dt = e.timeStamp - flingRef.current.at;
         // Blended rather than sampled, so one jittery frame cannot throw it.
         if (dt > 0) {
-          const v = (Math.max(0, next) - panRef.current) / dt;
+          const v = (Math.max(minPanRef.current, next) - panRef.current) / dt;
           flingRef.current.v = flingRef.current.v * 0.6 + v * 0.4;
           flingRef.current.at = e.timeStamp;
         }
@@ -319,9 +431,17 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
         return;
       }
     }
+    if (lassoRef.current) {
+      lassoRef.current.push(toWorld(e));
+      schedulePaint();
+      return;
+    }
     if (erasingRef.current) {
       const p = toWorld(e);
-      if (surfaceRef.current.eraseAt(p.x, p.y)) schedulePaint();
+      if (surfaceRef.current.eraseAt(p.x, p.y)) {
+        schedulePaint();
+        markDirty();
+      }
       return;
     }
     if (!drawingRef.current) return;
@@ -366,6 +486,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     }
     if (e.pointerType === 'pen') penDownRef.current = false;
 
+    if (lassoRef.current) {
+      closeLasso();
+      return;
+    }
     if (erasingRef.current) {
       erasingRef.current = false;
       return;
@@ -374,6 +498,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       surfaceRef.current.commit();
       drawingRef.current = false;
       schedulePaint();
+      markDirty();
     }
   }
 
@@ -383,16 +508,98 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     panFromRef.current = null;
     tapRef.current = null;
     erasingRef.current = false;
+    if (lassoRef.current) {
+      lassoRef.current = null;
+      schedulePaint();
+    }
     if (drawingRef.current) {
       surfaceRef.current.commit();
       drawingRef.current = false;
       schedulePaint();
+      markDirty();
     }
   }
 
   function onWheel(e: React.WheelEvent) {
     stopFling();
     setPan(panRef.current + e.deltaY);
+  }
+
+  // -------------------------------------------------------------------- lasso
+
+  /**
+   * Letting go closes the loop back to where it started, so he never has to
+   * meet his own line, and everything the loop touches comes with it: a stroke
+   * with one point inside counts, which is how a tail or a minus sign avoids
+   * being left behind.
+   */
+  function closeLasso() {
+    const loop = lassoRef.current;
+    lassoRef.current = null;
+    schedulePaint();
+    if (!loop || loop.length < 3) return;
+
+    const strokes = surfaceRef.current.selectIn(loop);
+    const caught = blocks.filter(
+      (b) =>
+        loopContains(loop, b.x, b.y) ||
+        loopContains(loop, b.x + BLOCK_WIDTH / 2, b.y + BLOCK_HEIGHT / 2),
+    );
+    if (strokes.length === 0 && caught.length === 0) return;
+
+    let box = surfaceRef.current.boundsOf(new Set(strokes));
+    for (const b of caught) {
+      const own = { x: b.x, y: b.y, w: BLOCK_WIDTH, h: BLOCK_HEIGHT };
+      box = box ? union(box, own) : own;
+    }
+    if (!box) return;
+    setSelection({
+      strokes,
+      blocks: caught.map((b) => b.id),
+      box: {
+        x: box.x - SELECT_PAD,
+        y: box.y - SELECT_PAD,
+        w: box.w + SELECT_PAD * 2,
+        h: box.h + SELECT_PAD * 2,
+      },
+    });
+  }
+
+  /** Dragging the box carries the strokes and the blocks inside it together. */
+  function dragSelection(e: ReactPointerEvent<HTMLDivElement>) {
+    e.stopPropagation();
+    const picked = selection;
+    if (!picked) return;
+    const target = e.currentTarget;
+    capture(target, e.pointerId);
+    const strokes = new Set(picked.strokes);
+    const inBlocks = new Set(picked.blocks);
+    let lastX = e.clientX;
+    let lastY = e.clientY;
+
+    // Stepwise rather than from the start point: the strokes move in place, so
+    // there is no original left to measure the total offset against.
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - lastX;
+      const dy = ev.clientY - lastY;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      surfaceRef.current.translate(strokes, dx, dy);
+      if (inBlocks.size > 0) {
+        setBlocks((bs) => bs.map((b) => (inBlocks.has(b.id) ? { ...b, x: b.x + dx, y: b.y + dy } : b)));
+      }
+      setSelection((sel) =>
+        sel ? { ...sel, box: { ...sel.box, x: sel.box.x + dx, y: sel.box.y + dy } } : sel,
+      );
+      schedulePaint();
+    };
+    const up = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+      markDirty();
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
   }
 
   // ---------------------------------------------------------------- tex blocks
@@ -415,11 +622,17 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     return list.filter((b) => b.latex.trim() !== '');
   }
 
+  /**
+   * Placing a block does not open the keyboard, and neither does picking one up.
+   * Focus arrived on pointerdown, so starting to drag a block raised the
+   * keyboard mid-drag, the page moved up to make room, and the block shot out
+   * from under his finger. The bar at the bottom is focused by tapping the bar,
+   * like every other field in the app.
+   */
   function placeBlock(x: number, y: number) {
     const id = nextBlockId.current++;
     setBlocks((bs) => [...dropEmpties(bs), { id, x, y, latex: '' }]);
     setActiveId(id);
-    inputRef.current?.focus();
   }
 
   function editActive(latex: string) {
@@ -444,9 +657,11 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     setActiveId(null);
   }
 
-  // Leaving the type tool settles whatever was being written.
+  // Leaving the type tool settles whatever was being written, and leaving the
+  // lasso drops what it was holding — a box he cannot drag is just a box.
   useEffect(() => {
     if (tool !== 'type') deselect();
+    if (tool !== 'lasso') setSelection(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool]);
 
@@ -458,7 +673,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     const originX = block.x;
     const originY = block.y;
     const target = e.currentTarget;
-    target.setPointerCapture(e.pointerId);
+    capture(target, e.pointerId);
 
     const move = (ev: PointerEvent) => {
       setBlocks((bs) =>
@@ -470,6 +685,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     const up = () => {
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
+      markDirty();
     };
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', up);
@@ -478,11 +694,18 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   // The surface is 4/3 of a screen to begin with, grows past whatever he has
   // written, and always reaches at least one screen below where he is now —
   // so scrolling down never stops and the thumb resizes as he goes.
+  //
+  // Upwards it stops half a screen above the first mark. That much is enough to
+  // park the top line clear of the on-screen keyboard, and stopping there is
+  // what keeps a flick back up from sailing into nothing.
   const view = viewH || 1;
   const written = blocks.reduce((m, b) => Math.max(m, b.y + BLOCK_HEIGHT), inkBottom);
-  const extent = Math.max(view * (4 / 3), written + view / 3, panY + view);
+  const started = blocks.reduce((m, b) => Math.min(m, b.y), inkTop);
+  const ceiling = Math.min(0, started - view / 2);
+  minPanRef.current = ceiling;
+  const extent = Math.max(view * (4 / 3), written - ceiling + view / 3, panY - ceiling + view);
   const thumbHeight = Math.max(10, (view / extent) * 100);
-  const thumbTop = Math.min(100 - thumbHeight, (panY / extent) * 100);
+  const thumbTop = Math.min(100 - thumbHeight, Math.max(0, ((panY - ceiling) / extent) * 100));
 
   return (
     <div className={cx('relative min-w-0 overflow-hidden', className)}>
@@ -505,6 +728,22 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
         />
       </div>
 
+      {selection && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.12 }}
+          onPointerDown={dragSelection}
+          className="absolute cursor-grab touch-none rounded-[10px] border border-dashed border-accent bg-accent/[0.06] active:cursor-grabbing"
+          style={{
+            left: selection.box.x,
+            top: selection.box.y - panY,
+            width: selection.box.w,
+            height: selection.box.h,
+          }}
+        />
+      )}
+
       <AnimatePresence>
         {blocks.map((b) => {
           const on = b.id === activeId;
@@ -519,7 +758,6 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
                 e.stopPropagation();
                 setBlocks((bs) => bs.filter((x) => x.id === b.id || x.latex.trim() !== ''));
                 setActiveId(b.id);
-                inputRef.current?.focus();
                 dragBlock(b.id, e);
               }}
               className={cx(
@@ -548,10 +786,19 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
         })}
       </AnimatePresence>
 
-      {tool === 'type' && (
-        <div className="absolute inset-x-3 bottom-3 rounded-lg shadow-[0_18px_44px_-16px_#000]">
+      {/* Sliding up from the edge says where the bar came from and where it
+          goes; appearing fully formed under his hand did not. */}
+      <AnimatePresence>
+        {tool === 'type' && (
+          <motion.div
+            key="tex-bar"
+            initial={{ y: 'calc(100% + 12px)' }}
+            animate={{ y: 0 }}
+            exit={{ y: 'calc(100% + 12px)' }}
+            transition={SPRING}
+            className="absolute inset-x-3 bottom-3 rounded-lg shadow-[0_18px_44px_-16px_#000]"
+          >
           <LatexField
-            fieldRef={inputRef}
             value={active?.latex ?? ''}
             onChange={editActive}
             onSubmit={deselect}
@@ -569,20 +816,38 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
                 </button>
               )
             }
-          />
-        </div>
-      )}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {tool !== 'type' && (
         <div className="pointer-events-none absolute bottom-4 left-4 font-mono text-[11px] tracking-[0.08em] text-ghost">
-          {penOnly
-            ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES'
-            : 'FINGER DRAWS · 2 FINGERS PAN · 2-FINGER TAP UNDOES'}
+          {tool === 'lasso'
+            ? 'LOOP ROUND SOME WORKING · THEN DRAG THE BOX'
+            : penOnly
+              ? 'PEN DRAWS · FINGER PANS · 2-FINGER TAP UNDOES'
+              : 'FINGER DRAWS · 2 FINGERS PAN · 2-FINGER TAP UNDOES'}
         </div>
       )}
     </div>
   );
 });
+
+/** A pointer that has already gone cannot be captured, and the drag survives it. */
+function capture(el: Element, pointerId: number): void {
+  try {
+    el.setPointerCapture(pointerId);
+  } catch {
+    // Nothing to hold on to; the move and up listeners still do the work.
+  }
+}
+
+function union(a: Box, b: Box): Box {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+}
 
 /**
  * Memoised: the control column re-renders on every keystroke, and the canvas

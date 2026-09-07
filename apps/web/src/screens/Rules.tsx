@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
 import { RULES } from '@calcflow/generators';
 import { chapterTitle } from '@calcflow/shared';
+import { HoverLabel } from '@/components/HoverLabel';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
 import { useStore } from '@/state/store';
@@ -9,17 +10,23 @@ import { useStore } from '@/state/store';
 /** The book's boxed rules, searchable and grouped by chapter. */
 export function Rules({ compact }: { compact?: boolean }) {
   const go = useStore((s) => s.go);
+  const setOpenRule = useStore((s) => s.setOpenRule);
   const [query, setQuery] = useState('');
-  const [chapter, setChapter] = useState<number | null>(null);
+  /** Empty is All, so turning the last chapter off lands back there by itself. */
+  const [picked, setPicked] = useState<number[]>([]);
 
   const chapters = useMemo(() => [...new Set(RULES.map((r) => r.chapter))].sort((a, b) => a - b), []);
 
   const shown = RULES.filter((r) => {
-    if (chapter !== null && r.chapter !== chapter) return false;
+    if (picked.length > 0 && !picked.includes(r.chapter)) return false;
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return r.name.toLowerCase().includes(q) || r.note.toLowerCase().includes(q);
   });
+
+  function toggle(n: number) {
+    setPicked((on) => (on.includes(n) ? on.filter((c) => c !== n) : [...on, n].sort((a, b) => a - b)));
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -49,13 +56,17 @@ export function Rules({ compact }: { compact?: boolean }) {
           </label>
           {/* On the phone the chips are one lane he swipes, not four rows of chrome. */}
           <div className={cx('flex gap-1.5', compact ? 'scroll-x -mx-5 px-5 pb-0.5' : 'flex-wrap')}>
-            <Chip active={chapter === null} onClick={() => setChapter(null)}>
-              All
-            </Chip>
-            {chapters.map((n) => (
-              <Chip key={n} active={chapter === n} onClick={() => setChapter(n)}>
-                Ch {n}
+            <HoverLabel label="Every chapter">
+              <Chip active={picked.length === 0} onClick={() => setPicked([])}>
+                All
               </Chip>
+            </HoverLabel>
+            {chapters.map((n) => (
+              <HoverLabel key={n} label={chapterTitle(n)}>
+                <Chip active={picked.includes(n)} onClick={() => toggle(n)}>
+                  Ch {n}
+                </Chip>
+              </HoverLabel>
             ))}
           </div>
         </div>
@@ -69,9 +80,12 @@ export function Rules({ compact }: { compact?: boolean }) {
         ) : (
           <div className={cx('grid gap-3', compact ? 'grid-cols-1' : 'grid-cols-2 xl:grid-cols-3')}>
             {shown.map((rule) => (
-              <article
+              /* The whole card opens it, because the thing worth tapping for is
+                 the worked example inside and nothing on the face says so. */
+              <button
                 key={rule.id}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5"
+                onClick={() => setOpenRule(rule.id)}
+                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-accent"
               >
                 <div className="flex items-baseline gap-2.5">
                   <span className="font-mono text-[11px] tracking-[0.12em] text-accent">
@@ -83,8 +97,11 @@ export function Rules({ compact }: { compact?: boolean }) {
                   <Tex>{rule.tex}</Tex>
                 </div>
                 <p className="text-[13px] leading-relaxed text-muted text-pretty">{rule.note}</p>
-                <span className="mt-auto text-xs text-ghost">{chapterTitle(rule.chapter)}</span>
-              </article>
+                <span className="mt-auto flex w-full items-center gap-2 text-xs text-ghost">
+                  {chapterTitle(rule.chapter)}
+                  <span className="ml-auto text-accent/70">example →</span>
+                </span>
+              </button>
             ))}
           </div>
         )}
