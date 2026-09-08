@@ -18,10 +18,13 @@ interface Held {
   from: number;
   /** Where each key sat when he picked one up, so the slots stop moving. */
   mids: number[];
-  timer: ReturnType<typeof setTimeout>;
+  timer: ReturnType<typeof setTimeout> | undefined;
   pointerId: number;
   startX: number;
   startY: number;
+  /** Set once the travel says he is scrolling the row, not lifting a key out. */
+  scrolling: boolean;
+  lastX: number;
 }
 
 /**
@@ -94,15 +97,40 @@ export function NotationRow({
       }
       setDrag({ id, from, to: from, x: startX, y: startY });
     }, HOLD_MS);
-    held.current = { id, from, mids: [], timer, pointerId: e.pointerId, startX, startY };
+    held.current = {
+      id,
+      from,
+      mids: [],
+      timer,
+      pointerId: e.pointerId,
+      startX,
+      startY,
+      scrolling: false,
+      lastX: startX,
+    };
   }
 
   function moveTo(e: React.PointerEvent<HTMLButtonElement>) {
     const grip = held.current;
     if (!grip) return;
+    if (grip.scrolling) {
+      // The row's own panning, handed back. It has to be done here because the
+      // keys refuse the browser's: a scroller claims the touch on the first
+      // millimetre of travel and cancels the pointer to say so, and a cancelled
+      // pointer is a hold that can never finish. Refusing the pan is what lets
+      // a still finger reach half a second; this is the other half of that deal.
+      if (rowRef.current) rowRef.current.scrollLeft -= e.clientX - grip.lastX;
+      grip.lastX = e.clientX;
+      return;
+    }
     if (!drag) {
       // Still deciding: travel this early is a scroll, and the key stays put.
-      if (Math.abs(e.clientX - grip.startX) + Math.abs(e.clientY - grip.startY) > SLOP) cancelHold();
+      if (Math.abs(e.clientX - grip.startX) + Math.abs(e.clientY - grip.startY) > SLOP) {
+        clearTimeout(grip.timer);
+        grip.timer = undefined;
+        grip.scrolling = true;
+        grip.lastX = e.clientX;
+      }
       return;
     }
     const others = grip.mids.filter((_, i) => i !== grip.from);
@@ -111,6 +139,7 @@ export function NotationRow({
     setDrag({ id: grip.id, from: grip.from, to, x: e.clientX, y: e.clientY });
   }
 
+  /** The key lands where the ghost is — on a release, and on a cancel too. */
   function up() {
     const grip = held.current;
     cancelHold();
@@ -141,10 +170,7 @@ export function NotationRow({
                 }}
                 onPointerMove={moveTo}
                 onPointerUp={up}
-                onPointerCancel={() => {
-                  cancelHold();
-                  setDrag(null);
-                }}
+                onPointerCancel={up}
                 onContextMenu={(e) => e.preventDefault()}
                 onClick={() => {
                   // The release after a drag is not a press; it is a landing.
@@ -156,7 +182,9 @@ export function NotationRow({
                 }}
                 aria-label={key.name}
                 className={cx(
-                  'grid shrink-0 place-items-center rounded-[9px] border px-2.5 transition-colors',
+                  // No browser gesture on a key: panning the row is done above,
+                  // by hand, so that a hold on one is never taken for a scroll.
+                  'grid shrink-0 touch-none place-items-center rounded-[9px] border px-2.5 transition-colors',
                   size,
                   ghost
                     ? 'border-dashed border-accent bg-accent/5 text-ghost'

@@ -53,8 +53,10 @@ export interface TexBlock {
 const INK = '#efe7db';
 const LINE_HEIGHT = 40;
 const DOT_SPACING = 32;
-/** Grown in chunks as he pans down; the surface is effectively unbounded. */
+/** Grown in chunks as he pans; the surface is effectively unbounded. */
 const CHUNK = 2000;
+/** Slack kept past the ink at either end, and the step the bitmap grows by. */
+const PAD = 1000;
 
 /**
  * Holds the strokes and paints them. Committed strokes live on an offscreen
@@ -67,6 +69,8 @@ export class Surface {
   live: Stroke | null = null;
 
   private bitmap: HTMLCanvasElement | null = null;
+  /** World y the bitmap starts at. Negative once he has written above the origin. */
+  private worldTop = 0;
   private worldHeight = CHUNK;
   /** The bitmap is kept at device resolution; this is the ratio it was cut at. */
   private bitmapDpr = 1;
@@ -140,6 +144,11 @@ export class Surface {
     this.strokes = [];
     this.undone = [];
     this.live = null;
+    // A fresh page gets a fresh window on the world; the last one may have been
+    // grown a long way in either direction by the problem before it.
+    this.worldTop = 0;
+    this.worldHeight = CHUNK;
+    this.bitmap = null;
     this.dirty = true;
   }
 
@@ -178,6 +187,15 @@ export class Surface {
       }
     }
     return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+
+  /** Takes a selection off the page. Redo brings it back, as the eraser does. */
+  remove(ids: ReadonlySet<number>): void {
+    const gone = this.strokes.filter((s) => ids.has(s.id));
+    if (gone.length === 0) return;
+    this.strokes = this.strokes.filter((s) => !ids.has(s.id));
+    this.undone.push(...gone);
+    this.dirty = true;
   }
 
   /** Moves a selection bodily. Undo does not follow it — it is not a mark. */
@@ -243,7 +261,9 @@ export class Surface {
 
     this.ensureBitmap(width, dpr);
     if (this.dirty) this.repaintBitmap(width);
-    if (this.bitmap) ctx.drawImage(this.bitmap, 0, -pan, width, this.worldHeight);
+    if (this.bitmap) {
+      ctx.drawImage(this.bitmap, 0, this.worldTop - pan, width, this.worldHeight);
+    }
 
     if (this.live) {
       ctx.save();
@@ -257,12 +277,30 @@ export class Surface {
    * The bitmap holds world coordinates but is cut at device resolution: drawn
    * at CSS size into a context already scaled by the ratio, every committed
    * stroke was being blown up by that same factor the moment it was committed.
+   *
+   * It is a window on the world rather than the world from zero. Panning stops
+   * half a screen above the first mark, so there is paper up there to write on,
+   * and a bitmap that began at y = 0 threw every one of those strokes away the
+   * moment the pen left the glass — the live stroke was painted straight onto
+   * the view, and only the committed copy went to the bitmap.
    */
   private ensureBitmap(width: number, dpr: number): void {
-    const needed = Math.max(this.worldHeight, this.contentBottom() + CHUNK / 2);
+    const top = Math.min(this.worldTop, floorTo(Math.min(0, this.contentTop()) - PAD, PAD));
+    const bottom = Math.max(
+      this.worldTop + this.worldHeight,
+      ceilTo(this.contentBottom() + PAD, PAD),
+      top + CHUNK,
+    );
     const px = Math.round(width * dpr);
-    if (!this.bitmap || this.bitmap.width !== px || this.bitmapDpr !== dpr || needed > this.worldHeight) {
-      this.worldHeight = Math.ceil(needed / CHUNK) * CHUNK;
+    if (
+      !this.bitmap ||
+      this.bitmap.width !== px ||
+      this.bitmapDpr !== dpr ||
+      top !== this.worldTop ||
+      bottom - top !== this.worldHeight
+    ) {
+      this.worldTop = top;
+      this.worldHeight = bottom - top;
       this.bitmapDpr = dpr;
       this.bitmap = document.createElement('canvas');
       this.bitmap.width = px;
@@ -275,8 +313,10 @@ export class Surface {
     if (!this.bitmap) return;
     const ctx = this.bitmap.getContext('2d');
     if (!ctx) return;
-    ctx.setTransform(this.bitmapDpr, 0, 0, this.bitmapDpr, 0, 0);
-    ctx.clearRect(0, 0, width, this.worldHeight);
+    const dpr = this.bitmapDpr;
+    // The offset is in device pixels; the scale below it is not.
+    ctx.setTransform(dpr, 0, 0, dpr, 0, Math.round(-this.worldTop * dpr));
+    ctx.clearRect(0, this.worldTop, width, this.worldHeight);
     for (const s of this.strokes) paintStroke(ctx, s);
     this.dirty = false;
   }
@@ -301,6 +341,14 @@ function inside(p: { x: number; y: number }, loop: readonly StrokePoint[]): bool
 
 function round(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+function floorTo(n: number, step: number): number {
+  return Math.floor(n / step) * step;
+}
+
+function ceilTo(n: number, step: number): number {
+  return Math.ceil(n / step) * step;
 }
 
 function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke): void {

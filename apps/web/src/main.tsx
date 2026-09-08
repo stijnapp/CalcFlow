@@ -1,8 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
+import { startUpdates } from './lib/appUpdate';
 import { watchForInstall } from './lib/install';
 import { useStore } from './state/store';
 import './styles/index.css';
@@ -25,7 +25,7 @@ if (import.meta.env.DEV) {
     location.reload();
   })();
 } else {
-  registerSW({ immediate: true });
+  startUpdates();
 }
 
 /*

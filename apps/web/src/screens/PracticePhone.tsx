@@ -52,10 +52,12 @@ export function PracticePhone() {
   const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } = practice;
 
   /**
-   * While the caret is in the answer, everything under it goes: the confidence
-   * row and the submit button sat between the field and the on-screen keyboard,
-   * and every pixel they held was a line of his working he could not see. They
-   * come back the moment he taps away, which is also when he needs them.
+   * While the caret is in the answer the screen gives the field everything it
+   * can: the problem card at the top folds away — the sheet repeats the
+   * question anyway — and the confidence row and the submit button move onto
+   * one line beside each other. Nothing leaves. Taking them off the screen
+   * entirely saved more room, but submitting then meant dismissing the keyboard
+   * first, and a row that vanishes under his thumb reads as a glitch.
    */
   const [typing, setTyping] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -100,6 +102,16 @@ export function PracticePhone() {
         />
       )}
     </AnimatePresence>
+  );
+
+  /* The picker has no close button: it is put away by touching the drawing, or
+     the tool it came out of, or anywhere at all. */
+  const penScrim = practice.penMenu && tool === 'pen' && (
+    <button
+      aria-label="Close the width picker"
+      onClick={() => practice.setPenMenu(false)}
+      className="absolute inset-0 z-20 cursor-default"
+    />
   );
 
   const dialogs = (
@@ -161,10 +173,12 @@ export function PracticePhone() {
 
         <div className="relative min-h-0 flex-1">{canvasEl}</div>
 
+        {penScrim}
+
         {/* More tools than the phone is wide, so the row scrolls. The picker
             has to live outside the scroller: a box that clips horizontally
             clips vertically too, and it opens upwards out of the row. */}
-        <div className="relative shrink-0 px-4 pb-[22px] pt-3">
+        <div className="relative z-30 shrink-0 px-4 pb-[22px] pt-3">
           <div className="scroll-x flex gap-2">
             <PhoneTool active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
               <PenTool className="size-[18px]" />
@@ -182,6 +196,7 @@ export function PracticePhone() {
             >
               <Lasso className="size-[18px]" />
             </PhoneTool>
+            <Divider />
             <PhoneTool onClick={undo} label="Undo">
               <Undo2 className="size-[18px]" />
             </PhoneTool>
@@ -210,7 +225,7 @@ export function PracticePhone() {
   }
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
+    <div className="relative flex h-full flex-col overflow-clip">
       <header className="flex shrink-0 items-center gap-2.5 px-4 pt-3">
         <button
           onClick={() => practice.setLeaveAsk(true)}
@@ -234,9 +249,19 @@ export function PracticePhone() {
         </button>
       </header>
 
-      <div className="shrink-0 px-4 pt-3">
-        <ProblemCard problem={problem} compact />
-      </div>
+      {/* Folded away while he types. It is repeated at the top of the answer
+          sheet, and the room it gives back is a line or two more of his notes
+          above the keyboard. */}
+      <motion.div
+        initial={false}
+        animate={{ height: typing ? 0 : 'auto', opacity: typing ? 0 : 1 }}
+        transition={SPRING}
+        className="shrink-0 overflow-hidden"
+      >
+        <div className="px-4 pt-3">
+          <ProblemCard problem={problem} compact />
+        </div>
+      </motion.div>
 
       {/* The canvas stops above the answer bar rather than behind it. */}
       <div
@@ -247,7 +272,7 @@ export function PracticePhone() {
         {/* The tools scroll; pen-only and fullscreen do not. Those two are how
             he gets his hand out of the way and how he gets more room, and
             hunting for either by swiping a row is exactly the wrong moment. */}
-        <div className="pointer-events-none absolute inset-x-3.5 top-3.5 flex items-start gap-1.5">
+        <div className="pointer-events-none absolute inset-x-3.5 top-3.5 z-30 flex items-start gap-1.5">
           <div className="scroll-x pointer-events-auto flex min-w-0 flex-1 gap-1.5">
             <PhoneTool small active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
               <PenTool className="size-[15px]" />
@@ -266,6 +291,7 @@ export function PracticePhone() {
             >
               <Lasso className="size-[15px]" />
             </PhoneTool>
+            <Divider small />
             <PhoneTool small onClick={undo} label="Undo">
               <Undo2 className="size-[15px]" />
             </PhoneTool>
@@ -293,6 +319,8 @@ export function PracticePhone() {
           {penPicker}
         </div>
       </div>
+
+      {penScrim}
 
       {answered ? (
         <motion.div
@@ -345,34 +373,33 @@ export function PracticePhone() {
               compact
             />
           </div>
-          <AnimatePresence initial={false}>
-            {!typing && (
-              <motion.div
-                key="commit"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={SPRING}
-                className="flex shrink-0 flex-col gap-3 overflow-hidden"
-              >
-                <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
-                <button
-                  onClick={store.submit}
-                  disabled={!ready}
-                  className={cx(
-                    'grid h-[52px] shrink-0 place-items-center rounded-md text-[17px] font-semibold',
-                    ready ? 'bg-accent text-on-accent' : 'cursor-not-allowed bg-raised text-faint',
-                  )}
-                >
-                  {!filled
-                    ? 'Type an answer'
-                    : session.confidence === null
-                      ? 'Pick a confidence'
-                      : 'Submit'}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div
+            layout
+            transition={SPRING}
+            className={cx('flex shrink-0 gap-2.5', typing ? 'items-stretch' : 'flex-col')}
+          >
+            <motion.div layout className="min-w-0 flex-1">
+              <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
+            </motion.div>
+            <motion.button
+              layout
+              onClick={store.submit}
+              disabled={!ready}
+              className={cx(
+                'grid shrink-0 place-items-center rounded-md font-semibold',
+                typing ? 'h-10 w-[92px] text-[14px]' : 'h-[52px] text-[17px]',
+                ready ? 'bg-accent text-on-accent' : 'cursor-not-allowed bg-raised text-faint',
+              )}
+            >
+              {/* No room for a sentence beside the confidence row, and no need
+                  for one: what is missing is the line he is typing. */}
+              {typing || (filled && session.confidence !== null)
+                ? 'Submit'
+                : !filled
+                  ? 'Type an answer'
+                  : 'Pick a confidence'}
+            </motion.button>
+          </motion.div>
         </Sheet>
       )}
 
@@ -392,14 +419,24 @@ interface PhoneToolProps {
   tint?: boolean;
 }
 
+/** The break between what draws and what undoes, as on the tablet rail. */
+function Divider({ small }: { small?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={cx('w-px shrink-0 self-center bg-border', small ? 'mx-1 h-[22px]' : 'mx-1.5 h-7')}
+    />
+  );
+}
+
 /*
- * The S-Pen hovers on the phone too, so the names are here as well. The small
- * row runs along the top of the canvas and the label goes beside it; the tall
- * row sits at the bottom of the screen, where beside would run off the edge.
+ * The S-Pen hovers on the phone too, so the names are here as well. The label
+ * goes on whichever side has room: under the row along the top of the canvas,
+ * over the row at the bottom of the screen.
  */
 function PhoneTool({ children, label, onClick, active, small, tint }: PhoneToolProps) {
   return (
-    <HoverLabel label={label} side={small ? 'right' : 'top'}>
+    <HoverLabel label={label} side={small ? 'bottom' : 'top'}>
       <motion.button
         whileTap={{ scale: 0.9 }}
         transition={{ type: 'spring', stiffness: 700, damping: 30 }}

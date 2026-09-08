@@ -47,7 +47,7 @@ export function PracticeTablet() {
   const ready = filled && session.confidence !== null;
 
   return (
-    <div className="relative flex h-full overflow-hidden">
+    <div className="relative flex h-full overflow-clip">
       <div className="relative flex w-[62%] shrink-0 bg-canvas">
         <ToolRail
           tool={tool}

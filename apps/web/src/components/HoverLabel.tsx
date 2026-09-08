@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -23,7 +23,7 @@ import { AnimatePresence, motion } from 'motion/react';
  */
 
 /** Which edge of the control the label sits on. */
-export type HoverSide = 'top' | 'right';
+export type HoverSide = 'top' | 'right' | 'bottom';
 
 /**
  * Long enough that the label is not flickering past on the way somewhere else,
@@ -32,6 +32,13 @@ export type HoverSide = 'top' | 'right';
 const DELAY_MS = 450;
 /** Clear of the control, close enough to read as belonging to it. */
 const GAP = 8;
+/** How close to the edge of the screen a label may come before it slides in. */
+const EDGE = 8;
+
+interface At {
+  x: number;
+  y: number;
+}
 
 export function HoverLabel({
   label,
@@ -43,7 +50,7 @@ export function HoverLabel({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const [at, setAt] = useState<At | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   function hide() {
@@ -61,11 +68,9 @@ export function HoverLabel({
       // moved the key under it in the meantime.
       const box = ref.current?.firstElementChild?.getBoundingClientRect();
       if (!box) return;
-      setAt(
-        side === 'right'
-          ? { x: box.right + GAP, y: box.top + box.height / 2 }
-          : { x: box.left + box.width / 2, y: box.top - GAP },
-      );
+      if (side === 'right') setAt({ x: box.right + GAP, y: box.top + box.height / 2 });
+      else if (side === 'bottom') setAt({ x: box.left + box.width / 2, y: box.bottom + GAP });
+      else setAt({ x: box.left + box.width / 2, y: box.top - GAP });
     }, DELAY_MS);
   }
 
@@ -73,48 +78,81 @@ export function HoverLabel({
     <span
       ref={ref}
       className="contents"
-      onPointerEnter={(e) => {
+      // Over and out rather than enter and leave. Only these two bubble, and
+      // the pen crosses into the icon inside a button as often as it lands on
+      // the button itself — this is the half of a tool that did not answer.
+      // `relatedTarget` gives back the enter/leave semantics: a move from the
+      // button to its own icon is not an arrival, and not a departure either.
+      onPointerOver={(e) => {
         if (e.pointerType === 'touch') return;
+        if (within(ref.current, e.relatedTarget)) return;
         arm();
       }}
-      onPointerLeave={hide}
+      onPointerOut={(e) => {
+        if (within(ref.current, e.relatedTarget)) return;
+        hide();
+      }}
       onPointerDown={hide}
       onPointerCancel={hide}
     >
       {children}
       {createPortal(
-        <AnimatePresence>
-          {at && (
-            /* Two elements, because the animation and the centring both want
-               the transform: the outer one parks the label against the control,
-               the inner one is free to move. */
-            <span
-              style={{
-                left: Math.round(at.x),
-                top: Math.round(at.y),
-                // Clamped by the translate rather than by measuring: the label
-                // is small and never near enough to an edge for it to matter.
-                transform: side === 'right' ? 'translateY(-50%)' : 'translate(-50%, -100%)',
-              }}
-              className="pointer-events-none fixed z-50"
-            >
-              <motion.span
-                role="tooltip"
-                /* Arrives from the control it belongs to, so which one it names
-                   is legible even when two are next to each other. */
-                initial={{ opacity: 0, x: side === 'right' ? -4 : 0, y: side === 'right' ? 0 : 4 }}
-                animate={{ opacity: 1, x: 0, y: 0 }}
-                exit={{ opacity: 0, x: side === 'right' ? -4 : 0, y: side === 'right' ? 0 : 4 }}
-                transition={{ duration: 0.12 }}
-                className="block max-w-[60vw] whitespace-nowrap rounded-md border border-strong bg-overlay px-2 py-1 text-[12px] text-ink shadow-[0_8px_20px_-6px_#000]"
-              >
-                {label}
-              </motion.span>
-            </span>
-          )}
-        </AnimatePresence>,
+        <AnimatePresence>{at && <Label at={at} side={side} label={label} />}</AnimatePresence>,
         document.body,
       )}
+    </span>
+  );
+}
+
+/** Whether the pointer came from, or went to, somewhere inside this control. */
+function within(host: HTMLElement | null, other: EventTarget | null): boolean {
+  return host !== null && other instanceof Node && host.contains(other);
+}
+
+/**
+ * Two elements, because the animation and the parking both want the transform:
+ * the outer one sits against the control, the inner one is free to move.
+ */
+function Label({ at, side, label }: { at: At; side: HoverSide; label: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  /** How far the label had to slide to stay on screen. */
+  const [shift, setShift] = useState(0);
+
+  // Measured once it is laid out: the width is the whole question, and a label
+  // on the first or last tool in a row is otherwise half off the edge.
+  useLayoutEffect(() => {
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    const past = box.right - (window.innerWidth - EDGE);
+    const before = EDGE - box.left;
+    setShift(past > 0 ? -past : before > 0 ? before : 0);
+  }, [at, label]);
+
+  const transform =
+    side === 'right'
+      ? 'translateY(-50%)'
+      : side === 'bottom'
+        ? 'translateX(-50%)'
+        : 'translate(-50%, -100%)';
+
+  return (
+    <span
+      style={{ left: Math.round(at.x + shift), top: Math.round(at.y), transform }}
+      className="pointer-events-none fixed z-50"
+    >
+      <motion.span
+        ref={ref}
+        role="tooltip"
+        /* Arrives from the control it belongs to, so which one it names is
+           legible even when two are next to each other. */
+        initial={{ opacity: 0, x: side === 'right' ? -4 : 0, y: side === 'top' ? 4 : side === 'bottom' ? -4 : 0 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        exit={{ opacity: 0, x: side === 'right' ? -4 : 0, y: side === 'top' ? 4 : side === 'bottom' ? -4 : 0 }}
+        transition={{ duration: 0.12 }}
+        className="block max-w-[60vw] whitespace-nowrap rounded-md border border-strong bg-overlay px-2 py-1 text-[12px] text-ink shadow-[0_8px_20px_-6px_#000]"
+      >
+        {label}
+      </motion.span>
     </span>
   );
 }

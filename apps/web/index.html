@@ -2,14 +2,22 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="utf-8" />
+    <!--
+      No `interactive-widget` override: the keyboard is left to overlay the page
+      and scroll it, which is what keeps the canvas its full height. Resizing
+      the content instead squeezed the flex column between the problem card and
+      the answer sheet down to a sliver of paper.
+    -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1, interactive-widget=resizes-content"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1"
     />
+    <!-- The colour Android paints the status bar with, so the bars read as part
+         of the app rather than as a black band above it. -->
     <meta name="theme-color" content="#141210" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="CalcFlow" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

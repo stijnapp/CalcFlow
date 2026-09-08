@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Check, ChevronDown, Sparkles, X } from 'lucide-react';
 import { readDerivative } from '@calcflow/engine';
 import type { ErrorClass } from '@calcflow/shared';
-import type { Problem } from '@calcflow/generators';
-import { ClaudeMark } from './ClaudeMark';
+import { ruleById, type Problem } from '@calcflow/generators';
 import { Fit } from './Fit';
-import { HoverLabel } from './HoverLabel';
 import { Tex } from './Tex';
 import { Eyebrow } from './Eyebrow';
-import { claudePrompt } from '@/lib/claudePrompt';
+import { askPrompt } from '@/lib/askPrompt';
 import { copyText } from '@/lib/copyText';
 import { cx } from '@/lib/cx';
 import { duration } from '@/lib/format';
@@ -52,6 +50,56 @@ const NEAR_MISS: Record<string, { title: string; body: string; glyph: string }> 
   },
 };
 
+/**
+ * One line of the worked solution. A step that names a rule is a way into that
+ * rule's card and its randomised example: the step says what was done to this
+ * expression, the card says what the thing itself is. A tidying step names no
+ * rule and stays a plain row — and stays a `div`, because a disabled button
+ * swallows the hold that copies the LaTeX off it.
+ */
+function Step({
+  step,
+  index,
+  onOpenRule,
+}: {
+  step: Problem['solution'][number];
+  index: number;
+  onOpenRule(id: string): void;
+}) {
+  const rule = step.ruleId ? ruleById(step.ruleId) : undefined;
+  const body = (
+    <>
+      <span className={cx('w-[108px] shrink-0 text-xs', rule ? 'text-accent' : 'text-faint')}>
+        {step.ruleLabel}
+      </span>
+      <Fit className="min-w-0 flex-1 text-[17px]">
+        <Tex>{step.expr}</Tex>
+      </Fit>
+    </>
+  );
+  const shell =
+    'flex animate-rise items-center gap-3 rounded-[10px] border border-edge bg-page px-3.5 py-2.5';
+  const delay = { animationDelay: `${index * 40}ms` };
+
+  if (!rule) {
+    return (
+      <div style={delay} className={shell}>
+        {body}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenRule(rule.id)}
+      style={delay}
+      className={cx(shell, 'w-full text-left hover:border-accent')}
+    >
+      {body}
+    </button>
+  );
+}
+
 export function FeedbackCard({
   problem,
   correct,
@@ -64,6 +112,7 @@ export function FeedbackCard({
 }: Props) {
   const [showSteps, setShowSteps] = useState(false);
   const showToast = useStore((s) => s.showToast);
+  const setOpenRule = useStore((s) => s.setOpenRule);
   const near = errorClass ? NEAR_MISS[errorClass] : undefined;
   // The notation complaint is specific to what he wrote, so it is read back off
   // the answer rather than kept in the outcome the attempt was logged with.
@@ -154,33 +203,23 @@ export function FeedbackCard({
         {showSteps && (
           <div className="flex flex-col gap-2">
             {problem.solution.map((s, i) => (
-              <div
-                key={i}
-                style={{ animationDelay: `${i * 40}ms` }}
-                className="flex animate-rise items-center gap-3 rounded-[10px] border border-edge bg-page px-3.5 py-2.5"
-              >
-                <span className="w-[108px] shrink-0 text-xs text-faint">{s.ruleLabel}</span>
-                <Fit className="min-w-0 flex-1 text-[17px]">
-                  <Tex>{s.expr}</Tex>
-                </Fit>
-              </div>
+              <Step key={i} step={s} index={i} onOpenRule={setOpenRule} />
             ))}
 
             {/* The steps say what the answer was. When that is not the same as
                 knowing why his own line was wrong, this hands the pair over to
-                somewhere he can ask about it. */}
-            <HoverLabel label="Copy the question and your answer, to ask Claude yourself">
-              <button
-                onClick={async () => {
-                  const ok = await copyText(claudePrompt(problem, answers));
-                  showToast(ok ? 'Copied — paste it into Claude' : 'Could not reach the clipboard');
-                }}
-                className="flex items-center gap-2 self-start rounded-md border border-border bg-page px-3 py-2 text-[13px] text-ink2 hover:border-accent hover:text-ink"
-              >
-                <ClaudeMark className="size-4 shrink-0 text-accent" />
-                Copy for Claude
-              </button>
-            </HoverLabel>
+                whichever chat he wants to carry the lesson on in. The label
+                says what it copies, so it needs nothing hovering over it. */}
+            <button
+              onClick={async () => {
+                const ok = await copyText(askPrompt(problem, answers));
+                showToast(ok ? 'Copied — paste it into a chat' : 'Could not reach the clipboard');
+              }}
+              className="flex items-center gap-2 self-start rounded-md border border-border bg-page px-3 py-2 text-[13px] text-ink2 hover:border-accent hover:text-ink"
+            >
+              <Sparkles className="size-4 shrink-0 text-accent" />
+              Copy question and answer, to ask an AI
+            </button>
           </div>
         )}
       </div>

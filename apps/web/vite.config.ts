@@ -9,7 +9,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // The new worker waits until he says so. `autoUpdate` swapped the app out
+      // from under him — mid-problem, with no way to tell that anything had
+      // happened; the banner in `UpdateBanner` is the other half of this.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
         // `id` is what keeps an install pointed at this app across redeploys.
@@ -19,11 +22,13 @@ export default defineConfig({
         description: 'Unlimited practice for the RU Mathematics Practice Book.',
         theme_color: '#141210',
         background_color: '#141210',
-        // No browser chrome and no system bars: the answer sheet already has to
-        // dodge Android's gesture bar, and a URL bar on top of that is 60px of
-        // a phone screen spent on an address he never types.
-        display: 'fullscreen',
-        display_override: ['fullscreen', 'standalone', 'minimal-ui'],
+        // No browser chrome, but Android's own bars stay: the clock and the
+        // battery are worth the strip they sit in, and a gesture bar drawn over
+        // the app is a gesture bar he cannot see the edge of. `theme_color`
+        // paints the status bar and `background_color` the navigation bar, so
+        // both read as part of the page rather than as black bands around it.
+        display: 'standalone',
+        display_override: ['standalone', 'minimal-ui'],
         orientation: 'any',
         start_url: '/',
         scope: '/',

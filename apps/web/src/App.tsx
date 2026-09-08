@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { RuleCardModal } from '@/components/RuleCardModal';
 import { Toast } from '@/components/Toast';
+import { UpdateBanner } from '@/components/UpdateBanner';
 import { useLayout } from '@/lib/useLayout';
 import { bindNavigate, useStore } from '@/state/store';
 import { Home } from '@/screens/Home';
@@ -53,7 +54,13 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
-      <main className="relative h-full overflow-hidden bg-page">
+      {/* `clip` and not `hidden`: a hidden box is still a scroll container, and
+          focusing the answer had the browser reveal it by scrolling this one —
+          the header went off the top of the phone and stayed there for the rest
+          of the session. A clipped box cannot be scrolled at all, so the
+          keyboard moves the visual viewport instead, which comes back by
+          itself. */}
+      <main className="relative h-full overflow-clip bg-page">
         <AnimatePresence initial={false}>
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<Page><Home compact={compact} /></Page>} />
@@ -76,6 +83,7 @@ export function App() {
         </AnimatePresence>
 
         <RuleCardModal />
+        <UpdateBanner />
         <Toast />
       </main>
     </MotionConfig>

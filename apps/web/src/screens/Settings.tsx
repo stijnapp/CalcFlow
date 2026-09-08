@@ -165,7 +165,7 @@ export function Settings() {
               {syncing ? 'Syncing…' : `Sync now — ${queued} queued`}
             </button>
             <p className="text-center font-mono text-[11px] text-ghost">
-              CALCFLOW 0.1.0 · {GENERATORS.length} GENERATORS · {CHAPTERS.length} CHAPTERS
+              CALCFLOW 0.1.9 · {GENERATORS.length} GENERATORS · {CHAPTERS.length} CHAPTERS
             </p>
           </div>
         </div>

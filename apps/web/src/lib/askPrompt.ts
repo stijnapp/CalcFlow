@@ -9,7 +9,7 @@ import type { Problem } from '@calcflow/generators';
  * The maths goes over as raw LaTeX between dollars — it is what the app has,
  * and it is what a chat window will render.
  */
-export function claudePrompt(problem: Problem, answers: string[]): string {
+export function askPrompt(problem: Problem, answers: string[]): string {
   const question = [
     problem.instruction,
     problem.promptText ?? `$${problem.prompt}$`,

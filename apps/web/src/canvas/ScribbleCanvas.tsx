@@ -565,6 +565,22 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     });
   }
 
+  /**
+   * Rubbing out a whole line with the eraser is a dozen careful passes; having
+   * looped it already, the box is the natural place to say "not that".
+   */
+  function deleteSelection() {
+    const picked = selection;
+    if (!picked) return;
+    surfaceRef.current.remove(new Set(picked.strokes));
+    const gone = new Set(picked.blocks);
+    if (gone.size > 0) setBlocks((bs) => bs.filter((b) => !gone.has(b.id)));
+    setSelection(null);
+    schedulePaint();
+    markDirty();
+    onToast('Deleted the selection');
+  }
+
   /** Dragging the box carries the strokes and the blocks inside it together. */
   function dragSelection(e: ReactPointerEvent<HTMLDivElement>) {
     e.stopPropagation();
@@ -741,7 +757,16 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
             width: selection.box.w,
             height: selection.box.h,
           }}
-        />
+        >
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={deleteSelection}
+            aria-label="Delete the selection"
+            className="absolute -right-3.5 -top-3.5 grid size-8 place-items-center rounded-full border border-strong bg-overlay text-muted shadow-[0_8px_20px_-6px_#000] hover:text-wrong-ink"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </motion.div>
       )}
 
       <AnimatePresence>
