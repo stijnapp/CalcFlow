@@ -8,6 +8,7 @@ import { cx } from '@/lib/cx';
 import { useStore } from '@/state/store';
 import { Eyebrow } from './Eyebrow';
 import { Fit } from './Fit';
+import { Prose } from './Prose';
 import { HoverLabel } from './HoverLabel';
 import { Tex } from './Tex';
 
@@ -87,14 +88,14 @@ export function RuleCardModal() {
                 <Tex>{rule.tex}</Tex>
               </div>
 
-              <p
+              <Prose
                 className={cx(
                   'shrink-0 leading-relaxed text-ink2 text-pretty',
                   compact ? 'text-[13px]' : 'text-sm',
                 )}
               >
                 {rule.note}
-              </p>
+              </Prose>
 
               {example && (
                 <section className="flex shrink-0 flex-col gap-2">

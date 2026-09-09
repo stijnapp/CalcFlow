@@ -11,8 +11,10 @@ export interface ChapterStat {
   recent: number;
   correct: number;
   wrong: number;
+  /** 0–100, plainly what share of the window he got right. What the bar shows. */
+  rightRate: number;
   /** 0–100. Confident-and-wrong counts against twice, because it is a
-   *  misconception rather than a gap. */
+   *  misconception rather than a gap. What the recommendations rank on. */
   mastery: number;
   medianMs: number;
   /** Against his own median across every chapter, not an outside benchmark. */
@@ -61,6 +63,7 @@ export function computeStats(attempts: Attempt[]): Stats {
       recent: recent.length,
       correct,
       wrong: recent.length - correct,
+      rightRate: Math.round(rate * 100),
       mastery: recent.length ? Math.max(0, Math.round((rate - penalty) * 100)) : 0,
       medianMs,
       speed: speedOf(medianMs, overallMedianMs),

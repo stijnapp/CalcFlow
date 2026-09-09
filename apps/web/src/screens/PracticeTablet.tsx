@@ -13,6 +13,7 @@ import { ProgressDots } from '@/components/ProgressDots';
 import { RulesUsed } from '@/components/RulesUsed';
 import { ToolRail } from '@/components/ToolRail';
 import { cx } from '@/lib/cx';
+import { useKeyboardInset } from '@/lib/useKeyboardInset';
 import { useStore } from '@/state/store';
 import { usePractice } from './usePractice';
 
@@ -36,6 +37,13 @@ export function PracticeTablet() {
   const { problem, outcome } = session;
   const answered = outcome !== null;
   const scroller = useRef<HTMLDivElement>(null);
+  /*
+   * The keyboard covers the bottom of this column, submit button and all, and
+   * the page itself cannot move: the layout is pinned to the screen so that the
+   * canvas keeps its height. Handing the covered strip to the scroller as
+   * padding is what lets him push the column up and see what is under it.
+   */
+  const keyboard = useKeyboardInset();
 
   // Submitting from the bottom of a long column would otherwise leave him
   // looking at the last line of the verdict instead of at the verdict.
@@ -110,7 +118,8 @@ export function PracticeTablet() {
               column this narrow. */}
           <div
             ref={scroller}
-            className="scroll-y -mx-[26px] flex min-h-0 flex-1 flex-col gap-3.5 px-[26px] pb-[22px]"
+            style={{ paddingBottom: 22 + keyboard }}
+            className="scroll-y -mx-[26px] flex min-h-0 flex-1 flex-col gap-3.5 px-[26px]"
           >
             {answered ? (
               <>

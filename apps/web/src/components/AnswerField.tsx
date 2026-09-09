@@ -35,18 +35,16 @@ export function AnswerField({
   return (
     <div className="flex flex-col gap-2">
       {specs.map((spec, i) => (
-        <div key={i} className="flex items-start gap-3">
+        /* The label sits over the box rather than beside it. A column this
+           narrow has no 72 pixels to spare on the word "smaller", and the
+           answer it names is the thing that needs the width. */
+        <div key={i} className="flex min-w-0 flex-col gap-1">
           {specs.length > 1 && (
-            <span
-              className={cx(
-                'w-[72px] shrink-0 text-right text-[13px] text-faint',
-                compact ? 'pt-2' : 'pt-3',
-              )}
-            >
+            <span className={cx('text-[13px] text-faint', compact ? 'px-0.5' : 'px-1')}>
               {spec.label}
             </span>
           )}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <LatexField
               value={values[i] ?? ''}
               onChange={onChange}

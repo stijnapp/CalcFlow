@@ -16,6 +16,8 @@ export interface Settings {
   /** 1–9, an index into LEVELS. Drives both steps and difficulty. */
   level: number;
   mode: SessionMode;
+  /** How many problems a finite set holds. Endless ignores it. */
+  setLength: number;
   adaptive: boolean;
   /** Pen draws, finger pans. On by default on tablet. */
   penOnly: boolean;
@@ -35,6 +37,9 @@ export interface Settings {
   updatedAt: number;
 }
 
+/** The lengths the stepper walks between, so a tap is never a typo. */
+export const SET_LENGTHS = [3, 5, 10, 15, 20, 30, 50] as const;
+
 export const DEFAULT_KEYS = [
   'frac',
   'sqrt',
@@ -51,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   chapters: [],
   level: 3,
   mode: 'set10',
+  setLength: 10,
   adaptive: false,
   penOnly: true,
   reducedMotion: false,

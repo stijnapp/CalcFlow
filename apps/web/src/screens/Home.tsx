@@ -11,11 +11,12 @@ import { cx } from '@/lib/cx';
 import { clockTime } from '@/lib/format';
 import { useStore } from '@/state/store';
 
-const MODES: Array<{ id: SessionMode; label: string; meta(n: number): string }> = [
-  { id: 'set10', label: 'Set of 10', meta: () => '~12 min' },
-  { id: 'endless', label: 'Endless', meta: () => 'no end' },
-  { id: 'weak', label: 'Weak spots', meta: (n) => `${n} flagged` },
-  { id: 'speed', label: 'Build speed', meta: (n) => `${n} slow topics` },
+/** `n` is the set length for the sized modes, and the flagged count for the rest. */
+const MODES: Array<{ id: SessionMode; label(n: number): string; meta(n: number): string }> = [
+  { id: 'set10', label: (n) => `Set of ${n}`, meta: (n) => `~${Math.round(n * 1.2)} min` },
+  { id: 'endless', label: () => 'Endless', meta: () => 'no end' },
+  { id: 'weak', label: () => 'Weak spots', meta: (n) => `${n} flagged` },
+  { id: 'speed', label: () => 'Build speed', meta: (n) => `${n} slow topics` },
 ];
 
 export function Home({ compact }: { compact?: boolean }) {
@@ -152,9 +153,9 @@ export function Home({ compact }: { compact?: boolean }) {
                 >
                   <span className={cx('size-[7px] rounded-full', active && 'bg-accent')} />
                 </span>
-                <span className="text-sm font-medium">{m.label}</span>
+                <span className="text-sm font-medium">{m.label(settings.setLength)}</span>
                 <span className="ml-auto text-xs text-faint">
-                  {m.meta(m.id === 'weak' ? flagged : slow)}
+                  {m.meta(m.id === 'weak' ? flagged : m.id === 'speed' ? slow : settings.setLength)}
                 </span>
               </button>
             );
@@ -189,7 +190,7 @@ export function Home({ compact }: { compact?: boolean }) {
           'Pick a chapter to start'
         ) : (
           <>
-            Start {MODES.find((m) => m.id === settings.mode)!.label.toLowerCase()}
+            Start {MODES.find((m) => m.id === settings.mode)!.label(settings.setLength).toLowerCase()}
             <ArrowRight className="size-[18px]" />
           </>
         )}

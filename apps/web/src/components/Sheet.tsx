@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { animate, motion, useDragControls, useMotionValue } from 'motion/react';
 import { cx } from '@/lib/cx';
+import { useKeyboardInset } from '@/lib/useKeyboardInset';
 
 /** Open, or put away at the bottom of the screen. There is nothing in between. */
 export type SheetSnap = 'open' | 'down';
@@ -44,6 +45,14 @@ export function Sheet({ children, closeable, onClose, height, className }: Props
   /** The sheet's open height, which is what the peek offset is measured from. */
   const [openPx, setOpenPx] = useState(0);
   const [vh, setVh] = useState(() => (typeof window === 'undefined' ? 0 : window.innerHeight));
+  /*
+   * The sheet sits on top of the keyboard rather than behind it. Everything it
+   * holds then fits between the two, and the scroll surface inside it becomes a
+   * real one: he can push the answer box up the screen to see his notes, which
+   * behind the keyboard there was no way to ask for.
+   */
+  const keyboard = useKeyboardInset();
+  const avail = Math.max(0, vh - keyboard);
 
   // The on-screen keyboard changes the height the sheet has to work with, and
   // on Android that arrives as a visual-viewport resize rather than a window one.
@@ -95,13 +104,14 @@ export function Sheet({ children, closeable, onClose, height, className }: Props
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
       transition={SPRING}
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col justify-end"
+      style={{ bottom: keyboard }}
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col justify-end"
     >
       <motion.div
         ref={ref}
         /* Never taller than the screen, however much content it holds. */
-        style={{ y, maxHeight: vh ? vh * TALL : undefined }}
-        animate={{ height: height ? (vh || 0) * height : 'auto' }}
+        style={{ y, maxHeight: avail ? avail * TALL : undefined }}
+        animate={{ height: height ? avail * height : 'auto' }}
         transition={SPRING}
         drag="y"
         dragListener={false}

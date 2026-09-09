@@ -1,5 +1,6 @@
 import type { Problem } from '@calcflow/generators';
 import { Fit } from './Fit';
+import { Prose } from './Prose';
 import { Tex } from './Tex';
 import { Eyebrow } from './Eyebrow';
 import { cx } from '@/lib/cx';
@@ -32,7 +33,9 @@ export function ProblemCard({ problem, compact }: Props) {
         <Tex>{problem.prompt}</Tex>
       </Fit>
 
-      {problem.note && !compact && <p className="text-[13px] text-faint text-pretty">{problem.note}</p>}
+      {problem.note && !compact && (
+        <Prose className="text-[13px] text-faint text-pretty">{problem.note}</Prose>
+      )}
     </div>
   );
 }

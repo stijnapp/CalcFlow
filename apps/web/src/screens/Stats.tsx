@@ -1,6 +1,7 @@
 import { ArrowLeft, Timer, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Eyebrow } from '@/components/Eyebrow';
+import { HoverLabel } from '@/components/HoverLabel';
 import { cx } from '@/lib/cx';
 import { clockTime, duration } from '@/lib/format';
 import { useStore } from '@/state/store';
@@ -57,10 +58,20 @@ export function Stats({ compact }: { compact?: boolean }) {
 
   const quadrants = (
     <div className="grid grid-cols-2 gap-3">
-      <Quadrant label="Sure · right" value={matrix.sureRight} caption="solid" tone="correct" />
-      <Quadrant label="Sure · wrong" value={matrix.sureWrong} caption="misconceptions" tone="wrong" />
-      <Quadrant label="Unsure · right" value={matrix.unsureRight} caption="fragile" tone="plain" />
-      <Quadrant label="Unsure · wrong" value={matrix.unsureWrong} caption="gaps" tone="near" />
+      <Quadrant label="Sure · right" value={matrix.sureRight} caption="Solid" tone="correct" />
+      <Quadrant
+        label="Sure · wrong"
+        value={matrix.sureWrong}
+        caption="Misconceptions — a rule remembered wrong"
+        tone="wrong"
+      />
+      <Quadrant
+        label="Unsure · right"
+        value={matrix.unsureRight}
+        caption="Fragile — right, but not yet trusted"
+        tone="plain"
+      />
+      <Quadrant label="Unsure · wrong" value={matrix.unsureWrong} caption="Gaps" tone="near" />
     </div>
   );
 
@@ -72,7 +83,7 @@ export function Stats({ compact }: { compact?: boolean }) {
       )}
     >
       <div className="flex items-center gap-3">
-        <Eyebrow className={compact ? 'text-[10px]' : 'text-xs'}>RIGHT AND WRONG BY CHAPTER</Eyebrow>
+        <Eyebrow className={compact ? 'text-[10px]' : 'text-xs'}>MASTERY BY CHAPTER</Eyebrow>
         <div className="ml-auto flex items-center gap-3 text-xs text-faint">
           <span className="flex items-center gap-1">
             <Zap className="size-3 text-correct" />
@@ -85,39 +96,42 @@ export function Stats({ compact }: { compact?: boolean }) {
         </div>
       </div>
 
+      {/* One row per chapter, and every row the same five columns, so the
+          numbers can be read down as well as across. The counts behind the bar
+          are a hover away rather than a third line under it. */}
       <div className={cx('flex flex-col', compact ? 'gap-3' : 'flex-1 justify-between')}>
-        {stats.byChapter.map((ch) =>
-        compact ? (
-          <div key={ch.chapter} className="flex flex-col gap-1.5">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-[11px] text-faint">{ch.chapter}</span>
-              <span className="truncate text-[13px] text-ink2">{ch.title}</span>
-              <span className="ml-auto flex items-center gap-1.5">
-                <SpeedMark stat={ch} />
-                <span className="w-[30px] text-right font-mono text-[11px] text-muted">{ch.mastery}%</span>
-              </span>
-            </div>
-            <Bar stat={ch} />
-            <Tally stat={ch} />
-          </div>
-        ) : (
-          <div key={ch.chapter} className="flex flex-col gap-2">
-            <div className="flex items-baseline gap-3.5">
-              <span className="w-5 font-mono text-xs text-faint">{ch.chapter}</span>
-              <span className="text-sm text-ink2">{ch.title}</span>
-              <Tally stat={ch} />
-              <span className="ml-auto flex shrink-0 items-center gap-2">
-                <SpeedMark stat={ch} />
-                <span className="w-9 text-right font-mono text-xs text-muted">{ch.mastery}%</span>
-              </span>
-            </div>
-            <Bar stat={ch} />
-          </div>
-        ),
-      )}
-
+        {stats.byChapter.map((ch) => (
+          <HoverLabel key={ch.chapter} label={tally(ch)}>
+            {compact ? (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-[11px] text-faint">{ch.chapter}</span>
+                  <span className="truncate text-[13px] text-ink2">{ch.title}</span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <SpeedMark stat={ch} />
+                    <span className="w-[34px] text-right font-mono text-[11px] text-muted">
+                      {ch.recent === 0 ? '—' : `${ch.rightRate}%`}
+                    </span>
+                  </span>
+                </div>
+                <Bar stat={ch} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-[16px_minmax(0,1fr)_170px_40px_84px] items-center gap-x-4 py-1">
+                <span className="font-mono text-xs text-faint">{ch.chapter}</span>
+                <span className="truncate text-sm text-ink2">{ch.title}</span>
+                <Bar stat={ch} />
+                <span className="text-right font-mono text-xs text-muted">
+                  {ch.recent === 0 ? '—' : `${ch.rightRate}%`}
+                </span>
+                <span className="flex items-center justify-end gap-1.5">
+                  <SpeedMark stat={ch} />
+                </span>
+              </div>
+            )}
+          </HoverLabel>
+        ))}
       </div>
-
     </div>
   );
 
@@ -133,7 +147,7 @@ export function Stats({ compact }: { compact?: boolean }) {
               ? `${stats.studyNext.confidentWrong} of your last ${Math.min(30, stats.studyNext.attempts)} attempts here were confident and wrong — the pattern says a rule is misremembered, not missing.`
               : `Mastery is sitting at ${stats.studyNext.mastery}%. This is the chapter with the most ground to make up.`
           }
-          action="Drill 10 from this topic"
+          action={`Drill ${settings.setLength} from this topic`}
           onAction={() => store.startSession('set10', { chapters: [stats.studyNext!.chapter] })}
         />
       )}
@@ -143,7 +157,7 @@ export function Stats({ compact }: { compact?: boolean }) {
           tone="correct"
           title={`Ch ${stats.buildSpeed.chapter} · ${stats.buildSpeed.title}`}
           body={`You get ${stats.buildSpeed.mastery}% of these right but take ${(stats.buildSpeed.medianMs / (stats.overallMedianMs || 1)).toFixed(1)}× your median time. Accuracy is there; fluency isn't.`}
-          action="Timed set of 10"
+          action={`Timed set of ${settings.setLength}`}
           onAction={() => store.startSession('speed', { chapters: [stats.buildSpeed!.chapter] })}
         />
       )}
@@ -184,45 +198,33 @@ export function Stats({ compact }: { compact?: boolean }) {
 }
 
 /**
- * The bar is the tally, not a score: green is what he got right, red what he
- * got wrong, and the empty remainder is a chapter he has barely touched.
+ * How much of the recent window he got right, and nothing else. A stacked bar
+ * gave equal weight to the wrong half, which reads as an accusation on the very
+ * chapters that most need going back to; one bar that fills as he improves is
+ * the same information pointed the right way round.
  */
+const BAND = { good: 'bg-correct', fair: 'bg-near', poor: 'bg-wrong' } as const;
+
 function Bar({ stat }: { stat: ChapterStat }) {
-  const total = Math.max(stat.recent, 1);
+  const band = stat.rightRate >= 70 ? 'good' : stat.rightRate >= 40 ? 'fair' : 'poor';
   return (
-    <span className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-line">
+    <span className="flex h-2 overflow-hidden rounded-full bg-line">
       <motion.span
-        className="block h-2 rounded-full bg-correct"
+        className={cx('block h-2 rounded-full', BAND[band])}
         initial={{ width: 0 }}
-        animate={{ width: `${(stat.correct / total) * 100}%` }}
+        animate={{ width: stat.recent === 0 ? 0 : `${stat.rightRate}%` }}
         transition={{ type: 'spring', stiffness: 220, damping: 30 }}
-      />
-      <motion.span
-        className="block h-2 rounded-full bg-wrong"
-        initial={{ width: 0 }}
-        animate={{ width: `${(stat.wrong / total) * 100}%` }}
-        transition={{ type: 'spring', stiffness: 220, damping: 30, delay: 0.05 }}
       />
     </span>
   );
 }
 
-/** The counts in words, because a bar alone never answers "how many?". */
-function Tally({ stat }: { stat: ChapterStat }) {
-  if (stat.recent === 0) return <span className="text-xs text-ghost">not started</span>;
-  return (
-    <span className="flex items-baseline gap-1.5 text-xs">
-      <span className="text-correct">{stat.correct} right</span>
-      <span className="text-ghost">·</span>
-      <span className="text-wrong-ink">{stat.wrong} wrong</span>
-      {stat.confidentWrong > 0 && (
-        <>
-          <span className="text-ghost">·</span>
-          <span className="text-near-ink">{stat.confidentWrong} sure but wrong</span>
-        </>
-      )}
-    </span>
-  );
+/** The counts in words, for the label that comes up over a chapter. */
+function tally(stat: ChapterStat): string {
+  if (stat.recent === 0) return `${stat.title} — not started`;
+  const parts = [`${stat.correct} right`, `${stat.wrong} wrong`];
+  if (stat.confidentWrong > 0) parts.push(`${stat.confidentWrong} sure but wrong`);
+  return `Last ${stat.recent}: ${parts.join(' · ')}`;
 }
 
 /**
@@ -268,16 +270,19 @@ function Quadrant({
 }) {
   const muted = tone === 'wrong' ? 'text-wrong-ink' : tone === 'near' ? 'text-near-ink' : 'text-faint';
   return (
-    <div
-      className={cx(
-        'flex flex-col justify-center gap-1.5 rounded-lg border p-5',
-        QUADRANT_TONE[tone],
-      )}
-    >
-      <span className={cx('text-[13px]', muted)}>{label}</span>
-      <span className="text-[38px] font-semibold leading-none">{value}</span>
-      <span className={cx('text-[13px]', muted)}>{caption}</span>
-    </div>
+    /* The count is the thing being read; what to call that count is the caption
+       under it, and what it means for him is a hover away. */
+    <HoverLabel label={caption} side="top">
+      <div
+        className={cx(
+          'flex flex-col justify-center gap-1.5 rounded-lg border p-5',
+          QUADRANT_TONE[tone],
+        )}
+      >
+        <span className="text-[38px] font-semibold leading-none">{value}</span>
+        <span className={cx('text-[13px]', muted)}>{label}</span>
+      </div>
+    </HoverLabel>
   );
 }
 

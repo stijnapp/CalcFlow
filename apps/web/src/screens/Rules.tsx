@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { RULES } from '@calcflow/generators';
 import { chapterTitle } from '@calcflow/shared';
 import { HoverLabel } from '@/components/HoverLabel';
+import { Prose, plainProse } from '@/components/Prose';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
 import { useStore } from '@/state/store';
@@ -21,7 +22,7 @@ export function Rules({ compact }: { compact?: boolean }) {
     if (picked.length > 0 && !picked.includes(r.chapter)) return false;
     if (!query.trim()) return true;
     const q = query.toLowerCase();
-    return r.name.toLowerCase().includes(q) || r.note.toLowerCase().includes(q);
+    return r.name.toLowerCase().includes(q) || plainProse(r.note).toLowerCase().includes(q);
   });
 
   function toggle(n: number) {
@@ -96,7 +97,9 @@ export function Rules({ compact }: { compact?: boolean }) {
                 <div className="grid place-items-center scroll-x rounded-md border border-edge bg-page px-4 py-5 text-xl">
                   <Tex>{rule.tex}</Tex>
                 </div>
-                <p className="text-[13px] leading-relaxed text-muted text-pretty">{rule.note}</p>
+                <Prose className="text-[13px] leading-relaxed text-muted text-pretty">
+                  {rule.note}
+                </Prose>
                 <span className="mt-auto flex w-full items-center gap-2 text-xs text-ghost">
                   {chapterTitle(rule.chapter)}
                   <span className="ml-auto text-accent/70">example →</span>

@@ -33,7 +33,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 1,
     name: 'Distributive law',
     tex: 'a(b \\pm c) = ab \\pm ac',
-    note: 'Read right to left it also factorises. It is what makes 47·99 = 4700 − 47 a thing you can do in your head.',
+    note: 'Read right to left it also factorises. It is what makes $47\\cdot 99 = 4700 - 47$ a thing you can do in your head.',
   },
   {
     id: 'rational-equation',
@@ -89,7 +89,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 4,
     name: 'Simplifying surds',
     tex: '\\sqrt{a^{2}b}=a\\sqrt{b}',
-    note: 'Pull out the largest square factor. √72 = √(36·2) = 6√2.',
+    note: 'Pull out the largest square factor: $\\sqrt{72} = \\sqrt{36\\cdot 2} = 6\\sqrt{2}$.',
   },
   {
     id: 'rationalise',
@@ -110,7 +110,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 6,
     name: 'Log laws',
     tex: lines(['\\log_a(xy) &= \\log_a x + \\log_a y', '\\log_a(x^{n}) &= n\\log_a x']),
-    note: 'Products become sums, powers come out front. There is no rule for log(x+y).',
+    note: 'Products become sums, powers come out front. There is no rule for $\\log(x+y)$.',
   },
   {
     id: 'change-of-base',
@@ -124,7 +124,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 6,
     name: 'exp and ln undo each other',
     tex: lines(['e^{\\ln x} &= x', '\\ln(e^{x}) &= x']),
-    note: 'So e^{3 ln t} is t³ — bring the 3 inside first.',
+    note: 'So $e^{3\\ln t}$ is $t^{3}$ — bring the 3 inside first.',
   },
   {
     id: 'exponential-equation',
@@ -138,7 +138,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 7,
     name: 'Degrees and radians',
     tex: '180^\\circ=\\pi\\ \\text{rad}',
-    note: 'Multiply by π/180 to go to radians, by 180/π to come back.',
+    note: 'Multiply by $\\pi/180$ to go to radians, by $180/\\pi$ to come back.',
   },
   {
     id: 'pythagorean-identity',
@@ -152,7 +152,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 7,
     name: 'Double angle',
     tex: lines(['\\sin 2x &= 2\\sin x\\cos x', '\\cos 2x &= 1 - 2\\sin^{2}x']),
-    note: 'cos 2x has three equivalent forms; pick whichever leaves the tidier expression.',
+    note: '$\\cos 2x$ has three equivalent forms; pick whichever leaves the tidier expression.',
   },
   {
     id: 'exact-values',
@@ -170,7 +170,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 8,
     name: 'Quadratic formula',
     tex: 'x=\\frac{-b\\pm\\sqrt{b^{2}-4ac}}{2a}',
-    note: 'The discriminant b²−4ac tells you how many real roots there are before you solve.',
+    note: 'The discriminant $b^{2}-4ac$ tells you how many real roots there are before you solve.',
   },
   {
     id: 'linear-solve',
@@ -184,7 +184,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 9,
     name: 'Power rule',
     tex: '\\frac{d}{dx}x^{n}=nx^{n-1}',
-    note: 'Works for every real n, including negative and fractional ones.',
+    note: 'Works for every real $n$, including negative and fractional ones.',
   },
   {
     id: 'chain-rule',
@@ -205,7 +205,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 9,
     name: 'Quotient rule',
     tex: '\\left(\\frac{u}{v}\\right)\'=\\frac{u\'v-uv\'}{v^{2}}',
-    note: 'The numerator subtracts, so the order matters — u′v comes first.',
+    note: "The numerator subtracts, so the order matters — $u'v$ comes first.",
   },
   {
     id: 'standard-derivatives',
@@ -224,7 +224,7 @@ export const RULES: readonly RuleCard[] = [
     chapter: 10,
     name: 'Antiderivative of a power',
     tex: '\\int x^{n}\\,dx=\\frac{x^{n+1}}{n+1}+C,\\quad n\\neq-1',
-    note: 'n = −1 is the exception: that integral is ln|x| + C.',
+    note: '$n = -1$ is the exception: that integral is $\\ln|x| + C$.',
   },
   {
     id: 'linear-substitution',
@@ -238,14 +238,14 @@ export const RULES: readonly RuleCard[] = [
     chapter: 10,
     name: 'The constant of integration',
     tex: '\\int f(x)\\,dx=F(x)+C',
-    note: 'An indefinite integral is a family of functions. Without +C the answer names only one.',
+    note: 'An indefinite integral is a family of functions. Without the $+C$ the answer names only one.',
   },
   {
     id: 'definite-integral',
     chapter: 11,
     name: 'Definite integral',
     tex: '\\int_a^b f(x)\\,dx=F(b)-F(a)',
-    note: 'No +C once the bounds go in — it cancels.',
+    note: 'No $+C$ once the bounds go in — it cancels.',
   },
   {
     id: 'area-between',

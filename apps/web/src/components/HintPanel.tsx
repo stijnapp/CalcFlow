@@ -6,6 +6,7 @@ import { useBackDismiss } from '@/lib/useBackDismiss';
 import { useStore } from '@/state/store';
 import { LatexField } from './LatexField';
 import { Fit } from './Fit';
+import { Prose } from './Prose';
 import { Sheet, SHEET_TALL } from './Sheet';
 import { Tex } from './Tex';
 import { buildRungs } from './hints';
@@ -41,7 +42,7 @@ export function HintPanel({ variant }: Props) {
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={SPRING}
-      className="absolute inset-y-0 right-0 z-20 flex w-[38%] flex-col border-l border-strong bg-raised shadow-[-30px_0_60px_-20px_rgba(0,0,0,0.6)]"
+      className="absolute inset-y-0 right-0 z-30 flex w-[38%] flex-col border-l border-strong bg-raised shadow-[-30px_0_60px_-20px_rgba(0,0,0,0.6)]"
     >
       <Body panel onClose={close} />
     </motion.div>
@@ -110,7 +111,7 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
 
               {open && (
                 <div className="flex flex-col gap-2.5">
-                  <p className="text-sm leading-relaxed text-ink2 text-pretty">{rung.body}</p>
+                  <Prose className="text-sm leading-relaxed text-ink2 text-pretty">{rung.body}</Prose>
                   {rung.tex && (
                     <div
                       className={cx(

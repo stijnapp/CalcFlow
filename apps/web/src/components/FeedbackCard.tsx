@@ -215,7 +215,7 @@ export function FeedbackCard({
                 const ok = await copyText(askPrompt(problem, answers));
                 showToast(ok ? 'Copied — paste it into a chat' : 'Could not reach the clipboard');
               }}
-              className="flex items-center gap-2 self-start rounded-md border border-border bg-page px-3 py-2 text-[13px] text-ink2 hover:border-accent hover:text-ink"
+              className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-border bg-page px-3.5 py-2.5 text-[13px] text-ink2 hover:border-accent hover:text-ink"
             >
               <Sparkles className="size-4 shrink-0 text-accent" />
               Copy question and answer, to ask an AI

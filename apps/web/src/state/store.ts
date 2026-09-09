@@ -325,7 +325,7 @@ export const useStore = create<Store>((set, get) => ({
       canvasFullscreen: false,
       session: {
         mode,
-        target: mode === 'endless' ? null : 10,
+        target: mode === 'endless' ? null : Math.max(1, Math.round(settings.setLength)),
         chapters,
         level: settings.level,
         only: opts?.only,

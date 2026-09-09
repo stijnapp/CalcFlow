@@ -98,7 +98,7 @@ export function PracticePhone() {
           key="pen-width"
           width={settings.penWidth}
           onChange={(penWidth) => patchSettings({ penWidth })}
-          className="pointer-events-auto absolute left-0 top-full mt-2"
+          className="pointer-events-auto absolute left-3.5 top-full mt-2"
         />
       )}
     </AnimatePresence>
@@ -178,8 +178,12 @@ export function PracticePhone() {
         {/* More tools than the phone is wide, so the row scrolls. The picker
             has to live outside the scroller: a box that clips horizontally
             clips vertically too, and it opens upwards out of the row. */}
-        <div className="relative z-30 shrink-0 px-4 pb-[22px] pt-3">
-          <div className="scroll-x flex gap-2">
+        {/* The padding belongs to the scroller, not to the wrapper: a row that
+            stops short of the screen looks like it has run out of tools, and
+            one that runs to the edge and pads its own ends looks the same at
+            rest and honest once it moves. */}
+        <div className="relative z-30 shrink-0 pb-[22px] pt-3">
+          <div className="scroll-x flex gap-2 px-4">
             <PhoneTool active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
               <PenTool className="size-[18px]" />
             </PhoneTool>
@@ -272,8 +276,11 @@ export function PracticePhone() {
         {/* The tools scroll; pen-only and fullscreen do not. Those two are how
             he gets his hand out of the way and how he gets more room, and
             hunting for either by swiping a row is exactly the wrong moment. */}
-        <div className="pointer-events-none absolute inset-x-3.5 top-3.5 z-30 flex items-start gap-1.5">
-          <div className="scroll-x pointer-events-auto flex min-w-0 flex-1 gap-1.5">
+        <div className="pointer-events-none absolute inset-x-0 top-3.5 z-30 flex items-start gap-1.5">
+          {/* Only the left end runs to the border: pen-only and fullscreen are
+              parked against the right one, and a row sliding under them would
+              read as tools falling off the screen rather than as a scroller. */}
+          <div className="scroll-x pointer-events-auto flex min-w-0 flex-1 gap-1.5 pl-3.5">
             <PhoneTool small active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
               <PenTool className="size-[15px]" />
             </PhoneTool>
@@ -302,7 +309,7 @@ export function PracticePhone() {
               <Trash2 className="size-[15px]" />
             </PhoneTool>
           </div>
-          <div className="pointer-events-auto flex shrink-0 gap-1.5">
+          <div className="pointer-events-auto flex shrink-0 gap-1.5 pr-3.5">
             <PhoneTool
               small
               tint
@@ -327,7 +334,7 @@ export function PracticePhone() {
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={SPRING}
-          className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
+          className="absolute inset-x-0 bottom-0 z-30 flex flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
         >
           <FeedbackCard
             problem={problem}

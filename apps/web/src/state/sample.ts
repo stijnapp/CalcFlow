@@ -16,6 +16,7 @@ interface Profile {
 }
 
 const PROFILES: Record<number, Profile> = {
+  1: { n: 46, accuracy: 0.93, overconfidence: 0.12, medianMs: 34_000 },
   2: { n: 58, accuracy: 0.9, overconfidence: 0.2, medianMs: 41_000 },
   3: { n: 52, accuracy: 0.83, overconfidence: 0.18, medianMs: 96_000 },
   4: { n: 44, accuracy: 0.73, overconfidence: 0.3, medianMs: 62_000 },
@@ -47,9 +48,13 @@ export function sampleAttempts(days = 24): Attempt[] {
   const out: Attempt[] = [];
 
   for (const { n: chapter } of CHAPTERS) {
-    const profile = PROFILES[chapter]!;
+    // A chapter added to the book without a profile here is not a crash: it is
+    // a chapter with no sample history, which is what an untouched one looks
+    // like anyway. Reading `.n` off the missing one is what used to throw and
+    // leave the button doing nothing at all.
+    const profile = PROFILES[chapter];
     const topics = GENERATORS.filter((g) => g.chapter === chapter);
-    if (topics.length === 0) continue;
+    if (!profile || topics.length === 0) continue;
 
     for (let i = 0; i < profile.n; i += 1) {
       // Recent attempts weigh double in mastery, so the history leans recent.

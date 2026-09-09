@@ -1,10 +1,19 @@
+import { createRequire } from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/**
+ * The version shown on the settings screen. It is read off `package.json` so
+ * that bumping the release is one edit rather than two, and so that what the
+ * phone says can be trusted to mean "this is the build I just deployed".
+ */
+const { version } = createRequire(import.meta.url)('./package.json') as { version: string };
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
     tailwindcss(),
