@@ -1,7 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
   DEFAULT_SETTINGS,
-  tierFromDifficulty,
   type Attempt,
   type Confidence,
   type ErrorClass,
@@ -40,12 +39,11 @@ export interface StoredSession {
   activeField: number;
   confidence: Confidence | null;
   rung: number;
-  /** Absent in sessions stored before the hint box was remembered. */
-  onTrackLine?: string;
-  /** Absent in sessions stored before the canvas was kept. */
+  onTrackLine: string;
+  /** Absent until he has drawn something. */
   canvas?: CanvasState;
   /** Set once a graph question's sketch has been marked, so it is not marked twice. */
-  selfGrade?: SelfGrade | null;
+  selfGrade: SelfGrade | null;
   answered: boolean;
   savedAt: number;
 }
@@ -79,39 +77,32 @@ interface CalcFlowDB extends DBSchema {
 
 let dbPromise: Promise<IDBPDatabase<CalcFlowDB>> | null = null;
 
+/*
+ * One creation path and no upgrade branches. Everything stored before the app
+ * was deployed was him testing it, and carrying that forward cost more code
+ * than the rows were worth — so a browser holding an older store has it
+ * dropped and rebuilt rather than rewritten.
+ *
+ * This is the baseline the real migrations start from. From the first deploy
+ * on, the log is his history and the only copy of it: a change to what is
+ * stored gets `VERSION` bumped and an `if (from < n)` branch here that carries
+ * the existing rows across, never a `deleteObjectStore`.
+ */
+const VERSION = 5;
+
 function db() {
-  dbPromise ??= openDB<CalcFlowDB>('calcflow', 4, {
-    upgrade(database, from, _to, transaction) {
-      if (from < 1) {
-        const attempts = database.createObjectStore('attempts', { keyPath: 'id' });
-        attempts.createIndex('ts', 'ts');
-        attempts.createIndex('chapter', 'chapter');
-        database.createObjectStore('settings');
-        database.createObjectStore('syncQueue', { keyPath: 'id' });
-      }
-      if (from < 2) {
-        database.createObjectStore('session');
-      }
-      if (from < 3) {
-        database.createObjectStore('meta');
-      }
-      // v4: attempts carried a 1–5 difficulty and a step count; they carry one
-      // of three tiers now. The log is the only copy of his history, so it is
-      // rewritten in place rather than dropped — and the session in flight goes,
-      // because a stored problem reference from the old build cannot be rebuilt.
-      if (from < 4) {
-        const attempts = transaction.objectStore('attempts');
-        void attempts.openCursor().then(function step(cursor): unknown {
-          if (!cursor) return undefined;
-          const old = cursor.value as Attempt & { difficulty?: number; steps?: number };
-          if (old.tier === undefined) {
-            const { difficulty, steps: _steps, ...rest } = old;
-            void cursor.update({ ...rest, tier: tierFromDifficulty(difficulty ?? 3) } as Attempt);
-          }
-          return cursor.continue().then(step);
-        });
-        transaction.objectStore('session').clear();
-      }
+  dbPromise ??= openDB<CalcFlowDB>('calcflow', VERSION, {
+    upgrade(database) {
+      // Snapshotted, because deleting a store mutates the live list.
+      for (const name of [...database.objectStoreNames]) database.deleteObjectStore(name);
+
+      const attempts = database.createObjectStore('attempts', { keyPath: 'id' });
+      attempts.createIndex('ts', 'ts');
+      attempts.createIndex('chapter', 'chapter');
+      database.createObjectStore('settings');
+      database.createObjectStore('session');
+      database.createObjectStore('syncQueue', { keyPath: 'id' });
+      database.createObjectStore('meta');
     },
   });
   return dbPromise;
@@ -142,13 +133,10 @@ export async function putAttempts(attempts: Attempt[], clearFirst: boolean): Pro
 
 export async function loadSettings(): Promise<Settings> {
   const stored = await (await db()).get('settings', 'current');
-  if (!stored) return DEFAULT_SETTINGS;
-  const settings = { ...DEFAULT_SETTINGS, ...stored };
-  // "this device" used to be the default, so it is sitting in installs that
-  // never touched the field. It names nothing, and blank now means the browser
-  // is asked instead — which is what he wanted it to have meant all along.
-  if (settings.deviceName === 'this device') settings.deviceName = '';
-  return settings;
+  // Spread over the defaults rather than returned as-is: a settings field added
+  // in a later build is missing from what an installed copy stored, and that is
+  // the one kind of drift that does not need a version bump to fix.
+  return stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS;
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

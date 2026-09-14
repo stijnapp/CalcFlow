@@ -1,0 +1,17 @@
+[Unit]
+Description=Deploy CalcFlow if main has moved
+Documentation=https://github.com/stijnapp/CalcFlow
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# The checkout, the bind-mounted database and the user in the container are all
+# uid 1000; running the deploy as anyone else leaves files root owns in `data/`.
+User=stijn
+WorkingDirectory=/srv/calcflow
+ExecStart=/srv/calcflow/deploy/deploy.sh
+# systemd kills the whole run at this point. Generous, because a cold build with
+# no layer cache compiles the web app from scratch.
+TimeoutStartSec=20min

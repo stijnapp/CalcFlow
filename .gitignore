@@ -17,3 +17,8 @@ data/*
 *.db
 *.db-wal
 *.db-shm
+
+# The deploy script takes this so a timer run and a manual run cannot overlap.
+.deploy.lock
+# And this remembers a commit that failed, so a bad push is not rebuilt on loop.
+.deploy-failed

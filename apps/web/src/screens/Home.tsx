@@ -1,8 +1,10 @@
-import { ArrowRight, BarChart3, BookOpen, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowRight, BarChart3, BookOpen, Dices, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CHAPTERS, TIERS, TIER_BLURB, TIER_LABEL, type SessionMode } from '@calcflow/shared';
-import { candidates } from '@calcflow/generators';
+import { CHAPTERS, TIERS, TIER_BLURB, TIER_LABEL, chapterTitle, type SessionMode } from '@calcflow/shared';
+import { candidates, draw } from '@calcflow/generators';
 import { Eyebrow } from '@/components/Eyebrow';
+import { Fit } from '@/components/Fit';
 import { HoverLabel } from '@/components/HoverLabel';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
@@ -26,8 +28,24 @@ export function Home({ compact }: { compact?: boolean }) {
   const store = useStore();
 
   const pool = candidates({ chapters: settings.chapters, tier: settings.tier });
-  const sample = pool[0];
   const none = settings.chapters.length === 0;
+
+  /* Not an illustration of the kind of thing he might get — one of the actual
+     things he will get, built by the same `draw` the session uses, so changing
+     a chapter or a tier answers "what does that do to the questions?" on the
+     spot. A hand-written table used to stand here; it covered a fifth of the
+     generators and answered `x` for the rest, and it could not have shown the
+     tiers apart at all, because a table has one entry per topic and the whole
+     point of a tier is that the same topic asks differently. */
+  const [reroll, setReroll] = useState(0);
+  // Keyed on the chapter numbers rather than on the array holding them: a fresh
+  // array with the same chapters in it is the same selection, and redrawing on
+  // it would swap the question out on every unrelated render.
+  const picked = settings.chapters.join(',');
+  const sample = useMemo(
+    () => draw({ chapters: picked === '' ? [] : picked.split(',').map(Number), tier: settings.tier }),
+    [picked, settings.tier, reroll],
+  );
   const flagged = stats.byChapter.filter((c) => c.attempts >= 3 && c.mastery < 70).length;
   // The button only says "there is something to send"; hovering it says how
   // much, and whether the last attempt to send anything got through.
@@ -68,20 +86,46 @@ export function Home({ compact }: { compact?: boolean }) {
           );
         })}
       </div>
-      <div className="flex flex-wrap items-center gap-3.5 rounded-md border border-edge bg-page px-4 py-3.5">
-        <Eyebrow className="text-xs">SAMPLE</Eyebrow>
+      <div className="flex min-w-0 flex-col gap-2 rounded-md border border-edge bg-page px-4 py-3.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Eyebrow className="text-xs">SAMPLE</Eyebrow>
+          {sample && (
+            <span className="min-w-0 truncate text-[13px] text-near-ink">{sample.instruction}</span>
+          )}
+          {sample && (
+            <button
+              onClick={() => setReroll((n) => n + 1)}
+              aria-label="Draw another sample"
+              className="-my-1 ml-auto grid size-7 shrink-0 place-items-center rounded-md text-faint hover:bg-raised hover:text-ink"
+            >
+              <Dices className="size-4" />
+            </button>
+          )}
+        </div>
+
         {sample ? (
-          <motion.span key={sample.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xl">
-            <Tex>{sampleTex(sample.id)}</Tex>
-          </motion.span>
+          <motion.div key={sample.seed} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
+            {sample.promptText && (
+              <p className="mb-1.5 line-clamp-2 text-[13px] leading-relaxed text-ink2">
+                {sample.promptText}
+              </p>
+            )}
+            <Fit className="text-xl">
+              <Tex>{sample.prompt}</Tex>
+            </Fit>
+          </motion.div>
         ) : (
           <span className="text-[13px] text-near-ink">
             {none ? 'Pick a chapter to see one' : 'No topic asks this tier yet'}
           </span>
         )}
-        <span className="ml-auto text-[13px] text-muted">
-          {pool.length} {pool.length === 1 ? 'topic asks' : 'topics ask'} this
-        </span>
+
+        <div className="flex flex-wrap items-baseline gap-x-2.5 text-[13px] text-muted">
+          {sample && <span className="text-faint">{chapterTitle(sample.chapter)}</span>}
+          <span className="ml-auto">
+            {pool.length} {pool.length === 1 ? 'topic asks' : 'topics ask'} this
+          </span>
+        </div>
       </div>
     </section>
   );
@@ -293,32 +337,4 @@ export function Home({ compact }: { compact?: boolean }) {
       )}
     </div>
   );
-}
-
-/** A representative prompt for the topic that would come up first. */
-function sampleTex(generatorId: string): string {
-  const samples: Record<string, string> = {
-    'powers.notable-products': '(a+3)^{2}-(a-3)^{2}',
-    'powers.rules': 'x^{4}\\cdot x^{6}',
-    'fractions.combine': '\\tfrac{2}{3}+\\tfrac{3}{4}',
-    'fractions.rational-expressions': '\\frac{x^{2}-9}{x+3}',
-    'roots.simplify-surd': '\\sqrt{72}',
-    'roots.rationalise': '\\frac{1}{\\sqrt{5}+2}',
-    'roots.fractional-exponents': '27^{2/3}',
-    'logs.laws': 'e^{3\\ln t}',
-    'logs.exponential-equation': '5^{x+1}=7^{x-1}',
-    'trig.exact-values': '\\cos\\tfrac{\\pi}{6}',
-    'trig.degrees-radians': '135^\\circ',
-    'trig.double-angle': '2\\sin x\\cos x',
-    'equations.linear': '3x-7=5x+1',
-    'equations.quadratic': 'x^{2}-x-6=0',
-    'diff.power-sum': '\\tfrac{d}{dx}(x^{3}+2x-7)',
-    'diff.chain-rule': '\\tfrac{d}{dx}\\ln(a+\\sqrt{x})',
-    'diff.product-quotient': '\\tfrac{d}{dx}\\tfrac{x+1}{2x-3}',
-    'anti.power-sum': '\\int 3x^{2}-4x\\,dx',
-    'anti.linear-inner': '\\int (2x+1)^{4}\\,dx',
-    'integ.definite-power': '\\int_{0}^{2}x^{2}\\,dx',
-    'integ.area-between': '\\int_{-1}^{2}(4-x^{2})\\,dx',
-  };
-  return samples[generatorId] ?? 'x';
 }

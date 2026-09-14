@@ -1,0 +1,14 @@
+[Unit]
+Description=Check every couple of minutes whether CalcFlow's main has moved
+
+[Timer]
+# Two minutes is a `git ls-remote`-sized request against GitHub — 720 a day,
+# which is nothing — in exchange for never having to think about deploying.
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=15s
+# A laptop that pushed while the server was off still gets picked up.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

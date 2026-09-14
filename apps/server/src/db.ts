@@ -13,6 +13,19 @@ import type { Attempt, SyncEvent } from '@calcflow/shared';
  * for what they have not seen. AUTOINCREMENT rather than plain rowid: a deleted
  * row must never let a later attempt take a cursor a client has already passed.
  */
+const VERSION = 3;
+
+/**
+ * A database numbered below this was made while the app was still being built,
+ * and holds nothing but rows from testing it. Nothing migrates it, because the
+ * steps that once did were deleted along with the databases they were for — so
+ * opening one rebuilds it empty at the current schema.
+ *
+ * A literal, and it stays one. If it tracked `VERSION` instead, the next real
+ * migration would quietly turn into this, and this deletes the log.
+ */
+const BASELINE = 3;
+
 const SCHEMA = `
 CREATE TABLE attempts (
   cursor       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -166,47 +179,37 @@ export function openStore(path: string): Store {
 }
 
 /**
- * Schema versions, forwards only. Each step runs in its own transaction so a
- * half-applied migration is not a thing this can leave behind.
+ * Schema versions, forwards only.
+ *
+ * From the first deploy on, this file is his practice history and the only copy
+ * of it that survives a reinstalled phone. So a change to the schema gets
+ * `VERSION` bumped and its own `if (version < n)` block below, each in its own
+ * transaction so a half-applied step is not a state this can leave behind, and
+ * no step ever drops a row or a column that still holds one.
+ *
+ * The rebuild above the ladder is the exception, and it can only ever fire on a
+ * database from before that rule started applying.
  */
 function migrate(db: Database.Database): void {
   let version = db.pragma('user_version', { simple: true }) as number;
 
+  if (version > 0 && version < BASELINE) {
+    // Dropped by name rather than by deleting the file: the path may be a bind
+    // mount, and replacing what is mounted there is not the same thing as
+    // emptying it. Indexes go with their tables; `sqlite_sequence` is SQLite's
+    // own and clears itself when the table that autoincrements is gone.
+    const tables = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`)
+      .all() as { name: string }[];
+    db.transaction(() => {
+      for (const { name } of tables) db.exec(`DROP TABLE "${name}"`);
+    })();
+    version = 0;
+  }
+
   if (version === 0) {
     db.exec(SCHEMA);
-    db.pragma('user_version = 3');
-    return;
-  }
-
-  // v2: the 1–5 difficulty and the separate step count became one of three
-  // tiers. Attempts already in the log keep their place on the new scale rather
-  // than being thrown away — roughly right beats absent on a stats page.
-  if (version < 2) {
-    db.exec(`
-      BEGIN;
-      ALTER TABLE attempts ADD COLUMN tier TEXT NOT NULL DEFAULT 'medium';
-      UPDATE attempts SET tier =
-        CASE WHEN difficulty <= 2 THEN 'easy'
-             WHEN difficulty >= 4 THEN 'hard'
-             ELSE 'medium' END;
-      ALTER TABLE attempts DROP COLUMN steps;
-      ALTER TABLE attempts DROP COLUMN difficulty;
-      PRAGMA user_version = 2;
-      COMMIT;
-    `);
-    version = 2;
-  }
-
-  // v3: chapters 5 and 12 ask for a drawing, which only he can mark. The three
-  // buckets he marks it into ride along with the attempt.
-  if (version < 3) {
-    db.exec(`
-      BEGIN;
-      ALTER TABLE attempts ADD COLUMN self_grade TEXT;
-      PRAGMA user_version = 3;
-      COMMIT;
-    `);
-    version = 3;
+    db.pragma(`user_version = ${VERSION}`);
   }
 }
 

@@ -1,4 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import Database from 'better-sqlite3';
 import type { FastifyInstance } from 'fastify';
 import type { Attempt } from '@calcflow/shared';
 import { buildApp } from './app.js';
@@ -287,5 +291,90 @@ describe('configuration', () => {
       origins: true,
       logLevel: 'info',
     });
+  });
+});
+
+describe('a database from before the first deploy', () => {
+  /*
+   * What the store looked like while the app was still being built: a 1–5
+   * difficulty and a separate step count where the tier is now, and nothing
+   * for the self-grade. No migration carries it forward, so opening it has to
+   * be a rebuild — the alternative is what actually happened, which is a
+   * server that starts, prepares a statement naming a column that is not
+   * there, and dies on the first line of its own boot.
+   */
+  const BEFORE = `
+    CREATE TABLE attempts (
+      cursor       INTEGER PRIMARY KEY AUTOINCREMENT,
+      id           TEXT    NOT NULL UNIQUE,
+      device       TEXT    NOT NULL,
+      ts           INTEGER NOT NULL,
+      generator_id TEXT    NOT NULL,
+      seed         TEXT    NOT NULL,
+      gen_version  INTEGER NOT NULL,
+      chapter      INTEGER NOT NULL,
+      steps        INTEGER NOT NULL,
+      difficulty   INTEGER NOT NULL,
+      correct      INTEGER NOT NULL,
+      confidence   TEXT    NOT NULL,
+      hints_used   INTEGER NOT NULL,
+      hint_max_rung INTEGER NOT NULL,
+      duration_ms  INTEGER NOT NULL,
+      answer_raw   TEXT    NOT NULL,
+      error_class  TEXT
+    );
+    CREATE INDEX attempts_ts ON attempts (ts);
+    CREATE TABLE settings (
+      id         INTEGER PRIMARY KEY CHECK (id = 1),
+      json       TEXT    NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    INSERT INTO attempts
+      (id, device, ts, generator_id, seed, gen_version, chapter, steps, difficulty,
+       correct, confidence, hints_used, hint_max_rung, duration_ms, answer_raw, error_class)
+    VALUES
+      ('OLD0000000000000000000000', 'phone', 1, 'ch03-add-fractions', 'abc', 1, 3, 2, 4,
+       1, 'sure', 0, 0, 1000, 'x', NULL);
+    PRAGMA user_version = 1;
+  `;
+
+  let dir: string;
+  let path: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'calcflow-test-'));
+    path = join(dir, 'calcflow.db');
+    const before = new Database(path);
+    before.exec(BEFORE);
+    before.close();
+  });
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it('opens, and takes an attempt on the shape the app writes now', () => {
+    const store = openStore(path);
+    store.append([attempt()]);
+    expect(store.count()).toBe(1);
+    store.close();
+  });
+
+  it('keeps none of what it held, and says so in its version', () => {
+    openStore(path).close();
+    const after = new Database(path);
+    expect(after.pragma('user_version', { simple: true })).toBe(3);
+    expect(after.prepare('SELECT COUNT(*) AS n FROM attempts').get()).toEqual({ n: 0 });
+    after.close();
+  });
+
+  it('leaves a database already at the baseline alone', () => {
+    const first = openStore(path);
+    first.append([attempt()]);
+    first.close();
+
+    // The rebuild is a one-off for a shape that predates the log being real.
+    // Opening twice must not be how he loses a week of practice.
+    const second = openStore(path);
+    expect(second.count()).toBe(1);
+    second.close();
   });
 });

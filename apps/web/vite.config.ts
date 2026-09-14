@@ -76,7 +76,15 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // `@calcflow/shared` resolves to its built JS, because the server is
+      // plain Node and cannot be handed TypeScript. Nothing here is plain
+      // Node, so point it back at the source: `npm run dev` then works on a
+      // fresh clone, and editing a shared type reloads instead of going stale
+      // behind a `dist` nobody rebuilt.
+      '@calcflow/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
+    },
   },
   // Chrome only offers a real install over a secure origin, so both servers
   // have to answer to the Tailscale name `tailscale serve` puts a certificate

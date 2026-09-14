@@ -40,6 +40,13 @@ COPY --from=deps  /app/node_modules ./node_modules
 COPY --from=build /app/apps/server/dist ./dist
 COPY --from=build /app/apps/server/package.json ./package.json
 COPY --from=build /app/apps/web/dist ./web
+# `node_modules/@calcflow/shared` is the symlink npm made for the workspace, and
+# it points back out at `packages/shared` — which exists in the build stage and
+# not here. So the shared package comes along, built: the server imports real
+# values from it (`TIERS`), and a symlink into nothing is a container that dies
+# on its first import with `ERR_MODULE_NOT_FOUND`.
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 
 # The volume mounts here, and the process is not root, so the directory has to
 # exist with the right owner before Docker seeds the volume from it.

@@ -48,14 +48,3 @@ export function tierAt(index: number): Tier {
 
 export const harder = (tier: Tier): Tier => tierAt(tierIndex(tier) + 1);
 export const easier = (tier: Tier): Tier => tierAt(tierIndex(tier) - 1);
-
-/**
- * What a 1–5 difficulty from a build before the tiers reads as now. Every
- * attempt he has already logged carries one, and the stats page would rather
- * bucket them roughly right than throw them away.
- */
-export function tierFromDifficulty(difficulty: number): Tier {
-  if (difficulty <= 2) return 'easy';
-  if (difficulty >= 4) return 'hard';
-  return 'medium';
-}

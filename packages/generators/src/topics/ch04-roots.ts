@@ -114,7 +114,7 @@ export const fractionalExponents: Generator = {
   chapter: 4,
   title: 'Fractional exponents',
   tags: ['roots', 'exponents'],
-  version: 1,
+  version: 2,
   supports: TIERS,
   invariant: 'value-preserving',
 
@@ -124,7 +124,9 @@ export const fractionalExponents: Generator = {
       [4, 2], [9, 2], [16, 2], [25, 2], [36, 2], [49, 2], [64, 2],
       [8, 3], [27, 3], [64, 3], [125, 3],
     ] as Array<[number, number]>);
-    const exp = rng.int(1, 3);
+    // Never the root itself: `27^{3/3}` is `27`, and a question whose whole
+    // content cancels out is a question he learns nothing from.
+    const exp = rng.pick([1, 2, 3].filter((e) => e !== root));
     const rootValue = Math.round(Math.pow(base, 1 / root));
     const value = rootValue ** exp;
     // A negative exponent as well, once he is past easy: the two rules meet in

@@ -12,20 +12,43 @@ implementation. Copy it.
 ```ts
 export const myTopic: Generator = {
   id: 'chapter.topic',        // stable forever — attempts store it
-  chapter: 13,
-  title: 'Limits',
-  tags: ['limits'],
+  chapter: 14,
+  title: 'Series',
+  tags: ['series'],
   version: 1,                 // bump on any behaviour change
-  supports: { steps: [1, 3], difficulty: [1, 4] },
+  supports: ['easy', 'medium', 'hard'],
   invariant: 'value-preserving',
-  generate({ steps, difficulty, rng }) { /* … */ },
+  generate({ tier, rng }) { /* … */ },
 };
 ```
 
-`supports` is the region of the 5×5 (steps × difficulty) grid this topic can
-actually fill. The session only draws from generators covering the cell the
-sliders are on, so declaring a range you cannot serve produces bad problems, and
-declaring one too narrow just means the topic comes up less often.
+`supports` is the tiers this topic has something to say at, and the session only
+draws from generators that cover the one he picked. Most cover all three. Leave
+one out when the topic genuinely has nothing at that setting — a topic that only
+starts being a question once it is nested is not an `easy` topic, and listing it
+anyway fills the easy pool with problems that are not easy.
+
+The three are absolute, so the same word means roughly the same amount of work
+in every chapter:
+
+| tier | what it asks |
+|---|---|
+| `easy` | One rule, on numbers chosen so the arithmetic never gets in the way of seeing it. Still has to be knowing *which* rule. |
+| `medium` | The book's own exercises. Two or three moves, and the numbers stop being kind. |
+| `hard` | The shape the IBC049 exam asks in: rules nested inside each other, the useful move disguised, answers that stay symbolic. |
+
+### Spanning more than one chapter
+
+A generator that needs a rule from somewhere else declares it:
+
+```ts
+spans: [6, 9],              // logs and differentiation, both required
+```
+
+It is then only offered when every chapter it spans is switched on — asking for
+a log law he has not chosen to practise is not a harder question, it is a
+different one. At the `hard` tier these take about 40% of the draws when any are
+available; `packages/generators/src/topics/mixed.ts` is where they live.
 
 `generate` returns a `Draft`:
 
@@ -88,6 +111,31 @@ answer from the prompt rather than trusting the generator's own working.
 | `antiderivative` | Differentiates the answer and compares to `of`. |
 | `definite-integral` | Integrates `of` over `[from, to]` by Simpson's rule. |
 | `root` | Substitutes every declared answer into `equation`. |
+| `limit` | Walks in towards `at` from `side` and compares. The engine has no limit notation, so the prompt carries it and this is the only way to check it. |
+| `inverse` | Checks `f(g(x)) = x`, which is what an inverse means and the only claim about `g` that does not just restate how it was built. |
+
+## 2b. If the answer is a drawing
+
+Chapters 5 and 12 ask for a sketch, and a sketch cannot be typed. Those
+generators emit a `plot` alongside the usual fields: the window to put real axes
+in, and the picture of the right answer, in maths coordinates — the canvas owns
+the mapping to pixels, including keeping the units square, which is not optional
+when the question is whether a curve is steep.
+
+```ts
+plot: {
+  window: { xMin: -6, xMax: 6, yMin: -4, yMax: 8, step: 1 },
+  given: [{ kind: 'curve', of: 'x^2' }],   // part of the question, drawn muted
+  answer: [{ kind: 'curve', of: 'x^2-3' }, { kind: 'point', at: [0, -3] }],
+  lattice: true,                           // vectors: arrows snap to whole points
+},
+```
+
+Keep the typed `answers` too wherever something *is* gradable — the intercepts,
+the components, the length. What the fields cannot see, he marks himself: the
+sketch gets *Got it / Close / Missed* after he submits, and the attempt is not
+written to the log until he does. `close` is recorded as the `sketch` error
+class rather than a flat wrong.
 
 ## 3. Register it
 
@@ -103,8 +151,8 @@ The home screen, the stats dashboard and the chapter filters all read from there
 npm test
 ```
 
-Every generator gets 500 instances across its whole declared grid, asserting
-that:
+Every generator gets 500 instances, spread across every tier it declares,
+asserting that:
 
 - it does not throw, anywhere in its supported region;
 - the prompt and every answer parse;
