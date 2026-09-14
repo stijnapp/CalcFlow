@@ -33,6 +33,18 @@ export interface Box {
   h: number;
 }
 
+/**
+ * An arrow drawn on a graph question, in **maths** coordinates rather than
+ * pixels — the same vector has to mean the same thing on the phone and on the
+ * tablet, where the plane is a different size.
+ */
+export interface StoredArrow {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 /** Everything on the canvas, small enough to sit inside the stored session. */
 export interface CanvasState {
   /** The problem it belongs to; a canvas is never restored onto another one. */
@@ -40,6 +52,8 @@ export interface CanvasState {
   strokes: StoredStroke[];
   blocks: TexBlock[];
   pan: number;
+  /** Only on graph questions, where the answer is an arrow rather than a curve. */
+  arrows?: StoredArrow[];
 }
 
 export interface TexBlock {
@@ -242,6 +256,11 @@ export class Surface {
     this.dirty = true;
   }
 
+  /**
+   * `underlay` paints between the paper and the ink, `overlay` on top of
+   * everything — which is how a graph question gets its axes below the sketch
+   * and the answer above it. `hideInk` is the Answer-only view of the toggle.
+   */
   draw(
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -249,6 +268,11 @@ export class Surface {
     panY: number,
     surface: CanvasSurface,
     dpr: number,
+    layers: {
+      underlay?: (ctx: CanvasRenderingContext2D, pan: number) => void;
+      overlay?: (ctx: CanvasRenderingContext2D, pan: number) => void;
+      hideInk?: boolean;
+    } = {},
   ): void {
     // Pan on whole device pixels: half a pixel of offset is enough to make the
     // blit resample, and resampled ink is what reads as "it went soft".
@@ -258,19 +282,24 @@ export class Surface {
     ctx.fillStyle = '#171512';
     ctx.fillRect(0, 0, width, height);
     paintSurface(ctx, width, height, pan, surface);
+    layers.underlay?.(ctx, pan);
 
-    this.ensureBitmap(width, dpr);
-    if (this.dirty) this.repaintBitmap(width);
-    if (this.bitmap) {
-      ctx.drawImage(this.bitmap, 0, this.worldTop - pan, width, this.worldHeight);
+    if (!layers.hideInk) {
+      this.ensureBitmap(width, dpr);
+      if (this.dirty) this.repaintBitmap(width);
+      if (this.bitmap) {
+        ctx.drawImage(this.bitmap, 0, this.worldTop - pan, width, this.worldHeight);
+      }
+
+      if (this.live) {
+        ctx.save();
+        ctx.translate(0, -pan);
+        paintStroke(ctx, this.live);
+        ctx.restore();
+      }
     }
 
-    if (this.live) {
-      ctx.save();
-      ctx.translate(0, -pan);
-      paintStroke(ctx, this.live);
-      ctx.restore();
-    }
+    layers.overlay?.(ctx, pan);
   }
 
   /**

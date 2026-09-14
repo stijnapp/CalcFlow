@@ -2,6 +2,7 @@ import { ArrowLeft, Timer, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Eyebrow } from '@/components/Eyebrow';
 import { HoverLabel } from '@/components/HoverLabel';
+import { StatsDetail } from '@/components/StatsDetail';
 import { cx } from '@/lib/cx';
 import { clockTime, duration } from '@/lib/format';
 import { useStore } from '@/state/store';
@@ -26,6 +27,7 @@ export function Stats({ compact }: { compact?: boolean }) {
       </h1>
       <span className="font-mono text-xs text-faint">
         {stats.total} ATTEMPTS
+        {stats.streak > 1 ? ` · ${stats.streak} DAY STREAK` : ''}
         {settings.lastSyncedAt ? ` · SYNCED ${clockTime(settings.lastSyncedAt)}` : ' · NOT SYNCED'}
       </span>
     </div>
@@ -55,6 +57,24 @@ export function Stats({ compact }: { compact?: boolean }) {
   }
 
   const matrix = stats.matrix;
+
+  /*
+   * One sentence, and never two. Eight readouts feed it and they compete rather
+   * than stack: the strongest thing the log currently says gets the line, the
+   * rest stay folded into "look closer". That is the whole answer to how the
+   * screen gains eight metrics without becoming a wall of them.
+   */
+  const read = stats.read && (
+    <p
+      className={cx(
+        'shrink-0 rounded-lg border border-border bg-card px-5 text-pretty leading-relaxed text-ink2',
+        compact ? 'py-3.5 text-[13px]' : 'py-4 text-sm',
+      )}
+    >
+      <span className="mr-2 font-mono text-[11px] tracking-[0.12em] text-accent">THE READ</span>
+      {stats.read.text}
+    </p>
+  );
 
   const quadrants = (
     <div className="grid grid-cols-2 gap-3">
@@ -169,12 +189,14 @@ export function Stats({ compact }: { compact?: boolean }) {
       <div className="flex h-full flex-col">
         <div className="shrink-0 border-b border-line px-5 py-3.5">{header}</div>
         <div className="scroll-y flex flex-1 flex-col gap-5 px-5 pb-16 pt-4">
+          {read}
           <div className="flex flex-col gap-2.5">
             <Eyebrow className="text-[10px]">CONFIDENCE × CORRECTNESS</Eyebrow>
             {quadrants}
           </div>
           {mastery}
           {cards}
+          <StatsDetail stats={stats} compact />
         </div>
       </div>
     );
@@ -183,6 +205,7 @@ export function Stats({ compact }: { compact?: boolean }) {
   return (
     <div className="flex h-full flex-col gap-5 px-10 pb-8 pt-5">
       {header}
+      {read}
       {/* Two columns, not three: mastery reads across, and the grid together
           with the two recommendations it produces belong on the right. */}
       <div className="flex min-h-0 flex-1 gap-5">
@@ -191,6 +214,7 @@ export function Stats({ compact }: { compact?: boolean }) {
           <Eyebrow className="text-xs">CONFIDENCE × CORRECTNESS</Eyebrow>
           {quadrants}
           {cards}
+          <StatsDetail stats={stats} />
         </div>
       </div>
     </div>

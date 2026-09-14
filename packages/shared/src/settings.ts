@@ -1,3 +1,5 @@
+import type { Tier } from './tiers.js';
+
 export type SessionMode = 'set10' | 'endless' | 'weak' | 'speed';
 export type CanvasSurface = 'ruled' | 'dots' | 'blank';
 
@@ -13,8 +15,8 @@ export interface CustomKey {
 export interface Settings {
   /** Chapter numbers currently selected on the home screen. May be empty. */
   chapters: number[];
-  /** 1–9, an index into LEVELS. Drives both steps and difficulty. */
-  level: number;
+  /** How hard the problems come out. See `Tier`. */
+  tier: Tier;
   mode: SessionMode;
   /** How many problems a finite set holds. Endless ignores it. */
   setLength: number;
@@ -54,7 +56,7 @@ export const DEFAULT_KEYS = [
 
 export const DEFAULT_SETTINGS: Settings = {
   chapters: [],
-  level: 3,
+  tier: 'medium',
   mode: 'set10',
   setLength: 10,
   adaptive: false,

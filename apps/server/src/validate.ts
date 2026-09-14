@@ -1,7 +1,15 @@
-import type { Attempt, Confidence, ErrorClass } from '@calcflow/shared';
+import {
+  TIERS,
+  type Attempt,
+  type Confidence,
+  type ErrorClass,
+  type SelfGrade,
+  type Tier,
+} from '@calcflow/shared';
 
 const CONFIDENCE = ['sure', 'think', 'guess'] as const;
-const ERROR_CLASS = ['plus-c', 'not-exact', 'not-simplified', 'notation', 'wrong'] as const;
+const ERROR_CLASS = ['plus-c', 'not-exact', 'not-simplified', 'notation', 'sketch', 'wrong'] as const;
+const SELF_GRADE = ['got', 'close', 'missed'] as const;
 
 /*
  * These two lists are the string unions written out at runtime, and the two
@@ -12,6 +20,8 @@ const ERROR_CLASS = ['plus-c', 'not-exact', 'not-simplified', 'notation', 'wrong
 type Unlisted<T extends never> = T;
 export type _ConfidenceCovered = Unlisted<Exclude<Confidence, (typeof CONFIDENCE)[number]>>;
 export type _ErrorClassCovered = Unlisted<Exclude<ErrorClass, (typeof ERROR_CLASS)[number]>>;
+export type _TierCovered = Unlisted<Exclude<Tier, (typeof TIERS)[number]>>;
+export type _SelfGradeCovered = Unlisted<Exclude<SelfGrade, (typeof SELF_GRADE)[number]>>;
 
 /** 26 characters of Crockford base32 — no I, L, O or U. */
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -37,8 +47,7 @@ const FIELD: { [K in keyof Attempt]-?: Check } = {
   seed: str(64),
   genVersion: int(0, 1e6),
   chapter: int(0, 99),
-  steps: int(0, 99),
-  difficulty: int(0, 99),
+  tier: oneOf(TIERS),
   correct: (v) => typeof v === 'boolean',
   confidence: oneOf(CONFIDENCE),
   hintsUsed: int(0, 1000),
@@ -46,6 +55,7 @@ const FIELD: { [K in keyof Attempt]-?: Check } = {
   durationMs: int(0, 86_400_000),
   answerRaw: str(2000),
   errorClass: (v) => v === null || oneOf(ERROR_CLASS)(v),
+  selfGrade: (v) => v === null || oneOf(SELF_GRADE)(v),
 };
 
 const FIELDS = Object.keys(FIELD) as Array<keyof Attempt>;

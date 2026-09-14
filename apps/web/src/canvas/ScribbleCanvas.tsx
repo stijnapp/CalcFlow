@@ -20,12 +20,22 @@ import {
   loopContains,
   type Box,
   type CanvasState,
+  type StoredArrow,
   type StrokePoint,
   type TexBlock,
 } from './strokes';
+import {
+  paintArrows,
+  paintItems,
+  paintPlane,
+  planeFor,
+  snapToLattice,
+  toMaths,
+  type PlaneView,
+} from './plane';
 import { TapDetector } from './gestures';
 
-export type CanvasTool = 'pen' | 'eraser' | 'type' | 'lasso';
+export type CanvasTool = 'pen' | 'eraser' | 'type' | 'lasso' | 'arrow';
 
 export interface CanvasHandle {
   undo(): void;
@@ -39,6 +49,12 @@ interface Props {
   penWidth: number;
   penOnly: boolean;
   surface: CanvasSurface;
+  /**
+   * Set on a graph question: real axes under the ink, and the answer drawn over
+   * it once it is revealed. The paper setting is ignored while it is on — a
+   * coordinate plane and ruled lines are two different backgrounds.
+   */
+  plane?: PlaneView | null;
   /** Changes when the problem does; a canvas from another problem is dropped. */
   problemKey: string;
   /**
@@ -64,6 +80,8 @@ const FLING_DECAY = 0.9965;
 const TAP_SLOP = 10;
 /** A finger resting this long is not tapping any more. */
 const TAP_HOLD_MS = 700;
+/** Hold this long before moving and the arrow ignores the lattice. */
+const ARROW_FREE_MS = 400;
 /** Quiet after a mark before the page is written back. */
 const SAVE_MS = 600;
 /** A typed block has no measured width here; this is enough to draw a box round. */
@@ -73,12 +91,21 @@ const SELECT_PAD = 10;
 /** The accent, as canvas cannot read a CSS variable. */
 const ACCENT = '#f5a524';
 
+/** How far a point is from an arrow, in maths units — for the eraser. */
+function distanceToSegment(x: number, y: number, a: StoredArrow): number {
+  const dx = a.x2 - a.x1;
+  const dy = a.y2 - a.y1;
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x1) * dx + (y - a.y1) * dy) / lengthSquared));
+  return Math.hypot(x - (a.x1 + t * dx), y - (a.y1 + t * dy));
+}
+
 /**
  * A fixed viewport onto an infinitely tall surface. The page never scrolls —
  * he pans within the canvas instead.
  */
 const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanvas(
-  { tool, penWidth, penOnly, surface, problemKey, getInitial, onPersist, onToast, className },
+  { tool, penWidth, penOnly, surface, plane, problemKey, getInitial, onPersist, onToast, className },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -118,6 +145,13 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     blocks: number[];
     box: Box;
   } | null>(null);
+  /** His own arrows on a graph question, in maths coordinates. */
+  const [arrows, setArrows] = useState<StoredArrow[]>([]);
+  const arrowsUndone = useRef<StoredArrow[]>([]);
+  /** The arrow under the pen, and whether the hold has turned snapping off. */
+  const drawingArrow = useRef<{ start: StoredArrow; downAt: number; free: boolean } | null>(null);
+  /** Whether the newest mark was an arrow, so undo knows which stack to pop. */
+  const lastWasArrow = useRef(false);
   const nextBlockId = useRef(1);
 
   const active = blocks.find((b) => b.id === activeId) ?? null;
@@ -126,6 +160,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   getInitialRef.current = getInitial;
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
+  const arrowsRef = useRef(arrows);
+  arrowsRef.current = arrows;
+  const planeRef = useRef(plane);
+  planeRef.current = plane;
   persistRef.current = () => {
     clearTimeout(saveTimer.current);
     saveTimer.current = undefined;
@@ -134,6 +172,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       strokes: surfaceRef.current.serialize(),
       blocks: blocksRef.current,
       pan: panRef.current,
+      arrows: arrowsRef.current,
     });
   };
 
@@ -147,7 +186,14 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   // unmounts this canvas and mounts another one a frame later.
   useEffect(() => () => persistRef.current?.(), []);
 
-  useEffect(markDirty, [blocks, markDirty]);
+  useEffect(markDirty, [blocks, arrows, markDirty]);
+
+  /** The plane in pixels, recomputed whenever the canvas is a different width. */
+  const geometry = useCallback(() => {
+    const spec = planeRef.current?.spec;
+    const { w } = sizeRef.current;
+    return spec && w > 0 ? planeFor(spec.window, w) : null;
+  }, []);
 
   const paint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -157,7 +203,31 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     const { w, h } = sizeRef.current;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    surfaceRef.current.draw(ctx, w, h, panRef.current, surface, dpr);
+
+    const view = planeRef.current;
+    const geo = geometry();
+    const showMine = !view || view.reveal === 'mine' || view.reveal === 'both' || view.reveal === 'none';
+    const showAnswer = !!view && (view.reveal === 'answer' || view.reveal === 'both');
+
+    surfaceRef.current.draw(ctx, w, h, panRef.current, geo ? 'blank' : surface, dpr, {
+      hideInk: !showMine,
+      underlay: geo
+        ? (c, pan) => {
+            paintPlane(c, geo, w, h, pan);
+            if (view?.spec.given) paintItems(c, geo, view.spec.given, pan, 'given');
+          }
+        : undefined,
+      overlay: geo
+        ? (c, pan) => {
+            const live = drawingArrow.current;
+            if (showMine) {
+              paintArrows(c, geo, arrowsRef.current, pan);
+              if (live) paintArrows(c, geo, [live.start], pan, '#a89e92');
+            }
+            if (showAnswer) paintItems(c, geo, view!.spec.answer, pan, 'answer');
+          }
+        : undefined,
+    });
 
     // The loop he is drawing lives here rather than in the surface: it is a
     // gesture, and it must never end up in the ink or in the undo stack.
@@ -177,7 +247,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       ctx.stroke();
       ctx.restore();
     }
-  }, [surface]);
+  }, [geometry, surface]);
 
   /** Coalesce paints into one per frame; a 480 Hz pen would otherwise flood. */
   const schedulePaint = useCallback(() => {
@@ -213,7 +283,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
 
   useEffect(() => {
     paint();
-  }, [paint, surface]);
+  }, [paint, plane, surface]);
 
   // A canvas belongs to one problem: it comes back with that problem and goes
   // when it does. This runs on the way in as well, which is what makes a
@@ -224,6 +294,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     surfaceRef.current.reset();
     if (mine) surfaceRef.current.restore(mine.strokes);
     setBlocks(mine?.blocks ?? []);
+    setArrows(mine?.arrows ?? []);
+    arrowsUndone.current = [];
+    drawingArrow.current = null;
+    lastWasArrow.current = false;
     setSelection(null);
     lassoRef.current = null;
     nextBlockId.current = (mine?.blocks ?? []).reduce((m, b) => Math.max(m, b.id), 0) + 1;
@@ -288,12 +362,30 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   }, []);
 
   const undo = useCallback(() => {
+    // Arrows and strokes are two stacks; the newest mark decides which is popped.
+    if (lastWasArrow.current && arrowsRef.current.length > 0) {
+      const rest = arrowsRef.current.slice(0, -1);
+      arrowsUndone.current.push(arrowsRef.current.at(-1)!);
+      setArrows(rest);
+      lastWasArrow.current = rest.length > 0;
+      onToast('Undo');
+      schedulePaint();
+      return;
+    }
     onToast(surfaceRef.current.undo() ? 'Undo' : 'Nothing to undo');
     schedulePaint();
     markDirty();
   }, [markDirty, onToast, schedulePaint]);
 
   const redo = useCallback(() => {
+    const back = arrowsUndone.current.pop();
+    if (back) {
+      setArrows([...arrowsRef.current, back]);
+      lastWasArrow.current = true;
+      onToast('Redo');
+      schedulePaint();
+      return;
+    }
     onToast(surfaceRef.current.redo() ? 'Redo' : 'Nothing to redo');
     schedulePaint();
     markDirty();
@@ -307,11 +399,15 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       clear() {
         surfaceRef.current.clear();
         setBlocks([]);
+        setArrows([]);
+        arrowsUndone.current = [];
+        lastWasArrow.current = false;
         setActiveId(null);
         schedulePaint();
         markDirty();
       },
-      isEmpty: () => surfaceRef.current.isEmpty && blocks.length === 0,
+      isEmpty: () =>
+        surfaceRef.current.isEmpty && blocks.length === 0 && arrowsRef.current.length === 0,
     }),
     [undo, redo, markDirty, schedulePaint, blocks.length],
   );
@@ -326,6 +422,21 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
    */
   function fingerPans(): boolean {
     return penOnly || tool === 'type' || tapsRef.current.activeCount > 1 || panFromRef.current !== null;
+  }
+
+  /** Rubs out a whole arrow, the way the eraser rubs out a whole stroke. */
+  function eraseArrowAt(worldX: number, worldY: number): boolean {
+    const geo = geometry();
+    if (!geo || arrowsRef.current.length === 0) return false;
+    const at = toMaths(geo, worldX, worldY);
+    const radius = 14 / geo.scale;
+    const hit = arrowsRef.current.findIndex(
+      (a) => distanceToSegment(at.x, at.y, a) <= radius,
+    );
+    if (hit < 0) return false;
+    setArrows(arrowsRef.current.filter((_, i) => i !== hit));
+    lastWasArrow.current = false;
+    return true;
   }
 
   function pressure(e: { pointerType: string; pressure: number }): number {
@@ -375,6 +486,21 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       tapsRef.current.abort();
     }
 
+    if (tool === 'arrow') {
+      const geo = geometry();
+      if (!geo) return;
+      const p = toWorld(e);
+      const at = planeRef.current?.spec.lattice
+        ? snapToLattice(geo, p.x, p.y)
+        : toMaths(geo, p.x, p.y);
+      drawingArrow.current = {
+        start: { x1: at.x, y1: at.y, x2: at.x, y2: at.y },
+        downAt: e.timeStamp,
+        free: false,
+      };
+      schedulePaint();
+      return;
+    }
     if (tool === 'lasso') {
       setSelection(null);
       lassoRef.current = [toWorld(e)];
@@ -388,7 +514,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     if (tool === 'eraser') {
       erasingRef.current = true;
       const p = toWorld(e);
-      if (surfaceRef.current.eraseAt(p.x, p.y)) {
+      if (eraseArrowAt(p.x, p.y) || surfaceRef.current.eraseAt(p.x, p.y)) {
         schedulePaint();
         markDirty();
       }
@@ -431,6 +557,22 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
         return;
       }
     }
+    const live = drawingArrow.current;
+    if (live) {
+      const geo = geometry();
+      if (!geo) return;
+      // Held still before moving: he wants the arrow where he puts it, not
+      // where the lattice thinks it should go.
+      if (e.timeStamp - live.downAt > ARROW_FREE_MS) live.free = true;
+      const p = toWorld(e);
+      const at =
+        planeRef.current?.spec.lattice && !live.free
+          ? snapToLattice(geo, p.x, p.y)
+          : toMaths(geo, p.x, p.y);
+      live.start = { ...live.start, x2: at.x, y2: at.y };
+      schedulePaint();
+      return;
+    }
     if (lassoRef.current) {
       lassoRef.current.push(toWorld(e));
       schedulePaint();
@@ -438,7 +580,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     }
     if (erasingRef.current) {
       const p = toWorld(e);
-      if (surfaceRef.current.eraseAt(p.x, p.y)) {
+      if (eraseArrowAt(p.x, p.y) || surfaceRef.current.eraseAt(p.x, p.y)) {
         schedulePaint();
         markDirty();
       }
@@ -486,6 +628,19 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     }
     if (e.pointerType === 'pen') penDownRef.current = false;
 
+    const finished = drawingArrow.current;
+    if (finished) {
+      drawingArrow.current = null;
+      const { x1, y1, x2, y2 } = finished.start;
+      // A tap is not an arrow; anything shorter than a grid square is a slip.
+      if (Math.hypot(x2 - x1, y2 - y1) >= 0.5) {
+        setArrows([...arrowsRef.current, finished.start]);
+        arrowsUndone.current = [];
+        lastWasArrow.current = true;
+      }
+      schedulePaint();
+      return;
+    }
     if (lassoRef.current) {
       closeLasso();
       return;
@@ -508,6 +663,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     panFromRef.current = null;
     tapRef.current = null;
     erasingRef.current = false;
+    if (drawingArrow.current) {
+      drawingArrow.current = null;
+      schedulePaint();
+    }
     if (lassoRef.current) {
       lassoRef.current = null;
       schedulePaint();

@@ -1,5 +1,15 @@
-import { CHAPTERS, chapterTitle, type Attempt } from '@calcflow/shared';
-import { median } from '@/lib/format';
+import { GENERATORS, rebuild, ruleById } from '@calcflow/generators';
+import {
+  CHAPTERS,
+  TIER_LABEL,
+  TIERS,
+  chapterTitle,
+  type Attempt,
+  type Confidence,
+  type ErrorClass,
+  type Tier,
+} from '@calcflow/shared';
+import { median, percent } from '@/lib/format';
 
 export type Speed = 'fast' | 'par' | 'slow';
 
@@ -19,6 +29,15 @@ export interface ChapterStat {
   medianMs: number;
   /** Against his own median across every chapter, not an outside benchmark. */
   speed: Speed;
+  /**
+   * Percent change in median time against his own earlier attempts in the same
+   * chapter — negative is faster. Null until there is enough history on both
+   * sides to mean anything. A median says where he is; this says which way he
+   * is going, and only the second one can tell practice from plateau.
+   */
+  trend: number | null;
+  /** 0–100 of the window solved without opening the hint panel at all. */
+  hintFree: number;
   confidentWrong: number;
 }
 
@@ -27,6 +46,64 @@ export interface Matrix {
   sureWrong: number;
   unsureRight: number;
   unsureWrong: number;
+}
+
+export interface CalibrationRow {
+  confidence: Confidence;
+  label: string;
+  n: number;
+  right: number;
+  /** 0–100. Compared against itself over time, not against a target. */
+  rate: number;
+}
+
+export interface ErrorRow {
+  errorClass: ErrorClass;
+  label: string;
+  n: number;
+  /** 0–100 of the wrong answers in the window, not of all attempts. */
+  share: number;
+  /** Form rather than maths — the ones worth separating out. */
+  nearMiss: boolean;
+}
+
+export interface RuleRow {
+  ruleId: string;
+  title: string;
+  /** How often he was sure and wrong on a problem that uses this rule. */
+  n: number;
+}
+
+export interface RetentionRow {
+  label: string;
+  n: number;
+  rate: number;
+}
+
+export interface TierRow {
+  tier: Tier;
+  label: string;
+  n: number;
+  rate: number;
+}
+
+export interface TopicRow {
+  generatorId: string;
+  title: string;
+  chapter: number;
+  attempts: number;
+  /** Days since it last came up, or null if it never has. */
+  days: number | null;
+  rate: number;
+}
+
+/**
+ * One sentence about the log, written so it says what to do about itself. Only
+ * ever one is shown; the rank decides which, and the rest stay folded away.
+ */
+export interface Insight {
+  id: string;
+  text: string;
 }
 
 export interface Stats {
@@ -38,13 +115,54 @@ export interface Stats {
   studyNext: ChapterStat | null;
   /** Right but slow — fluency practice rather than error correction. */
   buildSpeed: ChapterStat | null;
+  calibration: CalibrationRow[];
+  errorMix: ErrorRow[];
+  /** Confident-and-wrong rolled up by rule rather than by chapter. */
+  shakyRules: RuleRow[];
+  retention: RetentionRow[];
+  tiers: TierRow[];
+  topics: TopicRow[];
+  /** 0–100 of the recent window solved with the hint panel unopened. */
+  hintFree: number;
+  hintFreeOf: number;
+  /** Consecutive days ending today (or yesterday, mid-day) with an attempt. */
+  streak: number;
+  /** The single line worth putting at the top of the screen, if there is one. */
+  read: Insight | null;
 }
 
 /** Only the recent past says anything about where he stands now. */
 const WINDOW = 30;
 
+/**
+ * The log-wide window. Wider than a chapter's, because the readouts drawn from
+ * it — calibration, the error mix, retention — slice it further and go quiet
+ * below their own minimum counts.
+ */
+const LOG_WINDOW = 150;
+
+const DAY = 86_400_000;
+
+const CONFIDENCE_LABEL: Record<Confidence, string> = {
+  sure: 'Sure',
+  think: 'Think so',
+  guess: 'Guessed',
+};
+
+const ERROR_LABEL: Record<ErrorClass, string> = {
+  'plus-c': 'Forgot + C',
+  'not-exact': 'Rounded instead of exact',
+  'not-simplified': 'Left unsimplified',
+  notation: 'Typed it wrong',
+  sketch: 'Sketch off',
+  wrong: 'Wrong',
+};
+
+const NEAR_MISS: ErrorClass[] = ['plus-c', 'not-exact', 'not-simplified', 'notation', 'sketch'];
+
 export function computeStats(attempts: Attempt[]): Stats {
   const overallMedianMs = median(attempts.map((a) => a.durationMs));
+  const window = attempts.slice(-LOG_WINDOW);
 
   const byChapter = CHAPTERS.map(({ n }) => {
     const all = attempts.filter((a) => a.chapter === n);
@@ -67,6 +185,8 @@ export function computeStats(attempts: Attempt[]): Stats {
       mastery: recent.length ? Math.max(0, Math.round((rate - penalty) * 100)) : 0,
       medianMs,
       speed: speedOf(medianMs, overallMedianMs),
+      trend: trendOf(all),
+      hintFree: percent(recent.filter((a) => a.hintMaxRung === 0).length, recent.length),
       confidentWrong,
     } satisfies ChapterStat;
   });
@@ -89,14 +209,27 @@ export function computeStats(attempts: Attempt[]): Stats {
       .filter((c) => c.mastery >= 65 && c.speed === 'slow' && c.chapter !== studyNext?.chapter)
       .sort((a, b) => b.medianMs - a.medianMs)[0] ?? null;
 
-  return {
+  const hintFreeOf = window.length;
+  const stats: Stats = {
     total: attempts.length,
     overallMedianMs,
     byChapter,
     matrix,
     studyNext,
     buildSpeed,
+    calibration: calibrationOf(window),
+    errorMix: errorMixOf(window),
+    shakyRules: shakyRulesOf(window),
+    retention: retentionOf(attempts),
+    tiers: tiersOf(window),
+    topics: topicsOf(attempts),
+    hintFree: percent(window.filter((a) => a.hintMaxRung === 0).length, hintFreeOf),
+    hintFreeOf,
+    streak: streakOf(attempts),
+    read: null,
   };
+  stats.read = readOf(stats);
+  return stats;
 }
 
 function speedOf(chapterMedian: number, overallMedian: number): Speed {
@@ -105,6 +238,237 @@ function speedOf(chapterMedian: number, overallMedian: number): Speed {
   if (ratio < 0.8) return 'fast';
   if (ratio > 1.25) return 'slow';
   return 'par';
+}
+
+/**
+ * Counted in attempts rather than in days on purpose: a fortnight off is not a
+ * slowdown, and a week where he did forty problems in one chapter is not a
+ * speed-up either. Ten against the twenty before them is the shortest pair of
+ * windows whose medians are not just noise.
+ */
+function trendOf(all: Attempt[]): number | null {
+  if (all.length < 15) return null;
+  const recent = all.slice(-10);
+  const prior = all.slice(-30, -10);
+  if (prior.length < 5) return null;
+  const before = median(prior.map((a) => a.durationMs));
+  if (!before) return null;
+  return Math.round(((median(recent.map((a) => a.durationMs)) - before) / before) * 100);
+}
+
+/**
+ * What each answer to "how sure are you?" turned out to be worth. Without this
+ * the confidence question costs a tap a problem and pays nothing back.
+ */
+function calibrationOf(window: Attempt[]): CalibrationRow[] {
+  const order: Confidence[] = ['sure', 'think', 'guess'];
+  return order.map((confidence) => {
+    const rows = window.filter((a) => a.confidence === confidence);
+    const right = rows.filter((a) => a.correct).length;
+    return {
+      confidence,
+      label: CONFIDENCE_LABEL[confidence],
+      n: rows.length,
+      right,
+      rate: percent(right, rows.length),
+    };
+  });
+}
+
+/** Of the wrong answers, how many were maths and how many were only form. */
+function errorMixOf(window: Attempt[]): ErrorRow[] {
+  const wrong = window.filter((a) => !a.correct && a.errorClass !== null);
+  const counts = new Map<ErrorClass, number>();
+  for (const a of wrong) counts.set(a.errorClass!, (counts.get(a.errorClass!) ?? 0) + 1);
+  return [...counts]
+    .map(([errorClass, n]) => ({
+      errorClass,
+      label: ERROR_LABEL[errorClass],
+      n,
+      share: percent(n, wrong.length),
+      nearMiss: NEAR_MISS.includes(errorClass),
+    }))
+    .sort((a, b) => b.n - a.n);
+}
+
+/**
+ * "Chapter 9 needs work" is not a thing you can practise. The rules a problem
+ * touches are on the problem, and a problem rebuilds exactly from its seed —
+ * so the confident-wrong attempts can be asked what they were actually about.
+ * Only those get rebuilt: it is a handful of generator calls, not the log.
+ */
+function shakyRulesOf(window: Attempt[]): RuleRow[] {
+  const counts = new Map<string, number>();
+  for (const a of window.filter((x) => !x.correct && x.confidence === 'sure').slice(-40)) {
+    let problem;
+    try {
+      problem = rebuild(a.generatorId, a.seed, a.tier);
+    } catch {
+      continue;
+    }
+    // The headline rule only: a chain-rule problem also touches the power rule,
+    // and counting both would bury the one he is actually getting wrong.
+    const ruleId = problem?.ruleIds[0];
+    if (ruleId) counts.set(ruleId, (counts.get(ruleId) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([ruleId, n]) => ({ ruleId, title: ruleById(ruleId)?.name ?? ruleId, n }))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 5);
+}
+
+/**
+ * Accuracy against how long it had been since he last saw that exact topic.
+ * This is the difference between practising what he is worst at and practising
+ * what he is about to forget.
+ */
+function retentionOf(attempts: Attempt[]): RetentionRow[] {
+  const buckets: Array<{ label: string; upTo: number; n: number; right: number }> = [
+    { label: 'Same day', upTo: 1, n: 0, right: 0 },
+    { label: '1–3 days', upTo: 4, n: 0, right: 0 },
+    { label: '4–7 days', upTo: 8, n: 0, right: 0 },
+    { label: 'Over a week', upTo: Infinity, n: 0, right: 0 },
+  ];
+  const lastSeen = new Map<string, number>();
+  for (const a of [...attempts].sort((x, y) => x.ts - y.ts)) {
+    const previous = lastSeen.get(a.generatorId);
+    lastSeen.set(a.generatorId, a.ts);
+    // A topic's first ever appearance is not a retention measurement.
+    if (previous === undefined) continue;
+    const days = (a.ts - previous) / DAY;
+    const bucket = buckets.find((b) => days < b.upTo)!;
+    bucket.n += 1;
+    if (a.correct) bucket.right += 1;
+  }
+  return buckets.map(({ label, n, right }) => ({ label, n, rate: percent(right, n) }));
+}
+
+function tiersOf(window: Attempt[]): TierRow[] {
+  return TIERS.map((tier) => {
+    const rows = window.filter((a) => a.tier === tier);
+    return {
+      tier,
+      label: TIER_LABEL[tier],
+      n: rows.length,
+      rate: percent(rows.filter((a) => a.correct).length, rows.length),
+    };
+  });
+}
+
+/**
+ * One row per generator, not per chapter: a chapter average stays healthy while
+ * one of its five topics quietly goes a month without coming up.
+ */
+function topicsOf(attempts: Attempt[]): TopicRow[] {
+  const now = Date.now();
+  return GENERATORS.map((g) => {
+    const rows = attempts.filter((a) => a.generatorId === g.id);
+    const last = rows.length ? Math.max(...rows.map((a) => a.ts)) : null;
+    return {
+      generatorId: g.id,
+      title: g.title,
+      chapter: g.chapter,
+      attempts: rows.length,
+      days: last === null ? null : Math.floor((now - last) / DAY),
+      rate: percent(rows.filter((a) => a.correct).length, rows.length),
+    };
+  }).sort((a, b) => a.chapter - b.chapter || a.title.localeCompare(b.title));
+}
+
+function streakOf(attempts: Attempt[]): number {
+  const days = new Set(attempts.map((a) => new Date(a.ts).toDateString()));
+  if (days.size === 0) return 0;
+  const cursor = new Date();
+  // A day that is not over yet does not break a streak, so start from yesterday
+  // when nothing has been answered today.
+  if (!days.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while (days.has(cursor.toDateString())) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+/**
+ * The whole reason the extra readouts do not turn into a wall of numbers: they
+ * all compete for one sentence, in a fixed order of how much it would change
+ * what he practises next, and each one stays silent until it has enough
+ * attempts behind it and something other than "about normal" to say.
+ */
+function readOf(s: Stats): Insight | null {
+  const shaky = s.shakyRules[0];
+  if (shaky && shaky.n >= 3) {
+    return {
+      id: 'rule',
+      text: `${shaky.n} of your confident wrong answers were ${shaky.title.toLowerCase()} problems. That is one rule remembered wrong, not a chapter to redo.`,
+    };
+  }
+
+  const sure = s.calibration.find((c) => c.confidence === 'sure');
+  if (sure && sure.n >= 15 && sure.rate < 85) {
+    return {
+      id: 'calibration',
+      text: `When you say you are sure you are right ${sure.rate}% of the time. Treat "sure" as a claim worth checking before you submit.`,
+    };
+  }
+
+  const near = s.errorMix.find((e) => e.nearMiss);
+  if (near && near.n >= 4 && near.share >= 30) {
+    return {
+      id: 'errors',
+      text: `${near.share}% of your recent wrong answers were "${near.label.toLowerCase()}" — the maths was there. Slow down on the last line, not on the working.`,
+    };
+  }
+
+  const fresh = s.retention[0];
+  const stale = s.retention[3];
+  if (fresh && stale && fresh.n >= 8 && stale.n >= 8 && fresh.rate - stale.rate >= 15) {
+    return {
+      id: 'retention',
+      text: `Topics you have not seen for over a week come back at ${stale.rate}% against ${fresh.rate}% the same day. Revisiting beats pushing on.`,
+    };
+  }
+
+  const forgotten = s.topics.filter((t) => t.attempts >= 3 && (t.days ?? 0) >= 21);
+  if (forgotten.length >= 3) {
+    return {
+      id: 'stale',
+      text: `${forgotten.length} topics you had started have not come up in three weeks, including ${forgotten[0]!.title.toLowerCase()}.`,
+    };
+  }
+
+  const hard = s.tiers.find((t) => t.tier === 'hard');
+  const medium = s.tiers.find((t) => t.tier === 'medium');
+  if (hard && medium && hard.n >= 12 && medium.n >= 12 && medium.rate - hard.rate >= 25) {
+    return {
+      id: 'tier',
+      text: `Medium sits at ${medium.rate}% and hard at ${hard.rate}%. The gap is the exam, so it is worth spending sets there even while it stings.`,
+    };
+  }
+
+  const improving = [...s.byChapter]
+    .filter((c) => c.trend !== null)
+    .sort((a, b) => a.trend! - b.trend!)[0];
+  if (improving && improving.trend! <= -20) {
+    return {
+      id: 'trend',
+      text: `Chapter ${improving.chapter} is ${Math.abs(improving.trend!)}% faster than it was, at ${improving.rightRate}% right. That one is turning into fluency.`,
+    };
+  }
+
+  if (s.hintFreeOf >= 20) {
+    return {
+      id: 'hints',
+      text: `You solved ${s.hintFree}% of your last ${s.hintFreeOf} without opening a hint.`,
+    };
+  }
+
+  if (s.streak >= 3) {
+    return { id: 'streak', text: `${s.streak} days in a row.` };
+  }
+
+  return null;
 }
 
 /** Chapters ranked worst-first, for the "drill weak spots" session. */

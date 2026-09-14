@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Notices } from '@/components/Notices';
 import { RuleCardModal } from '@/components/RuleCardModal';
 import { Toast } from '@/components/Toast';
-import { UpdateBanner } from '@/components/UpdateBanner';
 import { useLayout } from '@/lib/useLayout';
 import { bindNavigate, useStore } from '@/state/store';
 import { Home } from '@/screens/Home';
@@ -83,7 +83,7 @@ export function App() {
         </AnimatePresence>
 
         <RuleCardModal />
-        <UpdateBanner />
+        <Notices />
         <Toast />
       </main>
     </MotionConfig>

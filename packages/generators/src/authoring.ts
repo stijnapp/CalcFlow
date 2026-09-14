@@ -23,6 +23,25 @@ export function step(ruleId: string, ruleLabel: string, expr: Latex, note?: stri
 }
 
 /**
+ * A line that still carries an unapplied operator — an integral sign, a
+ * `d/dx` — and so cannot be compared against the answer. Rewriting the
+ * question into the form a rule can be applied to is a real step in the
+ * working, and often the only one he is actually missing.
+ */
+export function setup(ruleId: string, ruleLabel: string, expr: Latex, note?: string): Step {
+  return { ruleId, ruleLabel, expr, display: true, ...(note ? { note } : {}) };
+}
+
+/**
+ * A line that applies no boxed rule and cannot be evaluated either — `f'(2) = 11`
+ * names a value the engine has no function to compute. Working, not a claim the
+ * harness can check.
+ */
+export function aside(ruleLabel: string, expr: Latex, note?: string): Step {
+  return { ruleLabel, expr, display: true, ...(note ? { note } : {}) };
+}
+
+/**
  * A line that applies no boxed rule — collecting like terms, tidying a
  * numerator. Naming one of the cards here would put a rule in the rules-used
  * list that the problem never actually taught.

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://unpkg.com/lucide@0.417.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { margin:0; background:#100e0c; color:#f2ede6; font-family:'Geist',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#f5a524; text-decoration:none; border-bottom:1px solid rgba(245,165,36,.4); }
+  a:hover { color:#ffb63f; }
+  .katex, .katex * { color:inherit; }
+  .katex { font-size:1em; }
+</style>
+<script>
+  (function () {
+    function pass() {
+      if (window.katex) {
+        document.querySelectorAll('[data-tex]:not([data-tex-done])').forEach(function (el) {
+          el.setAttribute('data-tex-done', '1');
+          try { window.katex.render(el.getAttribute('data-tex'), el, { throwOnError: false }); } catch (e) {}
+        });
+      }
+      if (window.lucide) { try { window.lucide.createIcons(); } catch (e) {} }
+    }
+    var queued = false;
+    function schedule() { if (queued) return; queued = true; requestAnimationFrame(function () { queued = false; pass(); }); }
+    new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+    setInterval(pass, 400);
+    window.addEventListener('load', pass);
+  })();
+</script>
+</helmet>
+
+<section style="display:flex;flex-direction:column;gap:44px;padding:64px">
+  <header style="display:flex;flex-direction:column;gap:14px;max-width:900px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">TURN 1 · GRAPH ANSWERS · CH 5 CURVES &amp; GRAPHS, CH 12 VECTORS</div>
+    <h1 style="margin:0;font-size:34px;font-weight:600;letter-spacing:-.02em">How a drawn answer gets submitted, revealed and graded</h1>
+    <p style="margin:0;font-size:15px;line-height:1.65;color:#a39a90;text-wrap:pretty">Built on the shipped layout: tool rail plus 62% canvas on the tablet, stacked canvas with a bottom sheet on the phone, confidence captured before the reveal. The answer is overlaid on your sketch, and the machine-checkable parts are pulled out into real fields.</p>
+  </header>
+
+  <div style="display:flex;flex-direction:column;gap:80px;align-items:flex-start">
+
+    <!-- ============================ OPTION 1A ============================ -->
+    <div id="1a" style="flex:1 1 5400px;display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:flex-start;gap:16px;max-width:1040px">
+        <span style="flex-shrink:0;font-family:'Geist Mono',ui-monospace,monospace;font-size:13px;letter-spacing:.06em;color:#1a1206;background:#f5a524;border-radius:9px;padding:6px 11px">1a</span>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <h2 style="margin:0;font-size:23px;font-weight:600;letter-spacing:-.01em">Overlay reveal, checkable anchors, three-way self-grade</h2>
+          <p style="margin:0;font-size:14px;line-height:1.65;color:#a39a90;text-wrap:pretty">Your flow with two changes. The answer curve <strong style="color:#d8d0c6;font-weight:500">draws itself over</strong> your sketch rather than beside it, so comparing is spatial instead of remembered. And every graph question also asks for two or three typed <strong style="color:#d8d0c6;font-weight:500">key features</strong> — asymptotes, intercepts, components, magnitude — which the engine grades for real. The sketch stays self-graded, but on three levels, so it lands in the same correct / near / wrong buckets the rest of the app already uses. Pure self-grading would make Ch 5 and Ch 12 the only chapters whose mastery and speed numbers you cannot trust.</p>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:44px;align-items:flex-start">
+
+        <!-- ---------- 1a tablet, ch5, before submit ---------- -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#a39a90;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:5px 11px">TABLET · 1440 × 900</span>
+            <span style="font-size:13px;color:#6e665e">Ch 5 — sketching, before submit</span>
+          </div>
+          <div data-screen-label="11" style="width:1440px;height:900px;flex-shrink:0;border:10px solid #0e0d0b;border-radius:28px;overflow:hidden;display:flex;background:#141210;box-shadow:0 40px 90px -34px #000">
+
+            <!-- canvas side -->
+            <div style="width:893px;flex-shrink:0;display:flex;background:#171512">
+              <!-- tool rail -->
+              <div style="width:62px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 0;border-right:1px solid #2a2521;background:#1d1a17">
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #f5a524;background:#f5a524;color:#1a1206"><i data-lucide="pen-tool" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="eraser" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="type" style="width:17px;height:17px"></i></div>
+                <div style="width:28px;height:1px;background:#332e29;margin:4px 0"></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="ruler" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="spline" style="width:17px;height:17px"></i></div>
+                <div style="width:28px;height:1px;background:#332e29;margin:4px 0"></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="undo-2" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="redo-2" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="trash-2" style="width:17px;height:17px"></i></div>
+                <div style="margin-top:auto;width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #f5a524;background:rgba(245,165,36,.15);color:#f5a524"><i data-lucide="hand" style="width:16px;height:16px"></i></div>
+              </div>
+
+              <!-- graph surface -->
+              <div style="position:relative;width:831px;height:880px;background-color:#171512;background-image:linear-gradient(to right,#241f1c 1px,transparent 1px),linear-gradient(to bottom,#241f1c 1px,transparent 1px);background-size:40px 40px">
+                <svg viewBox="0 0 831 880" width="831" height="880" preserveAspectRatio="none" style="position:absolute;inset:0">
+                  <g stroke="#443c36" stroke-width="1.5" fill="none">
+                    <path d="M0,480 H827"></path>
+                    <path d="M320,4 V880"></path>
+                  </g>
+                  <g stroke="#443c36" stroke-width="1.5" fill="#443c36">
+                    <path d="M827,480 l-9,-4.5 v9 z" stroke="none"></path>
+                    <path d="M320,4 l-4.5,9 h9 z" stroke="none"></path>
+                  </g>
+                  <g stroke="#443c36" stroke-width="1.5">
+                    <path d="M160,475 v10 M240,475 v10 M400,475 v10 M480,475 v10 M560,475 v10 M640,475 v10 M720,475 v10"></path>
+                    <path d="M315,400 h10 M315,320 h10 M315,240 h10 M315,160 h10 M315,560 h10 M315,640 h10 M315,720 h10"></path>
+                  </g>
+                  <g fill="#6e665e" font-family="'Geist Mono',ui-monospace,monospace" font-size="12">
+                    <text x="160" y="500" text-anchor="middle">-4</text>
+                    <text x="240" y="500" text-anchor="middle">-2</text>
+                    <text x="400" y="500" text-anchor="middle">2</text>
+                    <text x="480" y="500" text-anchor="middle">4</text>
+                    <text x="560" y="500" text-anchor="middle">6</text>
+                    <text x="640" y="500" text-anchor="middle">8</text>
+                    <text x="720" y="500" text-anchor="middle">10</text>
+                    <text x="308" y="404" text-anchor="end">2</text>
+                    <text x="308" y="324" text-anchor="end">4</text>
+                    <text x="308" y="244" text-anchor="end">6</text>
+                    <text x="308" y="164" text-anchor="end">8</text>
+                    <text x="308" y="564" text-anchor="end">-2</text>
+                    <text x="308" y="644" text-anchor="end">-4</text>
+                    <text x="340" y="26" font-size="13" font-style="italic" fill="#6e665e">y</text>
+                    <text x="808" y="466" font-size="13" font-style="italic" fill="#6e665e">x</text>
+                  </g>
+                  <!-- his strokes -->
+                  <g stroke="#d8d0c6" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".95">
+                    <path d="M376,10 L378,92 L382,161 L389,213 L399,263 L413,293 L435,316 L467,333 L511,343 L581,351 L661,355 L761,358 L829,359"></path>
+                    <path d="M2,412 L121,410 L201,413 L241,417 L281,429 L321,459 L335,493 L342,529 L347,601 L351,721 L354,876"></path>
+                  </g>
+                </svg>
+                <div style="position:absolute;right:18px;bottom:18px;display:flex;align-items:center;gap:9px;border:1px solid #2a2521;background:rgba(20,18,16,.9);border-radius:11px;padding:8px 13px">
+                  <i data-lucide="pencil-line" style="width:14px;height:14px;color:#6e665e"></i>
+                  <span style="font-size:12px;color:#6e665e">Graph paper surface · pinch to zoom the axes</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- control column -->
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;border-left:1px solid #2a2521;background:#141210">
+              <div style="display:flex;align-items:center;gap:12px;padding:22px 26px 0">
+                <div style="width:36px;height:36px;flex-shrink:0;border-radius:12px;display:grid;place-items:center;border:1px solid #332e29;background:#1d1a17;color:#a39a90"><i data-lucide="arrow-left" style="width:16px;height:16px"></i></div>
+                <span style="flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:6px 14px;font-family:'Geist Mono',ui-monospace,monospace;font-size:14px;color:#d8d0c6">4 / 10</span>
+                <div style="display:flex;gap:4px;flex-shrink:0">
+                  <span style="width:7px;height:7px;border-radius:999px;background:#3fb27f"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#3fb27f"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#e5484d"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                </div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:6px 14px">
+                  <i data-lucide="lightbulb" style="width:15px;height:15px;color:#f5a524"></i>
+                  <span style="font-size:13px;color:#d8d0c6">Hint</span>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:14px;padding:20px 26px 22px;flex:1;min-height:0">
+                <div style="display:flex;flex-direction:column;gap:12px;border:1px solid #332e29;background:#1d1a17;border-radius:18px;padding:20px 22px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">SKETCH THE GRAPH</div>
+                  <div data-tex="f(x)=\dfrac{2}{x-1}+3" style="font-size:34px"></div>
+                  <p style="margin:0;font-size:13px;color:#6e665e;text-wrap:pretty">Draw both branches, mark the asymptotes, and mark where it crosses the axes.</p>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">KEY FEATURES · CHECKED FOR YOU</div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <span style="font-size:12px;color:#a39a90">vertical asymptote</span>
+                    <div style="display:flex;align-items:center;gap:12px;border:1px solid #f5a524;background:#0e0d0b;border-radius:12px;padding:0 14px;height:50px">
+                      <span data-tex="x=1" style="font-size:19px"></span>
+                      <span style="margin-left:auto;width:2px;height:22px;background:#f5a524"></span>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <span style="font-size:12px;color:#a39a90">horizontal asymptote</span>
+                    <div style="display:flex;align-items:center;gap:12px;border:1px solid #f5a524;background:#0e0d0b;border-radius:12px;padding:0 14px;height:50px">
+                      <span data-tex="y=3" style="font-size:19px"></span>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <span style="font-size:12px;color:#a39a90">crosses the x-axis</span>
+                    <div style="display:flex;align-items:center;gap:12px;border:1px solid #f5a524;background:#0e0d0b;border-radius:12px;padding:0 14px;height:50px">
+                      <span data-tex="x=\tfrac{2}{3}" style="font-size:19px"></span>
+                    </div>
+                  </div>
+                  <p style="margin:2px 0 0;font-size:12px;line-height:1.6;color:#6e665e;text-wrap:pretty">Three fields, not the whole answer — enough for the app to know something real about this attempt.</p>
+                </div>
+
+                <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;padding-top:8px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">HOW SURE ARE YOU?</div>
+                  <div style="display:flex;gap:8px">
+                    <div style="flex:1;height:46px;border-radius:16px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#d8d0c6;font-size:14px;font-weight:500">Sure</div>
+                    <div style="flex:1;height:46px;border-radius:16px;display:grid;place-items:center;border:1px solid #f5a524;background:rgba(245,165,36,.15);color:#f5a524;font-size:14px;font-weight:500">Think so</div>
+                    <div style="flex:1;height:46px;border-radius:16px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#d8d0c6;font-size:14px;font-weight:500">Guessed</div>
+                  </div>
+                  <div style="height:60px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:10px;background:#f5a524;color:#1a1206;font-size:18px;font-weight:600">
+                    <i data-lucide="layers-2" style="width:19px;height:19px"></i>
+                    <span>Submit and reveal</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- 1a tablet, ch5, reveal ---------- -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#a39a90;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:5px 11px">TABLET · 1440 × 900</span>
+            <span style="font-size:13px;color:#6e665e">Ch 5 — answer overlaid, sketch self-graded</span>
+          </div>
+          <div data-screen-label="12" style="width:1440px;height:900px;flex-shrink:0;border:10px solid #0e0d0b;border-radius:28px;overflow:hidden;display:flex;background:#141210;box-shadow:0 40px 90px -34px #000">
+
+            <div style="width:893px;flex-shrink:0;display:flex;background:#171512">
+              <div style="width:62px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 0;border-right:1px solid #2a2521;background:#1d1a17;opacity:.45">
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#6e665e"><i data-lucide="pen-tool" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#6e665e"><i data-lucide="eraser" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#6e665e"><i data-lucide="type" style="width:17px;height:17px"></i></div>
+                <div style="width:28px;height:1px;background:#332e29;margin:4px 0"></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#6e665e"><i data-lucide="ruler" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#6e665e"><i data-lucide="spline" style="width:17px;height:17px"></i></div>
+              </div>
+
+              <div style="position:relative;width:831px;height:880px;background-color:#171512;background-image:linear-gradient(to right,#241f1c 1px,transparent 1px),linear-gradient(to bottom,#241f1c 1px,transparent 1px);background-size:40px 40px">
+                <svg viewBox="0 0 831 880" width="831" height="880" preserveAspectRatio="none" style="position:absolute;inset:0">
+                  <g stroke="#443c36" stroke-width="1.5" fill="none">
+                    <path d="M0,480 H827"></path>
+                    <path d="M320,4 V880"></path>
+                  </g>
+                  <path d="M827,480 l-9,-4.5 v9 z" fill="#443c36"></path>
+                  <path d="M320,4 l-4.5,9 h9 z" fill="#443c36"></path>
+                  <g stroke="#443c36" stroke-width="1.5">
+                    <path d="M160,475 v10 M240,475 v10 M400,475 v10 M480,475 v10 M560,475 v10 M640,475 v10 M720,475 v10"></path>
+                    <path d="M315,400 h10 M315,320 h10 M315,240 h10 M315,160 h10 M315,560 h10 M315,640 h10 M315,720 h10"></path>
+                  </g>
+                  <g fill="#6e665e" font-family="'Geist Mono',ui-monospace,monospace" font-size="12">
+                    <text x="160" y="500" text-anchor="middle">-4</text>
+                    <text x="240" y="500" text-anchor="middle">-2</text>
+                    <text x="400" y="500" text-anchor="middle">2</text>
+                    <text x="480" y="500" text-anchor="middle">4</text>
+                    <text x="560" y="500" text-anchor="middle">6</text>
+                    <text x="640" y="500" text-anchor="middle">8</text>
+                    <text x="720" y="500" text-anchor="middle">10</text>
+                    <text x="308" y="404" text-anchor="end">2</text>
+                    <text x="308" y="324" text-anchor="end">4</text>
+                    <text x="308" y="244" text-anchor="end">6</text>
+                    <text x="308" y="164" text-anchor="end">8</text>
+                    <text x="308" y="564" text-anchor="end">-2</text>
+                    <text x="308" y="644" text-anchor="end">-4</text>
+                  </g>
+                  <!-- his strokes, pushed back -->
+                  <g stroke="#a39a90" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".5">
+                    <path d="M376,10 L378,92 L382,161 L389,213 L399,263 L413,293 L435,316 L467,333 L511,343 L581,351 L661,355 L761,358 L829,359"></path>
+                    <path d="M2,412 L121,410 L201,413 L241,417 L281,429 L321,459 L335,493 L342,529 L347,601 L351,721 L354,876"></path>
+                  </g>
+                  <!-- reference asymptotes -->
+                  <g stroke="#3fb27f" stroke-width="1.6" stroke-dasharray="9 8" opacity=".75">
+                    <path d="M360,4 V876"></path>
+                    <path d="M2,360 H829"></path>
+                  </g>
+                  <!-- reference curve -->
+                  <g stroke="#3fb27f" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M369,-4 L372,93 L376,160 L380,200 L390,253 L400,280 L420,307 L440,320 L480,333 L520,340 L600,347 L680,350 L760,352 L829,353"></path>
+                    <path d="M0,369 L120,373 L200,380 L240,387 L280,400 L320,440 L333,480 L340,520 L344,560 L350,680 L352,760 L354,880"></path>
+                  </g>
+                  <circle cx="333" cy="480" r="7" fill="#3fb27f"></circle>
+                  <g fill="#9fd9bd" font-family="'Geist Mono',ui-monospace,monospace" font-size="13">
+                    <text x="370" y="70">x = 1</text>
+                    <text x="700" y="345" text-anchor="end">y = 3</text>
+                    <text x="344" y="512">(⅔, 0)</text>
+                  </g>
+                </svg>
+
+                <div style="position:absolute;left:18px;top:18px;display:flex;gap:4px;border:1px solid #332e29;background:rgba(20,18,16,.94);border-radius:12px;padding:4px">
+                  <span style="padding:8px 14px;border-radius:9px;background:#f5a524;color:#1a1206;font-size:13px;font-weight:500">Both</span>
+                  <span style="padding:8px 14px;border-radius:9px;color:#a39a90;font-size:13px">Mine</span>
+                  <span style="padding:8px 14px;border-radius:9px;color:#a39a90;font-size:13px">Answer</span>
+                </div>
+                <div style="position:absolute;right:18px;top:18px;display:flex;flex-direction:column;gap:9px;border:1px solid #2a2521;background:rgba(20,18,16,.94);border-radius:12px;padding:12px 14px">
+                  <div style="display:flex;align-items:center;gap:9px"><span style="width:22px;height:3px;border-radius:2px;background:#a39a90;opacity:.6"></span><span style="font-size:12px;color:#a39a90">your sketch</span></div>
+                  <div style="display:flex;align-items:center;gap:9px"><span style="width:22px;height:3px;border-radius:2px;background:#3fb27f"></span><span style="font-size:12px;color:#9fd9bd">the answer</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;border-left:1px solid #2a2521;background:#141210">
+              <div style="display:flex;align-items:center;gap:12px;padding:22px 26px 0">
+                <div style="width:36px;height:36px;flex-shrink:0;border-radius:12px;display:grid;place-items:center;border:1px solid #332e29;background:#1d1a17;color:#a39a90"><i data-lucide="arrow-left" style="width:16px;height:16px"></i></div>
+                <span style="flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:6px 14px;font-family:'Geist Mono',ui-monospace,monospace;font-size:14px;color:#d8d0c6">4 / 10</span>
+                <div style="display:flex;gap:4px;flex-shrink:0">
+                  <span style="width:7px;height:7px;border-radius:999px;background:#3fb27f"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#3fb27f"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#e5484d"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                  <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                </div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:6px 14px">
+                  <i data-lucide="lightbulb" style="width:15px;height:15px;color:#f5a524"></i>
+                  <span style="font-size:13px;color:#d8d0c6">Hint</span>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:14px;padding:20px 26px 22px;flex:1;min-height:0">
+                <div style="display:flex;flex-direction:column;gap:14px;border:1px solid #332e29;background:#1d1a17;border-radius:18px;padding:20px 22px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="width:26px;height:26px;border-radius:999px;display:grid;place-items:center;background:#3fb27f;color:#06241a"><i data-lucide="check" style="width:15px;height:15px"></i></span>
+                    <h2 style="margin:0;font-size:18px;font-weight:600;color:#f2ede6">Features 2 of 3</h2>
+                    <span style="margin-left:auto;font-size:12px;color:#6e665e">think so · 1:48 · no hints</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;gap:11px;border:1px solid #2a2521;background:#141210;border-radius:11px;padding:11px 13px">
+                      <i data-lucide="check" style="width:15px;height:15px;color:#3fb27f;flex-shrink:0"></i>
+                      <span style="width:124px;flex-shrink:0;font-size:12px;color:#6e665e">vertical asymptote</span>
+                      <span data-tex="x=1" style="font-size:17px;color:#9fd9bd"></span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:11px;border:1px solid #2a2521;background:#141210;border-radius:11px;padding:11px 13px">
+                      <i data-lucide="check" style="width:15px;height:15px;color:#3fb27f;flex-shrink:0"></i>
+                      <span style="width:124px;flex-shrink:0;font-size:12px;color:#6e665e">horizontal asymptote</span>
+                      <span data-tex="y=3" style="font-size:17px;color:#9fd9bd"></span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:11px;border:1px solid #332e29;background:#141210;border-radius:11px;padding:11px 13px">
+                      <i data-lucide="x" style="width:15px;height:15px;color:#e5484d;flex-shrink:0"></i>
+                      <span style="width:124px;flex-shrink:0;font-size:12px;color:#6e665e">crosses the x-axis</span>
+                      <span data-tex="x=\tfrac{2}{3}" style="font-size:17px;color:#a39a90;text-decoration:line-through"></span>
+                      <span style="font-size:13px;color:#6e665e">→</span>
+                      <span data-tex="x=\tfrac{1}{3}" style="font-size:17px;color:#f2ede6"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:11px;border:1px solid #b98a3c;background:#1d1a17;border-radius:18px;padding:20px 22px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">AND THE SKETCH ITSELF?</div>
+                  <p style="margin:0;font-size:13px;line-height:1.6;color:#a39a90;text-wrap:pretty">Only you can see whether the curve is right. Compare on the canvas, then say.</p>
+                  <div style="display:flex;gap:8px">
+                    <div style="flex:1;height:74px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #332e29;background:#262220;color:#a39a90">
+                      <i data-lucide="check" style="width:18px;height:18px"></i>
+                      <span style="font-size:13px;font-weight:500">Got it</span>
+                    </div>
+                    <div style="flex:1;height:74px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #b98a3c;background:rgba(185,138,60,.18);color:#d9a955">
+                      <i data-lucide="minus" style="width:18px;height:18px"></i>
+                      <span style="font-size:13px;font-weight:600">Close</span>
+                    </div>
+                    <div style="flex:1;height:74px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #332e29;background:#262220;color:#a39a90">
+                      <i data-lucide="x" style="width:18px;height:18px"></i>
+                      <span style="font-size:13px;font-weight:500">Missed</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:9px;border:1px solid rgba(185,138,60,.4);background:rgba(185,138,60,.1);border-radius:11px;padding:11px 13px">
+                    <i data-lucide="info" style="width:15px;height:15px;color:#d9a955;flex-shrink:0"></i>
+                    <span style="font-size:12px;line-height:1.5;color:#d9a955">Logged as a near miss — shape right, one detail off. Counts toward Ch 5 fluency, not toward misconceptions.</span>
+                  </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">RULES THIS USED</div>
+                  <div style="display:flex;align-items:center;gap:14px;border:1px solid #2a2521;background:#1d1a17;border-radius:14px;padding:12px 16px">
+                    <span style="width:126px;flex-shrink:0;font-size:13px;color:#d8d0c6">Standard hyperbola</span>
+                    <span data-tex="y=\dfrac{a}{x-p}+q" style="font-size:16px;color:#a39a90"></span>
+                  </div>
+                </div>
+
+                <div style="margin-top:auto;height:56px;border-radius:14px;display:grid;place-items:center;background:#f5a524;color:#1a1206;font-size:17px;font-weight:600">Next problem</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- 1a tablet, ch12 vectors ---------- -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#a39a90;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:5px 11px">TABLET · 1440 × 900</span>
+            <span style="font-size:13px;color:#6e665e">Ch 12 — same reveal, vector tool and lattice</span>
+          </div>
+          <div data-screen-label="13" style="width:1440px;height:900px;flex-shrink:0;border:10px solid #0e0d0b;border-radius:28px;overflow:hidden;display:flex;background:#141210;box-shadow:0 40px 90px -34px #000">
+
+            <div style="width:893px;flex-shrink:0;display:flex;background:#171512">
+              <div style="width:62px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 0;border-right:1px solid #2a2521;background:#1d1a17">
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="pen-tool" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #f5a524;background:#f5a524;color:#1a1206"><i data-lucide="move-up-right" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="eraser" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="type" style="width:17px;height:17px"></i></div>
+                <div style="width:28px;height:1px;background:#332e29;margin:4px 0"></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #f5a524;background:rgba(245,165,36,.15);color:#f5a524"><i data-lucide="magnet" style="width:17px;height:17px"></i></div>
+                <div style="width:28px;height:1px;background:#332e29;margin:4px 0"></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="undo-2" style="width:17px;height:17px"></i></div>
+                <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="trash-2" style="width:17px;height:17px"></i></div>
+                <div style="margin-top:auto;width:42px;height:42px;border-radius:11px;display:grid;place-items:center;border:1px solid #f5a524;background:rgba(245,165,36,.15);color:#f5a524"><i data-lucide="hand" style="width:16px;height:16px"></i></div>
+              </div>
+
+              <div style="position:relative;width:831px;height:880px;background-color:#171512;background-image:linear-gradient(to right,#241f1c 1px,transparent 1px),linear-gradient(to bottom,#241f1c 1px,transparent 1px);background-size:60px 60px">
+                <svg viewBox="0 0 831 880" width="831" height="880" preserveAspectRatio="none" style="position:absolute;inset:0">
+                  <defs>
+                    <marker id="gq-head-given" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a39a90"></path></marker>
+                    <marker id="gq-head-mine" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d8d0c6"></path></marker>
+                    <marker id="gq-head-ans" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3fb27f"></path></marker>
+                  </defs>
+                  <g stroke="#443c36" stroke-width="1.5" fill="none">
+                    <path d="M0,660 H827"></path>
+                    <path d="M300,4 V876"></path>
+                  </g>
+                  <g fill="#6e665e" font-family="'Geist Mono',ui-monospace,monospace" font-size="12">
+                    <text x="420" y="682" text-anchor="middle">2</text>
+                    <text x="540" y="682" text-anchor="middle">4</text>
+                    <text x="660" y="682" text-anchor="middle">6</text>
+                    <text x="180" y="682" text-anchor="middle">-2</text>
+                    <text x="288" y="544" text-anchor="end">2</text>
+                    <text x="288" y="424" text-anchor="end">4</text>
+                    <text x="288" y="304" text-anchor="end">6</text>
+                  </g>
+                  <!-- given vectors -->
+                  <g stroke="#a39a90" stroke-width="3.4" fill="none" stroke-linecap="round">
+                    <path d="M300,660 L480,600" marker-end="url(#gq-head-given)"></path>
+                    <path d="M300,660 L240,540" marker-end="url(#gq-head-given)"></path>
+                  </g>
+                  <g font-family="'Geist',system-ui,sans-serif" font-size="20" font-weight="600" font-style="italic">
+                    <text x="404" y="646" fill="#d8d0c6">a</text>
+                    <text x="252" y="600" fill="#d8d0c6">b</text>
+                  </g>
+                  <!-- his construction: 2b hung off a's tip, then the resultant -->
+                  <g stroke="#d8d0c6" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-dasharray="8 7" opacity=".65">
+                    <path d="M480,600 L361,364"></path>
+                  </g>
+                  <path d="M300,660 L356,378" stroke="#d8d0c6" stroke-width="3.6" fill="none" stroke-linecap="round" marker-end="url(#gq-head-mine)"></path>
+                  <!-- answer -->
+                  <path d="M300,660 L360,360" stroke="#3fb27f" stroke-width="3.6" fill="none" stroke-linecap="round" marker-end="url(#gq-head-ans)"></path>
+                  <circle cx="360" cy="360" r="7" fill="#3fb27f"></circle>
+                  <g font-family="'Geist Mono',ui-monospace,monospace" font-size="13">
+                    <text x="376" y="352" fill="#9fd9bd">(1, 5)</text>
+                    <text x="500" y="470" fill="#6e665e">2b</text>
+                  </g>
+                </svg>
+                <div style="position:absolute;left:18px;top:18px;display:flex;gap:4px;border:1px solid #332e29;background:rgba(20,18,16,.94);border-radius:12px;padding:4px">
+                  <span style="padding:8px 14px;border-radius:9px;background:#f5a524;color:#1a1206;font-size:13px;font-weight:500">Both</span>
+                  <span style="padding:8px 14px;border-radius:9px;color:#a39a90;font-size:13px">Mine</span>
+                  <span style="padding:8px 14px;border-radius:9px;color:#a39a90;font-size:13px">Answer</span>
+                </div>
+                <div style="position:absolute;right:18px;bottom:18px;display:flex;align-items:center;gap:9px;border:1px solid #2a2521;background:rgba(20,18,16,.9);border-radius:11px;padding:8px 13px">
+                  <i data-lucide="magnet" style="width:14px;height:14px;color:#f5a524"></i>
+                  <span style="font-size:12px;color:#6e665e">Arrows snap to whole lattice points · hold to draw free</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;border-left:1px solid #2a2521;background:#141210">
+              <div style="display:flex;align-items:center;gap:12px;padding:22px 26px 0">
+                <div style="width:36px;height:36px;flex-shrink:0;border-radius:12px;display:grid;place-items:center;border:1px solid #332e29;background:#1d1a17;color:#a39a90"><i data-lucide="arrow-left" style="width:16px;height:16px"></i></div>
+                <span style="flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:6px 14px;font-family:'Geist Mono',ui-monospace,monospace;font-size:14px;color:#d8d0c6">7 / 10</span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:6px 14px">
+                  <i data-lucide="lightbulb" style="width:15px;height:15px;color:#f5a524"></i>
+                  <span style="font-size:13px;color:#d8d0c6">Hint</span>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:14px;padding:20px 26px 22px;flex:1;min-height:0">
+                <div style="display:flex;flex-direction:column;gap:12px;border:1px solid #332e29;background:#1d1a17;border-radius:18px;padding:20px 22px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">DRAW THE RESULTANT</div>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#d8d0c6;text-wrap:pretty">Both vectors are already on the grid. Draw <strong style="font-weight:600;font-style:italic">a</strong> + 2<strong style="font-weight:600;font-style:italic">b</strong> from the origin.</p>
+                  <div data-tex="\mathbf{a}=(3,1)\qquad \mathbf{b}=(-1,2)" style="font-size:24px"></div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:14px;border:1px solid #332e29;background:#1d1a17;border-radius:18px;padding:20px 22px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="width:26px;height:26px;border-radius:999px;display:grid;place-items:center;background:#3fb27f;color:#06241a"><i data-lucide="check" style="width:15px;height:15px"></i></span>
+                    <h2 style="margin:0;font-size:18px;font-weight:600">Features 1 of 2</h2>
+                    <span style="margin-left:auto;font-size:12px;color:#6e665e">sure · 0:52 · no hints</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;gap:11px;border:1px solid #2a2521;background:#141210;border-radius:11px;padding:11px 13px">
+                      <i data-lucide="check" style="width:15px;height:15px;color:#3fb27f;flex-shrink:0"></i>
+                      <span style="width:96px;flex-shrink:0;font-size:12px;color:#6e665e">components</span>
+                      <span data-tex="(1,\,5)" style="font-size:17px;color:#9fd9bd"></span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:11px;border:1px solid #332e29;background:#141210;border-radius:11px;padding:11px 13px">
+                      <i data-lucide="x" style="width:15px;height:15px;color:#e5484d;flex-shrink:0"></i>
+                      <span style="width:96px;flex-shrink:0;font-size:12px;color:#6e665e">length</span>
+                      <span data-tex="26" style="font-size:17px;color:#a39a90;text-decoration:line-through"></span>
+                      <span style="font-size:13px;color:#6e665e">→</span>
+                      <span data-tex="\sqrt{26}" style="font-size:17px;color:#f2ede6"></span>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:9px;border:1px solid rgba(229,72,77,.35);background:rgba(229,72,77,.08);border-radius:11px;padding:11px 13px">
+                    <i data-lucide="flame" style="width:15px;height:15px;color:#e5848a;flex-shrink:0"></i>
+                    <span style="font-size:12px;line-height:1.5;color:#e5848a">Confident and wrong on length — logged as a misconception, and Ch 12 moves up in study next.</span>
+                  </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:11px;border:1px solid #3fb27f;background:#1d1a17;border-radius:18px;padding:20px 22px">
+                  <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">AND THE ARROW ITSELF?</div>
+                  <div style="display:flex;gap:8px">
+                    <div style="flex:1;height:74px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #3fb27f;background:rgba(63,178,127,.18);color:#9fd9bd">
+                      <i data-lucide="check" style="width:18px;height:18px"></i>
+                      <span style="font-size:13px;font-weight:600">Got it</span>
+                    </div>
+                    <div style="flex:1;height:74px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #332e29;background:#262220;color:#a39a90">
+                      <i data-lucide="minus" style="width:18px;height:18px"></i>
+                      <span style="font-size:13px;font-weight:500">Close</span>
+                    </div>
+                    <div style="flex:1;height:74px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #332e29;background:#262220;color:#a39a90">
+                      <i data-lucide="x" style="width:18px;height:18px"></i>
+                      <span style="font-size:13px;font-weight:500">Missed</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top:auto;height:56px;border-radius:14px;display:grid;place-items:center;background:#f5a524;color:#1a1206;font-size:17px;font-weight:600">Next problem</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap">
+
+        <!-- ---------- 1a phone, drawing ---------- -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#a39a90;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:5px 11px">PHONE · 390 × 844</span>
+            <span style="font-size:13px;color:#6e665e">Sketching</span>
+          </div>
+          <div data-screen-label="14" style="width:390px;height:844px;flex-shrink:0;border:9px solid #0e0d0b;border-radius:38px;overflow:hidden;display:flex;flex-direction:column;background:#141210;box-shadow:0 40px 90px -34px #000">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 22px 0;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:#6e665e">
+              <span>9:41</span>
+              <span style="display:flex;gap:6px;align-items:center"><i data-lucide="wifi" style="width:13px;height:13px"></i><i data-lucide="battery-full" style="width:15px;height:15px"></i></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 0">
+              <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;display:grid;place-items:center;border:1px solid #332e29;background:#1d1a17;color:#a39a90"><i data-lucide="arrow-left" style="width:15px;height:15px"></i></div>
+              <span style="flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:4px 10px;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;white-space:nowrap;color:#d8d0c6">4 / 10</span>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <span style="width:7px;height:7px;border-radius:999px;background:#3fb27f"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:#3fb27f"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:#e5484d"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+                <span style="width:7px;height:7px;border-radius:999px;background:#332e29"></span>
+              </div>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:4px 10px">
+                <i data-lucide="lightbulb" style="width:13px;height:13px;color:#f5a524"></i>
+                <span style="font-size:11px;color:#d8d0c6">Hint</span>
+              </div>
+            </div>
+
+            <div style="margin:12px 16px 0;border:1px solid #332e29;background:#1d1a17;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+              <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:#6e665e">SKETCH THE GRAPH</div>
+              <div data-tex="f(x)=\dfrac{2}{x-1}+3" style="font-size:24px"></div>
+            </div>
+
+            <div style="position:relative;margin:12px 16px 0;width:358px;height:240px;flex-shrink:0;border:1px solid #2a2521;border-radius:14px;overflow:hidden;background-color:#171512;background-image:linear-gradient(to right,#241f1c 1px,transparent 1px),linear-gradient(to bottom,#241f1c 1px,transparent 1px);background-size:26px 26px">
+              <svg viewBox="0 0 358 240" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+                <g stroke="#443c36" stroke-width="1.4" fill="none">
+                  <path d="M0,182 H356"></path>
+                  <path d="M130,2 V300"></path>
+                </g>
+                <g fill="#6e665e" font-family="'Geist Mono',ui-monospace,monospace" font-size="10">
+                  <text x="182" y="196" text-anchor="middle">2</text>
+                  <text x="234" y="196" text-anchor="middle">4</text>
+                  <text x="286" y="196" text-anchor="middle">6</text>
+                  <text x="78" y="196" text-anchor="middle">-2</text>
+                  <text x="124" y="134" text-anchor="end">2</text>
+                  <text x="124" y="82" text-anchor="end">4</text>
+                  <text x="124" y="238" text-anchor="end">-2</text>
+                </g>
+                <g stroke="#d8d0c6" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M172,4 L174,32 L179,58 L186,74 L198,90 L212,99 L238,107 L264,112 L316,116 L356,118"></path>
+                  <path d="M1,138 L52,135 L78,139 L104,148 L130,174 L139,200 L143,226 L146,252 L149,290 L150,300"></path>
+                </g>
+              </svg>
+              <div style="position:absolute;left:12px;top:12px;display:flex;gap:6px">
+                <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid #f5a524;background:#f5a524;color:#1a1206"><i data-lucide="pen-tool" style="width:15px;height:15px"></i></span>
+                <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="eraser" style="width:15px;height:15px"></i></span>
+                <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="ruler" style="width:15px;height:15px"></i></span>
+                <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#a39a90"><i data-lucide="undo-2" style="width:15px;height:15px"></i></span>
+              </div>
+              <div style="position:absolute;right:12px;top:12px;display:flex;gap:6px">
+                <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid #f5a524;background:rgba(245,165,36,.15);color:#f5a524"><i data-lucide="hand" style="width:15px;height:15px"></i></span>
+                <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#f5a524"><i data-lucide="maximize" style="width:15px;height:15px"></i></span>
+              </div>
+            </div>
+
+            <div style="margin-top:auto;border-top:1px solid #332e29;background:#1d1a17;border-radius:20px 20px 0 0;padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px">
+              <div style="width:38px;height:4px;border-radius:999px;background:#443c36;align-self:center"></div>
+              <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:#6e665e">KEY FEATURES · CHECKED FOR YOU</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <span style="font-size:11px;color:#a39a90">vert. asym.</span>
+                <div style="display:flex;align-items:center;gap:10px;border:1px solid #f5a524;background:#0e0d0b;border-radius:11px;padding:0 12px;height:44px">
+                  <span data-tex="x=1" style="font-size:17px"></span>
+                  <span style="margin-left:auto;width:2px;height:20px;background:#f5a524"></span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <span style="font-size:11px;color:#a39a90">horiz. asym.</span>
+                <div style="display:flex;align-items:center;gap:10px;border:1px solid #f5a524;background:#0e0d0b;border-radius:11px;padding:0 12px;height:44px">
+                  <span data-tex="y=3" style="font-size:17px"></span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <span style="font-size:11px;color:#a39a90">x-intercept</span>
+                <div style="display:flex;align-items:center;gap:10px;border:1px solid #f5a524;background:#0e0d0b;border-radius:11px;padding:0 12px;height:44px">
+                  <span data-tex="x=\tfrac{2}{3}" style="font-size:17px"></span>
+                </div>
+              </div>
+              <div style="display:flex;gap:7px">
+                <div style="flex:1;height:40px;border-radius:12px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#d8d0c6;font-size:13px">Sure</div>
+                <div style="flex:1;height:40px;border-radius:12px;display:grid;place-items:center;border:1px solid #f5a524;background:rgba(245,165,36,.15);color:#f5a524;font-size:13px;font-weight:500">Think so</div>
+                <div style="flex:1;height:40px;border-radius:12px;display:grid;place-items:center;border:1px solid #332e29;background:#262220;color:#d8d0c6;font-size:13px">Guessed</div>
+              </div>
+              <div style="height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:9px;background:#f5a524;color:#1a1206;font-size:17px;font-weight:600">
+                <i data-lucide="layers-2" style="width:17px;height:17px"></i>
+                <span>Submit and reveal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- 1a phone, reveal ---------- -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:#a39a90;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:5px 11px">PHONE · 390 × 844</span>
+            <span style="font-size:13px;color:#6e665e">Reveal, self-grade in the sheet</span>
+          </div>
+          <div data-screen-label="15" style="width:390px;height:844px;flex-shrink:0;border:9px solid #0e0d0b;border-radius:38px;overflow:hidden;display:flex;flex-direction:column;background:#141210;box-shadow:0 40px 90px -34px #000">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 22px 0;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:#6e665e">
+              <span>9:43</span>
+              <span style="display:flex;gap:6px;align-items:center"><i data-lucide="wifi" style="width:13px;height:13px"></i><i data-lucide="battery-full" style="width:15px;height:15px"></i></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 0">
+              <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;display:grid;place-items:center;border:1px solid #332e29;background:#1d1a17;color:#a39a90"><i data-lucide="arrow-left" style="width:15px;height:15px"></i></div>
+              <span style="flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:4px 10px;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;white-space:nowrap;color:#d8d0c6">4 / 10</span>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid #332e29;background:#1d1a17;border-radius:999px;padding:4px 10px">
+                <i data-lucide="lightbulb" style="width:13px;height:13px;color:#f5a524"></i>
+                <span style="font-size:11px;color:#d8d0c6">Hint</span>
+              </div>
+            </div>
+
+            <div style="position:relative;margin:12px 16px 0;width:358px;height:400px;flex-shrink:0;border:1px solid #2a2521;border-radius:14px;overflow:hidden;background-color:#171512;background-image:linear-gradient(to right,#241f1c 1px,transparent 1px),linear-gradient(to bottom,#241f1c 1px,transparent 1px);background-size:26px 26px">
+              <svg viewBox="0 0 358 400" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+                <g stroke="#443c36" stroke-width="1.4" fill="none">
+                  <path d="M0,234 H356"></path>
+                  <path d="M130,2 V486"></path>
+                </g>
+                <g fill="#6e665e" font-family="'Geist Mono',ui-monospace,monospace" font-size="10">
+                  <text x="182" y="248" text-anchor="middle">2</text>
+                  <text x="234" y="248" text-anchor="middle">4</text>
+                  <text x="286" y="248" text-anchor="middle">6</text>
+                  <text x="78" y="248" text-anchor="middle">-2</text>
+                  <text x="124" y="186" text-anchor="end">2</text>
+                  <text x="124" y="134" text-anchor="end">4</text>
+                  <text x="124" y="82" text-anchor="end">6</text>
+                  <text x="124" y="290" text-anchor="end">-2</text>
+                </g>
+                <g stroke="#a39a90" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".5">
+                  <path d="M168,6 L171,58 L178,92 L185,108 L198,125 L211,133 L237,141 L263,145 L315,149 L356,151"></path>
+                  <path d="M1,190 L52,194 L78,198 L104,206 L130,232 L139,258 L143,284 L147,362 L149,414 L151,486"></path>
+                </g>
+                <g stroke="#3fb27f" stroke-width="1.4" stroke-dasharray="7 6" opacity=".75">
+                  <path d="M156,2 V486"></path>
+                  <path d="M1,156 H356"></path>
+                </g>
+                <g stroke="#3fb27f" stroke-width="2.9" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M164,0 L169,52 L175,87 L182,104 L195,121 L208,130 L234,139 L260,143 L312,147 L356,149"></path>
+                  <path d="M0,165 L52,169 L78,173 L104,182 L130,208 L139,234 L143,260 L146,286 L149,364 L151,416 L152,488"></path>
+                </g>
+                <circle cx="139" cy="234" r="5.5" fill="#3fb27f"></circle>
+              </svg>
+              <div style="position:absolute;left:10px;top:10px;display:flex;gap:3px;border:1px solid #332e29;background:rgba(20,18,16,.94);border-radius:10px;padding:3px">
+                <span style="padding:6px 10px;border-radius:8px;background:#f5a524;color:#1a1206;font-size:11px;font-weight:500">Both</span>
+                <span style="padding:6px 10px;border-radius:8px;color:#a39a90;font-size:11px">Mine</span>
+                <span style="padding:6px 10px;border-radius:8px;color:#a39a90;font-size:11px">Answer</span>
+              </div>
+            </div>
+
+            <div style="margin-top:auto;border-top:1px solid #332e29;background:#1d1a17;border-radius:20px 20px 0 0;padding:14px 16px 18px;display:flex;flex-direction:column;gap:11px;box-shadow:0 -24px 50px -20px rgba(0,0,0,.7)">
+              <div style="display:flex;align-items:center;gap:9px">
+                <span style="width:24px;height:24px;border-radius:999px;display:grid;place-items:center;background:#3fb27f;color:#06241a"><i data-lucide="check" style="width:14px;height:14px"></i></span>
+                <h2 style="margin:0;font-size:16px;font-weight:600">Features 2 of 3</h2>
+                <span style="margin-left:auto;font-size:11px;color:#6e665e">think so · 1:48</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <div style="display:flex;align-items:center;gap:9px;border:1px solid #2a2521;background:#141210;border-radius:11px;padding:9px 12px">
+                  <i data-lucide="check" style="width:14px;height:14px;color:#3fb27f;flex-shrink:0"></i>
+                  <span style="width:70px;flex-shrink:0;font-size:11px;color:#6e665e">vert. asym.</span>
+                  <span data-tex="x=1" style="font-size:15px;color:#9fd9bd"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;border:1px solid #2a2521;background:#141210;border-radius:11px;padding:9px 12px">
+                  <i data-lucide="check" style="width:14px;height:14px;color:#3fb27f;flex-shrink:0"></i>
+                  <span style="width:70px;flex-shrink:0;font-size:11px;color:#6e665e">horiz. asym.</span>
+                  <span data-tex="y=3" style="font-size:15px;color:#9fd9bd"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;border:1px solid rgba(229,72,77,.4);background:#141210;border-radius:11px;padding:9px 12px">
+                  <i data-lucide="x" style="width:14px;height:14px;color:#e5484d;flex-shrink:0"></i>
+                  <span style="width:70px;flex-shrink:0;font-size:11px;color:#6e665e">x-intercept</span>
+                  <span data-tex="x=\tfrac{2}{3}" style="font-size:15px;color:#a39a90;text-decoration:line-through"></span>
+                  <span style="font-size:12px;color:#6e665e">→</span>
+                  <span data-tex="x=\tfrac{1}{3}" style="font-size:15px"></span>
+                </div>
+              </div>
+              <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:#6e665e">AND THE SKETCH ITSELF?</div>
+              <div style="display:flex;gap:7px">
+                <div style="flex:1;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #332e29;background:#262220;color:#a39a90">
+                  <i data-lucide="check" style="width:16px;height:16px"></i>
+                  <span style="font-size:12px">Got it</span>
+                </div>
+                <div style="flex:1;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #b98a3c;background:rgba(185,138,60,.18);color:#d9a955">
+                  <i data-lucide="minus" style="width:16px;height:16px"></i>
+                  <span style="font-size:12px;font-weight:600">Close</span>
+                </div>
+                <div style="flex:1;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #332e29;background:#262220;color:#a39a90">
+                  <i data-lucide="x" style="width:16px;height:16px"></i>
+                  <span style="font-size:12px">Missed</span>
+                </div>
+              </div>
+              <div style="height:52px;border-radius:12px;display:grid;place-items:center;background:#f5a524;color:#1a1206;font-size:17px;font-weight:600">Next problem</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <footer style="max-width:900px;display:flex;flex-direction:column;gap:10px;border-top:1px solid #241f1c;padding-top:28px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#6e665e">WHAT BOTH NEED FROM THE ENGINE</div>
+    <p style="margin:0;font-size:14px;line-height:1.7;color:#a39a90;text-wrap:pretty">A graph question is a new problem shape: the generator has to emit a plottable reference (function plus window, or a list of lattice vectors) instead of only LaTeX, and the canvas needs a coordinate surface with real axes rather than the plain or dotted paper. The key-feature fields reuse the existing answer machinery, so <span style="color:#d8d0c6">correct / near / wrong</span> keeps meaning what it means everywhere else in the app.</p>
+  </footer>
+</section>
+
+</x-dc>
+</body>
+</html>

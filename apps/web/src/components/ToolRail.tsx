@@ -1,4 +1,4 @@
-import { Eraser, Hand, Lasso, PenTool, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
+import { Eraser, Hand, Lasso, MoveUpRight, PenTool, Redo2, Trash2, Type, Undo2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import type { CanvasTool } from '@/canvas/ScribbleCanvas';
@@ -17,6 +17,8 @@ interface Props {
   onUndo(): void;
   onRedo(): void;
   onClear(): void;
+  /** Chapter 12 only: the arrow tool, which has nothing to do on a plain page. */
+  arrows?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function ToolRail({
   onUndo,
   onRedo,
   onClear,
+  arrows,
 }: Props) {
   return (
     <div className="relative flex w-[62px] shrink-0 flex-col items-center gap-2 border-r border-edge bg-card py-4">
@@ -51,6 +54,15 @@ export function ToolRail({
       <RailButton label="Select and move" active={tool === 'lasso'} onClick={() => onTool('lasso')}>
         <Lasso className="size-[17px]" />
       </RailButton>
+      {arrows && (
+        <RailButton
+          label="Draw a vector · hold before moving to leave the lattice"
+          active={tool === 'arrow'}
+          onClick={() => onTool('arrow')}
+        >
+          <MoveUpRight className="size-[17px]" />
+        </RailButton>
+      )}
 
       <div className="my-1 h-px w-7 bg-border" />
 

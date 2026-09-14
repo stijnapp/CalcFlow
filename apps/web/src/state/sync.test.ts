@@ -121,8 +121,7 @@ function device(name: string): Device {
           seed: `seed-${minted}`,
           genVersion: 1,
           chapter: 2,
-          steps: 2,
-          difficulty: 2,
+          tier: 'medium',
           correct: true,
           confidence: 'sure',
           hintsUsed: 0,
@@ -130,6 +129,7 @@ function device(name: string): Device {
           durationMs: 4200,
           answerRaw: '\\frac{1}{2}',
           errorClass: null,
+          selfGrade: null,
         };
         self.attempts.set(attempt.id, attempt);
         self.queue.add(attempt.id);
@@ -335,12 +335,12 @@ describe('settings', () => {
   it('sends its own when the server has none', async () => {
     const server = backend();
     const phone = device('phone');
-    phone.settings = { ...phone.settings, level: 7, updatedAt: 1000 };
+    phone.settings = { ...phone.settings, tier: 'hard' as const, updatedAt: 1000 };
 
     const report = await sync(phone, server);
 
     expect(report.settings).toBe('sent');
-    expect(server.settings?.settings.level).toBe(7);
+    expect(server.settings?.settings.tier).toBe('hard');
   });
 
   it('keeps this device out of the document it sends', async () => {
@@ -366,15 +366,15 @@ describe('settings', () => {
   it('takes a newer document without taking the other device with it', async () => {
     const server = backend();
     const tablet = device('tablet');
-    tablet.settings = { ...tablet.settings, level: 8, penOnly: false, updatedAt: 2000 };
+    tablet.settings = { ...tablet.settings, tier: 'hard' as const, penOnly: false, updatedAt: 2000 };
     await sync(tablet, server);
 
     const phone = device('phone');
-    phone.settings = { ...phone.settings, token: TOKEN, level: 3, updatedAt: 1000 };
+    phone.settings = { ...phone.settings, token: TOKEN, tier: 'easy' as const, updatedAt: 1000 };
     const report = await sync(phone, server);
 
     expect(report.settings).toBe('received');
-    expect(phone.settings.level).toBe(8);
+    expect(phone.settings.tier).toBe('hard');
     expect(phone.settings.penOnly).toBe(false);
     expect(phone.settings.updatedAt).toBe(2000);
     // Its own name, address and key are still its own.
@@ -385,16 +385,16 @@ describe('settings', () => {
   it('leaves an older document alone', async () => {
     const server = backend();
     const tablet = device('tablet');
-    tablet.settings = { ...tablet.settings, level: 8, updatedAt: 1000 };
+    tablet.settings = { ...tablet.settings, tier: 'hard' as const, updatedAt: 1000 };
     await sync(tablet, server);
 
     const phone = device('phone');
-    phone.settings = { ...phone.settings, level: 2, updatedAt: 3000 };
+    phone.settings = { ...phone.settings, tier: 'easy' as const, updatedAt: 3000 };
     const report = await sync(phone, server);
 
     expect(report.settings).toBe('sent');
-    expect(phone.settings.level).toBe(2);
-    expect(server.settings?.settings.level).toBe(2);
+    expect(phone.settings.tier).toBe('easy');
+    expect(server.settings?.settings.tier).toBe('easy');
   });
 
   it('does nothing when both stamps agree', async () => {
@@ -412,14 +412,14 @@ describe('settings', () => {
   it('ignores fields it does not know and fields of the wrong type', async () => {
     const server = backend();
     server.settings = {
-      settings: { level: 'nine', chapters: [1, 2], somethingNewer: true },
+      settings: { tier: 99, chapters: [1, 2], somethingNewer: true },
       updatedAt: 5000,
     };
     const phone = device('phone');
 
     await sync(phone, server);
 
-    expect(phone.settings.level).toBe(DEFAULT_SETTINGS.level);
+    expect(phone.settings.tier).toBe(DEFAULT_SETTINGS.tier);
     expect(phone.settings.chapters).toEqual([1, 2]);
     expect(phone.settings).not.toHaveProperty('somethingNewer');
   });

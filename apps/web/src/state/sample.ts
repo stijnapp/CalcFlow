@@ -1,4 +1,4 @@
-import { CHAPTERS, type Attempt, type Confidence, type ErrorClass } from '@calcflow/shared';
+import { CHAPTERS, TIERS, type Attempt, type Confidence, type ErrorClass } from '@calcflow/shared';
 import { GENERATORS } from '@calcflow/generators';
 
 /**
@@ -63,14 +63,18 @@ export function sampleAttempts(days = 24): Attempt[] {
       const topic = topics[Math.floor(rand() * topics.length)]!;
       // He was worse a fortnight ago than he is now.
       const drift = 1 + (age / days) * -0.18;
-      const correct = rand() < profile.accuracy * drift;
+      // Tier is drawn before correctness and feeds into it: a sample log where
+      // all three tiers come out the same accuracy makes the by-difficulty
+      // readout look broken when it is only looking at flat data.
+      const tier = TIERS[rand() < 0.3 ? 0 : rand() < 0.65 ? 1 : 2]!;
+      const stretch = tier === 'easy' ? 1.12 : tier === 'medium' ? 1 : 0.72;
+      const correct = rand() < profile.accuracy * drift * stretch;
 
       let confidence: Confidence;
       if (correct) confidence = rand() < 0.62 ? 'sure' : rand() < 0.7 ? 'think' : 'guess';
       else confidence = rand() < profile.overconfidence ? 'sure' : rand() < 0.55 ? 'think' : 'guess';
 
       const hintMaxRung = correct ? (rand() < 0.18 ? 1 : 0) : Math.floor(rand() * 4);
-      const level = 1 + Math.floor(rand() * 5);
 
       out.push({
         id: `sample-${chapter}-${i}`,
@@ -80,15 +84,17 @@ export function sampleAttempts(days = 24): Attempt[] {
         seed: `sample-${chapter}-${i}`,
         genVersion: topic.version,
         chapter,
-        steps: Math.min(5, Math.max(1, Math.round(level))),
-        difficulty: Math.min(5, Math.max(1, Math.round(level))),
+        tier,
         correct,
         confidence,
         hintsUsed: hintMaxRung,
         hintMaxRung,
-        durationMs: Math.round(profile.medianMs * (0.55 + rand() * 1.1)),
+        durationMs: Math.round(
+          profile.medianMs * (0.55 + rand() * 1.1) * (tier === 'hard' ? 1.35 : tier === 'easy' ? 0.8 : 1),
+        ),
         answerRaw: correct ? 'x' : 'x+1',
         errorClass: correct ? null : WRONG[Math.floor(rand() * WRONG.length)]!,
+        selfGrade: null,
       });
     }
   }

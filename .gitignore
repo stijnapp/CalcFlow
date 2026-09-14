@@ -6,7 +6,10 @@ dev-dist/
 .vite/
 *.tsbuildinfo
 .DS_Store
-data/
+# The database the container writes, bind-mounted from here. The contents are
+# ignored; the directory is tracked, so Docker never has to create it as root.
+data/*
+!data/.gitkeep
 .env
 
 # Playwright MCP scratch output

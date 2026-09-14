@@ -1,4 +1,6 @@
 import type { Domain, Expr } from '@calcflow/engine';
+import type { Tier } from '@calcflow/shared';
+import type { PlotSpec } from './plot.js';
 
 export type Latex = string;
 
@@ -53,6 +55,18 @@ export type Verification =
   | { kind: 'antiderivative'; of: Latex; wrt: string }
   | { kind: 'definite-integral'; of: Latex; wrt: string; from: number; to: number }
   | { kind: 'root'; equation: Latex; wrt: string }
+  /**
+   * The declared answer is what `of` approaches. The engine has no limit
+   * notation, so the prompt carries it and this checks it the only way there
+   * is: by walking in.
+   */
+  | { kind: 'limit'; of: Latex; wrt: string; at: number | 'inf' | '-inf'; side?: 'left' | 'right' }
+  /**
+   * The declared answer is the inverse of `of`: feeding it back in gives the
+   * input untouched. Checked as f(g(x)) = x, which is what an inverse means and
+   * is the only claim about g that does not just restate how it was built.
+   */
+  | { kind: 'inverse'; of: Latex; wrt: string }
   | { kind: 'identity'; of: Latex };
 
 export interface Problem {
@@ -81,8 +95,13 @@ export interface Problem {
    */
   ruleIds: string[];
   verify?: Verification;
-  steps: number;
-  difficulty: number;
+  /**
+   * Set on the questions whose real answer is a drawing. The typed fields stay
+   * — they are what keeps chapters 5 and 12 gradable — but the canvas becomes a
+   * coordinate plane and the answer is revealed on top of the sketch.
+   */
+  plot?: PlotSpec;
+  tier: Tier;
 }
 
 export interface Rng {
@@ -99,16 +118,12 @@ export interface Rng {
 }
 
 export interface GenContext {
-  steps: number;
-  difficulty: number;
+  tier: Tier;
   rng: Rng;
 }
 
 /** What a generator returns; the registry stamps on the identifying fields. */
-export type Draft = Omit<
-  Problem,
-  'generatorId' | 'seed' | 'genVersion' | 'chapter' | 'steps' | 'difficulty'
->;
+export type Draft = Omit<Problem, 'generatorId' | 'seed' | 'genVersion' | 'chapter' | 'tier'>;
 
 export interface Generator {
   /** Stable id, e.g. "diff.chain-rule". Written into every attempt. */
@@ -118,7 +133,20 @@ export interface Generator {
   tags: string[];
   /** Bump on any behaviour change, so old attempts stay reproducible. */
   version: number;
-  supports: { steps: [number, number]; difficulty: [number, number] };
+  /**
+   * The tiers this generator has something to say at. Most cover all three;
+   * a few only make sense once he is past `easy`, and saying so here is what
+   * keeps the easy pool from quietly filling with problems that are not.
+   */
+  supports: readonly Tier[];
+  /**
+   * The chapters this generator draws on, when it is more than its own. A
+   * problem that needs a log law before the derivative rule is a different
+   * animal from either chapter alone, and it is only offered when every
+   * chapter it spans is switched on — otherwise it would be asking for a rule
+   * he has not chosen to practise.
+   */
+  spans?: readonly number[];
   invariant: 'value-preserving' | 'solution-set-preserving';
   generate(ctx: GenContext): Draft;
 }

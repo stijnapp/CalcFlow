@@ -1,10 +1,9 @@
 import { ArrowRight, BarChart3, BookOpen, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CHAPTERS, LEVELS, levelSpec, type SessionMode } from '@calcflow/shared';
+import { CHAPTERS, TIERS, TIER_BLURB, TIER_LABEL, type SessionMode } from '@calcflow/shared';
 import { candidates } from '@calcflow/generators';
 import { Eyebrow } from '@/components/Eyebrow';
 import { HoverLabel } from '@/components/HoverLabel';
-import { Slider } from '@/components/Slider';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
 import { cx } from '@/lib/cx';
@@ -26,8 +25,7 @@ export function Home({ compact }: { compact?: boolean }) {
   const syncing = useStore((s) => s.syncing);
   const store = useStore();
 
-  const { steps, difficulty } = levelSpec(settings.level);
-  const pool = candidates({ chapters: settings.chapters, steps, difficulty });
+  const pool = candidates({ chapters: settings.chapters, tier: settings.tier });
   const sample = pool[0];
   const none = settings.chapters.length === 0;
   const flagged = stats.byChapter.filter((c) => c.attempts >= 3 && c.mastery < 70).length;
@@ -38,15 +36,38 @@ export function Home({ compact }: { compact?: boolean }) {
   }`;
   const slow = stats.byChapter.filter((c) => c.attempts >= 3 && c.speed === 'slow').length;
 
-  const level = (
+  /* Three named tiers rather than a nine-stop dial. The dial implied a
+     precision the generators never had — every one of them turned its number
+     straight back into two or three branches — and a number gave him nothing
+     to expect, where "hard" says what is coming. */
+  const difficulty = (
     <section className="flex shrink-0 flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-4.5">
-      <Slider
-        label="Level"
-        hint="more steps, harder numbers"
-        value={settings.level}
-        stops={LEVELS}
-        onChange={(level) => store.patchSettings({ level })}
-      />
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <Eyebrow className="text-xs">DIFFICULTY</Eyebrow>
+        <span className="text-[13px] text-faint">{TIER_BLURB[settings.tier]}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {TIERS.map((t) => {
+          const active = settings.tier === t;
+          return (
+            <motion.button
+              key={t}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+              onClick={() => store.patchSettings({ tier: t })}
+              aria-pressed={active}
+              className={cx(
+                'rounded-md border py-2.5 text-sm font-medium transition-colors',
+                active
+                  ? 'border-accent bg-accent/10 text-ink'
+                  : 'border-edge bg-page text-muted hover:border-rail',
+              )}
+            >
+              {TIER_LABEL[t]}
+            </motion.button>
+          );
+        })}
+      </div>
       <div className="flex flex-wrap items-center gap-3.5 rounded-md border border-edge bg-page px-4 py-3.5">
         <Eyebrow className="text-xs">SAMPLE</Eyebrow>
         {sample ? (
@@ -55,11 +76,11 @@ export function Home({ compact }: { compact?: boolean }) {
           </motion.span>
         ) : (
           <span className="text-[13px] text-near-ink">
-            {none ? 'Pick a chapter to see one' : 'No topic covers this cell yet'}
+            {none ? 'Pick a chapter to see one' : 'No topic asks this tier yet'}
           </span>
         )}
         <span className="ml-auto text-[13px] text-muted">
-          {pool.length} {pool.length === 1 ? 'topic covers' : 'topics cover'} this cell
+          {pool.length} {pool.length === 1 ? 'topic asks' : 'topics ask'} this
         </span>
       </div>
     </section>
@@ -255,16 +276,16 @@ export function Home({ compact }: { compact?: boolean }) {
 
       {compact ? (
         <>
-          {level}
+          {difficulty}
           {chapters}
           <div className="flex flex-col gap-4.5">{mode}</div>
         </>
       ) : (
-        /* The mode column runs the full height, so the level dial and the
+        /* The mode column runs the full height, so the tier picker and the
            chapters share the space to its left rather than stacking above it. */
         <div className="flex min-h-0 flex-1 gap-4.5">
           <div className="flex min-w-0 flex-1 flex-col gap-4.5">
-            {level}
+            {difficulty}
             {chapters}
           </div>
           <div className="flex w-[380px] shrink-0 flex-col gap-4.5">{mode}</div>

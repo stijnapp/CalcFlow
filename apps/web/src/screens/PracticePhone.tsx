@@ -7,6 +7,7 @@ import {
   Lightbulb,
   Maximize,
   Minimize,
+  MoveUpRight,
   PenTool,
   Redo2,
   Trash2,
@@ -25,6 +26,8 @@ import { HoverLabel } from '@/components/HoverLabel';
 import { PenWidth } from '@/components/PenWidth';
 import { ProblemCard } from '@/components/ProblemCard';
 import { ProgressDots } from '@/components/ProgressDots';
+import { RevealToggle } from '@/components/RevealToggle';
+import { SelfGradeRow } from '@/components/SelfGrade';
 import { Sheet, SHEET_PEEK } from '@/components/Sheet';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
@@ -75,20 +78,33 @@ export function PracticePhone() {
   const answered = outcome !== null;
   const filled = problem.answers.every((_, i) => (session.answers[i] ?? '').trim() !== '');
   const ready = filled && session.confidence !== null;
+  // Nothing is written to the log until a graph question's drawing is marked.
+  const graded = !problem.plot || session.selfGrade !== null;
+  const arrows = problem.plot?.lattice ?? false;
 
   const canvasEl = (
-    <ScribbleCanvas
-      ref={canvas}
-      className="h-full w-full"
-      tool={tool}
-      penWidth={settings.penWidth}
-      penOnly={settings.penOnly}
-      surface={settings.canvasSurface}
-      problemKey={`${problem.generatorId}:${problem.seed}`}
-      getInitial={practice.getCanvas}
-      onPersist={practice.saveCanvas}
-      onToast={showToast}
-    />
+    <>
+      <ScribbleCanvas
+        ref={canvas}
+        className="h-full w-full"
+        tool={tool}
+        penWidth={settings.penWidth}
+        penOnly={settings.penOnly}
+        surface={settings.canvasSurface}
+        plane={
+          problem.plot ? { spec: problem.plot, reveal: answered ? session.reveal : 'none' } : null
+        }
+        problemKey={`${problem.generatorId}:${problem.seed}`}
+        getInitial={practice.getCanvas}
+        onPersist={practice.saveCanvas}
+        onToast={showToast}
+      />
+      {problem.plot && answered && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+          <RevealToggle value={session.reveal} onChange={store.setReveal} />
+        </div>
+      )}
+    </>
   );
 
   const penPicker = (
@@ -200,6 +216,15 @@ export function PracticePhone() {
             >
               <Lasso className="size-[18px]" />
             </PhoneTool>
+            {arrows && (
+              <PhoneTool
+                active={tool === 'arrow'}
+                onClick={() => setTool('arrow')}
+                label="Draw a vector"
+              >
+                <MoveUpRight className="size-[18px]" />
+              </PhoneTool>
+            )}
             <Divider />
             <PhoneTool onClick={undo} label="Undo">
               <Undo2 className="size-[18px]" />
@@ -298,6 +323,16 @@ export function PracticePhone() {
             >
               <Lasso className="size-[15px]" />
             </PhoneTool>
+            {arrows && (
+              <PhoneTool
+                small
+                active={tool === 'arrow'}
+                onClick={() => setTool('arrow')}
+                label="Draw a vector"
+              >
+                <MoveUpRight className="size-[15px]" />
+              </PhoneTool>
+            )}
             <Divider small />
             <PhoneTool small onClick={undo} label="Undo">
               <Undo2 className="size-[15px]" />
@@ -342,17 +377,31 @@ export function PracticePhone() {
             errorClass={outcome.errorClass}
             answers={session.answers}
             confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
-            durationMs={session.done.at(-1)?.durationMs ?? 0}
+            durationMs={outcome.durationMs}
             hintsUsed={session.rung}
             compact
           />
+          {problem.plot && (
+            <SelfGradeRow
+              value={session.selfGrade}
+              onChange={store.setSelfGrade}
+              noun={arrows ? 'arrow' : 'sketch'}
+              compact
+            />
+          )}
           <button
             onClick={store.next}
-            className="grid h-13 min-h-[52px] place-items-center rounded-md bg-accent text-[17px] font-semibold text-on-accent"
+            disabled={!graded}
+            className={cx(
+              'grid h-13 min-h-[52px] place-items-center rounded-md text-[17px] font-semibold',
+              graded ? 'bg-accent text-on-accent' : 'bg-raised text-faint',
+            )}
           >
-            {session.target !== null && session.done.length >= session.target
-              ? 'See the summary'
-              : 'Next problem'}
+            {!graded
+              ? 'Mark your drawing to continue'
+              : session.target !== null && session.done.length >= session.target
+                ? 'See the summary'
+                : 'Next problem'}
           </button>
         </motion.div>
       ) : (

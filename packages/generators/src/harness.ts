@@ -1,4 +1,5 @@
 import { equivalent, evaluate, freeVars, parse, stripPlusC, tryParse, type Expr } from '@calcflow/engine';
+import type { Tier } from '@calcflow/shared';
 import { ruleById } from './rules.js';
 import { build } from './registry.js';
 import type { Generator, Problem, Verification } from './types.js';
@@ -12,8 +13,7 @@ import type { Generator, Problem, Verification } from './types.js';
 
 export interface Failure {
   generatorId: string;
-  steps: number;
-  difficulty: number;
+  tier: Tier;
   seed: string;
   reason: string;
 }
@@ -26,22 +26,20 @@ export interface FuzzOptions {
 export function fuzz(generator: Generator, opts: FuzzOptions = {}): Failure[] {
   const instances = opts.instances ?? 500;
   const failures: Failure[] = [];
-  const [s0, s1] = generator.supports.steps;
-  const [d0, d1] = generator.supports.difficulty;
+  const tiers = generator.supports;
 
   for (let i = 0; i < instances; i += 1) {
-    const steps = s0 + (i % (s1 - s0 + 1));
-    const difficulty = d0 + (Math.floor(i / (s1 - s0 + 1)) % (d1 - d0 + 1));
+    const tier = tiers[i % tiers.length]!;
     const seed = `fuzz-${i}`;
     let problem: Problem;
     try {
-      problem = build(generator, seed, steps, difficulty);
+      problem = build(generator, seed, tier);
     } catch (err) {
-      failures.push({ generatorId: generator.id, steps, difficulty, seed, reason: `threw: ${String(err)}` });
+      failures.push({ generatorId: generator.id, tier, seed, reason: `threw: ${String(err)}` });
       continue;
     }
     for (const reason of checkProblem(problem, generator)) {
-      failures.push({ generatorId: generator.id, steps, difficulty, seed, reason });
+      failures.push({ generatorId: generator.id, tier, seed, reason });
     }
     if (failures.length > 20) break;
   }
@@ -111,6 +109,25 @@ export function checkProblem(problem: Problem, generator: Generator): string[] {
     }
   }
 
+  // A graph question's picture is checked the same way its maths is: the curve
+  // has to parse, the window has to be a window, and a lattice problem's arrows
+  // have to land on the lattice — an arrow between two grid points cannot be
+  // compared with a drawn one, which is the only thing the picture is for.
+  if (problem.plot) {
+    const { window: w, lattice } = problem.plot;
+    if (!(w.xMin < w.xMax) || !(w.yMin < w.yMax)) push(`plot window is empty: ${JSON.stringify(w)}`);
+    if (!(w.step > 0)) push(`plot step must be positive, got ${w.step}`);
+    for (const item of [...(problem.plot.given ?? []), ...problem.plot.answer]) {
+      if (item.kind === 'curve' && !tryParse(item.of)) push(`plot curve does not parse: ${item.of}`);
+      if (item.kind === 'vector' && lattice) {
+        const pts = [item.to, ...(item.from ? [item.from] : [])];
+        if (pts.some(([x, y]) => !Number.isInteger(x) || !Number.isInteger(y))) {
+          push(`plot vector is off the lattice: ${JSON.stringify(item.to)}`);
+        }
+      }
+    }
+  }
+
   if (problem.verify) {
     const reason = runVerification(problem.verify, problem);
     if (reason) push(reason);
@@ -166,9 +183,65 @@ function runVerification(v: Verification, problem: Problem): string | null {
         ? null
         : `answer ${answerTex} (${declared}) does not match the integral of ${v.of} (${numeric})`;
     }
+    case 'limit': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      const declared = evaluate(answer);
+      if (!Number.isFinite(declared)) return `answer ${answerTex} is not a finite value`;
+      return approaches(f, v, declared)
+        ? null
+        : `${v.of} does not approach ${answerTex} (${declared}) as ${v.wrt} → ${v.at}`;
+    }
+    case 'inverse': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      // Samples where g lands outside f's domain come back non-finite and are
+      // skipped, which is what makes this work for the half-line inverses.
+      return matchesNumerically(
+        (b) => evaluate(f, { ...b, [v.wrt]: evaluate(answer, b) }),
+        (b) => b[v.wrt]!,
+        [v.wrt],
+      )
+        ? null
+        : `${v.of} does not undo the answer ${answerTex}`;
+    }
     case 'root':
       return rootSatisfies(v.equation, problem);
   }
+}
+
+/**
+ * Walks in towards the point and checks that the function goes where the answer
+ * says. Two steps in rather than one, with the leading error extrapolated away:
+ * a difference quotient one thousandth from the point is still a thousandth
+ * off, which is not precision enough to tell a right answer from a nearly right
+ * one.
+ */
+function approaches(
+  f: Expr,
+  v: { wrt: string; at: number | 'inf' | '-inf'; side?: 'left' | 'right' },
+  declared: number,
+): boolean {
+  const at = (x: number): number => evaluate(f, { [v.wrt]: x });
+
+  /** Richardson on a 1/n error term: the pair, with the first order removed. */
+  const towards = (near: number, nearer: number): boolean => {
+    const v1 = at(near);
+    const v2 = at(nearer);
+    if (!Number.isFinite(v1) || !Number.isFinite(v2)) return false;
+    const extrapolated = (10 * v2 - v1) / 9;
+    return Math.abs(extrapolated - declared) <= 1e-4 * Math.max(1, Math.abs(declared));
+  };
+
+  if (v.at === 'inf') return towards(1e3, 1e4);
+  if (v.at === '-inf') return towards(-1e3, -1e4);
+
+  const a = v.at;
+  const left = towards(a - 1e-3, a - 1e-4);
+  const right = towards(a + 1e-3, a + 1e-4);
+  if (v.side === 'left') return left;
+  if (v.side === 'right') return right;
+  return left && right;
 }
 
 /** Every declared answer must satisfy the equation. */
@@ -201,13 +274,23 @@ function varsOf(...exprs: Expr[]): string[] {
   return Array.from(new Set(exprs.flatMap(freeVars)));
 }
 
-/** Central difference, Richardson-extrapolated for accuracy. */
+/**
+ * Central difference, Richardson-extrapolated for accuracy.
+ *
+ * Returns NaN where the two stencils disagree, which the caller skips. A
+ * difference quotient says nothing about a point whose neighbourhood contains a
+ * pole — `\tan x` a thousandth away from π/2 samples both sides of infinity and
+ * comes back with a confident wrong number. The two widths agreeing to a part in
+ * a thousand is the cheap test for "smooth across the stencil"; where they do
+ * not, the point is unusable rather than failed.
+ */
 function numericDerivative(f: Expr, wrt: string, bindings: Record<string, number>): number {
   const x = bindings[wrt]!;
   const h = Math.max(1e-4, Math.abs(x) * 1e-4);
   const at = (v: number) => evaluate(f, { ...bindings, [wrt]: v });
   const d1 = (at(x + h) - at(x - h)) / (2 * h);
   const d2 = (at(x + h / 2) - at(x - h / 2)) / h;
+  if (Math.abs(d1 - d2) > 1e-3 * Math.max(1, Math.abs(d2))) return NaN;
   return (4 * d2 - d1) / 3;
 }
 

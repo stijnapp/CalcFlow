@@ -32,8 +32,7 @@ function attempt(patch: Partial<Attempt> = {}): Attempt {
     seed: 'abc123',
     genVersion: 1,
     chapter: 3,
-    steps: 2,
-    difficulty: 3,
+    tier: 'medium',
     correct: true,
     confidence: 'sure',
     hintsUsed: 0,
@@ -41,6 +40,7 @@ function attempt(patch: Partial<Attempt> = {}): Attempt {
     durationMs: 42_000,
     answerRaw: '\\frac{5}{6}',
     errorClass: null,
+    selfGrade: null,
     ...patch,
   };
 }

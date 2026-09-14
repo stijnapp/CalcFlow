@@ -23,15 +23,15 @@ CREATE TABLE attempts (
   seed         TEXT    NOT NULL,
   gen_version  INTEGER NOT NULL,
   chapter      INTEGER NOT NULL,
-  steps        INTEGER NOT NULL,
-  difficulty   INTEGER NOT NULL,
+  tier         TEXT    NOT NULL,
   correct      INTEGER NOT NULL,
   confidence   TEXT    NOT NULL,
   hints_used   INTEGER NOT NULL,
   hint_max_rung INTEGER NOT NULL,
   duration_ms  INTEGER NOT NULL,
   answer_raw   TEXT    NOT NULL,
-  error_class  TEXT
+  error_class  TEXT,
+  self_grade   TEXT
 );
 CREATE INDEX attempts_ts ON attempts (ts);
 
@@ -52,14 +52,14 @@ interface Row {
   seed: string;
   gen_version: number;
   chapter: number;
-  steps: number;
-  difficulty: number;
+  tier: string;
   correct: number;
   confidence: string;
   hints_used: number;
   hint_max_rung: number;
   duration_ms: number;
   answer_raw: string;
+  self_grade: string | null;
   error_class: string | null;
 }
 
@@ -95,11 +95,13 @@ export function openStore(path: string): Store {
 
   const insert = db.prepare(`
     INSERT OR IGNORE INTO attempts
-      (id, device, ts, generator_id, seed, gen_version, chapter, steps, difficulty,
-       correct, confidence, hints_used, hint_max_rung, duration_ms, answer_raw, error_class)
+      (id, device, ts, generator_id, seed, gen_version, chapter, tier,
+       correct, confidence, hints_used, hint_max_rung, duration_ms, answer_raw, error_class,
+       self_grade)
     VALUES
-      (@id, @device, @ts, @generatorId, @seed, @genVersion, @chapter, @steps, @difficulty,
-       @correct, @confidence, @hintsUsed, @hintMaxRung, @durationMs, @answerRaw, @errorClass)
+      (@id, @device, @ts, @generatorId, @seed, @genVersion, @chapter, @tier,
+       @correct, @confidence, @hintsUsed, @hintMaxRung, @durationMs, @answerRaw, @errorClass,
+       @selfGrade)
   `);
   const selectSince = db.prepare('SELECT * FROM attempts WHERE cursor > ? ORDER BY cursor LIMIT ?');
   const selectHead = db.prepare('SELECT IFNULL(MAX(cursor), 0) AS head FROM attempts');
@@ -163,11 +165,48 @@ export function openStore(path: string): Store {
   };
 }
 
+/**
+ * Schema versions, forwards only. Each step runs in its own transaction so a
+ * half-applied migration is not a thing this can leave behind.
+ */
 function migrate(db: Database.Database): void {
-  const version = db.pragma('user_version', { simple: true }) as number;
+  let version = db.pragma('user_version', { simple: true }) as number;
+
   if (version === 0) {
     db.exec(SCHEMA);
-    db.pragma('user_version = 1');
+    db.pragma('user_version = 3');
+    return;
+  }
+
+  // v2: the 1–5 difficulty and the separate step count became one of three
+  // tiers. Attempts already in the log keep their place on the new scale rather
+  // than being thrown away — roughly right beats absent on a stats page.
+  if (version < 2) {
+    db.exec(`
+      BEGIN;
+      ALTER TABLE attempts ADD COLUMN tier TEXT NOT NULL DEFAULT 'medium';
+      UPDATE attempts SET tier =
+        CASE WHEN difficulty <= 2 THEN 'easy'
+             WHEN difficulty >= 4 THEN 'hard'
+             ELSE 'medium' END;
+      ALTER TABLE attempts DROP COLUMN steps;
+      ALTER TABLE attempts DROP COLUMN difficulty;
+      PRAGMA user_version = 2;
+      COMMIT;
+    `);
+    version = 2;
+  }
+
+  // v3: chapters 5 and 12 ask for a drawing, which only he can mark. The three
+  // buckets he marks it into ride along with the attempt.
+  if (version < 3) {
+    db.exec(`
+      BEGIN;
+      ALTER TABLE attempts ADD COLUMN self_grade TEXT;
+      PRAGMA user_version = 3;
+      COMMIT;
+    `);
+    version = 3;
   }
 }
 
@@ -182,8 +221,7 @@ function toEvent(row: Row): SyncEvent {
       seed: row.seed,
       genVersion: row.gen_version,
       chapter: row.chapter,
-      steps: row.steps,
-      difficulty: row.difficulty,
+      tier: row.tier as Attempt['tier'],
       correct: row.correct === 1,
       confidence: row.confidence as Attempt['confidence'],
       hintsUsed: row.hints_used,
@@ -191,6 +229,7 @@ function toEvent(row: Row): SyncEvent {
       durationMs: row.duration_ms,
       answerRaw: row.answer_raw,
       errorClass: row.error_class as Attempt['errorClass'],
+      selfGrade: row.self_grade as Attempt['selfGrade'],
     },
   };
 }

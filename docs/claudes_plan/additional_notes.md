@@ -53,3 +53,49 @@ not just accuracy.
   fourth preset alongside *Set of 10 / Endless / Weak spots* — something like
   **"build speed"** that pulls from correct-but-slow chapters. Not committing to this
   yet; wanted to surface it while the idea is fresh.
+
+---
+
+## C. Keeping eight metrics from becoming a mess
+
+All eight suggested metrics are in. The rule that stops them turning the stats screen
+into a wall of numbers is **one screen, three slots, and a metric has to earn its slot**.
+
+**Slot 1 — the standing page.** Unchanged, and capped: mastery per chapter, the four
+confidence × correctness tiles, the two recommendation cards. Nothing new was added
+here. Adding something means taking something out.
+
+**Slot 2 — one sentence.** *The read*, a single line above the page. All eight metrics
+compete for it in a fixed order of how much the answer would change what he practises
+next: misremembered rule → confidence calibration → error mix → retention → stale topics
+→ tier gap → speed trend → hint independence → streak. The strongest one wins the line;
+the rest say nothing. As the log changes the line changes, so over weeks all eight get
+read — never more than one at a time.
+
+**Slot 3 — "Look closer".** One fold at the bottom holding the other seven, in a fixed
+order, each two or three lines, each drawn the same way (a label, a bar, a number) so
+none of them needs its own visual language.
+
+Two rules keep the fold honest:
+
+- **Silence is the default.** Every readout has a minimum count and a "is this actually
+  notable" gate. A section with too little behind it is not rendered at all, the read
+  line disappears entirely when nothing qualifies, and an empty fold is a correct state
+  rather than a bug.
+- **Nothing gets promoted for being interesting.** A metric that cannot change what he
+  does next stays in the fold forever, however nice it looks.
+
+Where each one landed:
+
+| Metric | Slot |
+|---|---|
+| Confidence calibration | read + fold |
+| Error-class breakdown | read + fold |
+| Sure-but-wrong by rule | read + fold (rebuilt from the seed, headline rule only) |
+| Retention curve | read + fold |
+| Hint dependence | read + fold |
+| Speed as a slope | read + fold (last 10 vs the 20 before, per chapter) |
+| Accuracy by difficulty | read + fold |
+| Topic staleness grid | read + fold |
+| Streak | header chrome, next to the attempt count |
+| Per-chapter speed indicator (§B) | already on the standing page |

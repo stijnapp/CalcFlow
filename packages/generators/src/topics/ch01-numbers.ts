@@ -1,3 +1,4 @@
+import { TIERS } from '@calcflow/shared';
 import { answer, frac, fracTex, paren, poly, step, sum, tidy } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
@@ -15,13 +16,13 @@ export const signedArithmetic: Generator = {
   title: 'Adding and subtracting signed numbers',
   tags: ['arithmetic', 'signs'],
   version: 1,
-  supports: { steps: [1, 4], difficulty: [1, 3] },
+  supports: TIERS,
   invariant: 'value-preserving',
 
-  generate({ steps, difficulty, rng }): Draft {
-    const size = difficulty >= 3 ? 400 : difficulty === 2 ? 90 : 20;
+  generate({ tier, rng }): Draft {
+    const size = tier === 'hard' ? 400 : tier === 'medium' ? 90 : 20;
     // One term per step, and never fewer than two — a single number is not a sum.
-    const count = Math.max(2, steps + 1);
+    const count = tier === 'easy' ? 2 : tier === 'medium' ? 3 : 4;
     const values: number[] = [];
     for (let i = 0; i < count; i += 1) values.push(rng.nonZero(-size, size));
 
@@ -76,17 +77,17 @@ export const distributiveShortcut: Generator = {
   title: 'Multiplying the short way',
   tags: ['arithmetic', 'distributive'],
   version: 1,
-  supports: { steps: [1, 3], difficulty: [1, 4] },
+  supports: TIERS,
   invariant: 'value-preserving',
 
-  generate({ difficulty, rng }): Draft {
+  generate({ tier, rng }): Draft {
     // A factor a hair off a round number: 99 is 100 − 1, 102 is 100 + 2. Doing
     // it that way round is the whole trick, and it is worth practising by hand.
-    const round = difficulty >= 3 ? 1000 : 100;
-    const off = rng.int(1, difficulty >= 2 ? 4 : 2);
+    const round = tier !== 'easy' ? 1000 : 100;
+    const off = rng.int(1, tier !== 'easy' ? 4 : 2);
     const high = rng.bool();
     const near = high ? round + off : round - off;
-    const factor = rng.int(difficulty >= 4 ? 24 : 3, difficulty >= 4 ? 89 : 19);
+    const factor = rng.int(tier === 'hard' ? 24 : 3, tier === 'hard' ? 89 : 19);
 
     const prompt = `${factor} \\cdot ${near}`;
     const total = factor * near;
@@ -124,14 +125,14 @@ export const rationalEquation: Generator = {
   title: 'Equations with the unknown in a denominator',
   tags: ['solve', 'fractions'],
   version: 1,
-  supports: { steps: [2, 5], difficulty: [2, 5] },
+  supports: TIERS,
   invariant: 'solution-set-preserving',
 
-  generate({ difficulty, rng }): Draft {
+  generate({ tier, rng }): Draft {
     const a = rng.nonZero(-9, 9);
     const b = rng.nonZero(-9, 9);
 
-    if (difficulty >= 4) {
+    if (tier === 'hard') {
       // a/(x+b) = c/(x+d). Cross-multiplying leaves a linear equation, and
       // keeping b ≠ d and a ≠ c is what keeps the root off both excluded values.
       let c = rng.nonZero(-9, 9);
@@ -183,6 +184,84 @@ export const rationalEquation: Generator = {
           'The unknown comes out from under the bar before anything else happens.',
         ),
         step('linear-solve', 'Isolate x', result),
+      ],
+      ruleIds: ['rational-equation', 'linear-solve'],
+      verify: { kind: 'root', equation, wrt: 'x' },
+    };
+  },
+};
+
+/**
+ * The unknown on top of the fraction rather than underneath. Nothing is
+ * excluded and nothing can blow up — the only move is to clear the denominators
+ * before collecting, which is the move most of chapter 8 then takes for granted.
+ */
+export const fractionEquation: Generator = {
+  id: 'numbers.fraction-equation',
+  chapter: 1,
+  title: 'Equations with fractions',
+  tags: ['solve', 'fractions'],
+  version: 1,
+  supports: TIERS,
+  invariant: 'solution-set-preserving',
+
+  generate({ tier, rng }): Draft {
+    if (tier === 'easy') {
+      // (x + b)/a = c
+      const a = rng.int(2, 9);
+      const b = rng.nonZero(-9, 9);
+      const c = rng.nonZero(-8, 8);
+      const equation = `${frac(poly([[1, 1], [b, 0]]), String(a))} = ${c}`;
+      const result = String(a * c - b);
+      return {
+        instruction: 'Solve for x',
+        prompt: equation,
+        answers: [answer(result, { keyboard: 'numeric', kind: 'number' })],
+        solution: [
+          step(
+            'rational-equation',
+            'Multiply by the denominator',
+            `${poly([[1, 1], [b, 0]])} = ${a * c}`,
+            'One multiplication and the fraction is gone.',
+          ),
+          step('linear-solve', 'Isolate x', `x = ${result}`),
+        ],
+        ruleIds: ['rational-equation', 'linear-solve'],
+        verify: { kind: 'root', equation, wrt: 'x' },
+      };
+    }
+
+    // (ax + b)/c ± (dx + e)/f = g, cleared by multiplying through by cf.
+    const a = rng.nonZero(-5, 5);
+    const c = rng.int(2, 7);
+    const b = rng.nonZero(-8, 8);
+    const e = rng.nonZero(-8, 8);
+    const f = tier === 'hard' ? rng.int(2, 7) : c;
+    const g = rng.nonZero(-6, 6);
+    let d = rng.nonZero(-5, 5);
+    // The x terms must not cancel, or there is no equation left to solve.
+    while (a * f + c * d === 0) d = rng.nonZero(-5, 5);
+
+    const left = `${frac(poly([[a, 1], [b, 0]]), String(c))} + ${frac(poly([[d, 1], [e, 0]]), String(f))}`;
+    const equation = `${left} = ${g}`;
+    const coefficient = a * f + c * d;
+    const constant = g * c * f - f * b - c * e;
+    const result = fracTex(constant, coefficient);
+
+    return {
+      instruction: 'Solve for x',
+      prompt: equation,
+      note: 'Give the exact value.',
+      answers: [answer(result, { keyboard: 'numeric', kind: 'number' })],
+      solution: [
+        step(
+          'rational-equation',
+          `Multiply through by ${c * f}`,
+          `${poly([[a * f, 1], [b * f, 0]])} + ${paren(poly([[c * d, 1], [c * e, 0]]))} = ${g * c * f}`,
+          `${c * f} is a common multiple of both denominators, so every fraction clears at once.`,
+        ),
+        step('linear-solve', 'Collect', `${poly([[coefficient, 1]])} = ${constant}`),
+        step('linear-solve', 'Divide', `x = ${result}`),
       ],
       ruleIds: ['rational-equation', 'linear-solve'],
       verify: { kind: 'root', equation, wrt: 'x' },

@@ -14,8 +14,11 @@ services:
       CALCFLOW_TOKEN: ${CALCFLOW_TOKEN:?put one in .env — see .env.example}
       CALCFLOW_ORIGINS: ${CALCFLOW_ORIGINS:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+    # A folder in the project rather than a named volume: the database is then
+    # something he can see, copy and back up with the rest of the repo, instead
+    # of something only `docker volume` knows where to find. `data/` is
+    # gitignored except for the .gitkeep that guarantees it exists before
+    # Docker can create it as root — the container runs as uid 1000, the same
+    # uid as the checkout, so the mount is writable with no chown dance.
     volumes:
-      - data:/data
-
-volumes:
-  data:
+      - ./data:/data

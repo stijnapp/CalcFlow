@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fuzz } from './harness.js';
 import { GENERATORS, build, candidates, rebuild } from './registry.js';
 import { RULES } from './rules.js';
-import { CHAPTER_NUMBERS } from '@calcflow/shared';
+import { CHAPTER_NUMBERS, TIERS } from '@calcflow/shared';
 
 describe('registry', () => {
   it('gives every v1 chapter at least one generator', () => {
@@ -16,21 +16,27 @@ describe('registry', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('covers every cell of the 5x5 grid for the default chapter set', () => {
-    for (let steps = 1; steps <= 5; steps += 1) {
-      for (let difficulty = 1; difficulty <= 5; difficulty += 1) {
-        const pool = candidates({ chapters: [...CHAPTER_NUMBERS], steps, difficulty });
-        expect(pool.length, `steps ${steps} × difficulty ${difficulty}`).toBeGreaterThan(0);
+  it('fills all three tiers for the default chapter set', () => {
+    for (const tier of TIERS) {
+      const pool = candidates({ chapters: [...CHAPTER_NUMBERS], tier });
+      expect(pool.length, tier).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives every chapter something to ask at every tier', () => {
+    for (const n of CHAPTER_NUMBERS) {
+      for (const tier of TIERS) {
+        const pool = candidates({ chapters: [n], tier });
+        expect(pool.length, `chapter ${n} at ${tier}`).toBeGreaterThan(0);
       }
     }
   });
 
   it('rebuilds the identical problem from a seed', () => {
     for (const g of GENERATORS) {
-      const steps = g.supports.steps[0];
-      const difficulty = g.supports.difficulty[0];
-      const first = build(g, 'seed-1', steps, difficulty);
-      const again = rebuild(g.id, 'seed-1', steps, difficulty);
+      const tier = g.supports[0]!;
+      const first = build(g, 'seed-1', tier);
+      const again = rebuild(g.id, 'seed-1', tier);
       expect(again).toEqual(first);
     }
   });
@@ -44,8 +50,8 @@ describe('rule cards', () => {
 });
 
 describe.each(GENERATORS.map((g) => [g.id, g] as const))('fuzz %s', (_id, generator) => {
-  it('holds every invariant across its supported grid', () => {
+  it('holds every invariant at every tier it supports', () => {
     const failures = fuzz(generator, { instances: 500 });
-    expect(failures.map((f) => `${f.seed} @ steps ${f.steps} diff ${f.difficulty}: ${f.reason}`)).toEqual([]);
+    expect(failures.map((f) => `${f.seed} @ ${f.tier}: ${f.reason}`)).toEqual([]);
   });
 });

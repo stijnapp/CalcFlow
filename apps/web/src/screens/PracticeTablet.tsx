@@ -10,7 +10,9 @@ import { FeedbackCard } from '@/components/FeedbackCard';
 import { HintPanel } from '@/components/HintPanel';
 import { ProblemCard } from '@/components/ProblemCard';
 import { ProgressDots } from '@/components/ProgressDots';
+import { RevealToggle } from '@/components/RevealToggle';
 import { RulesUsed } from '@/components/RulesUsed';
+import { SelfGradeRow } from '@/components/SelfGrade';
 import { ToolRail } from '@/components/ToolRail';
 import { cx } from '@/lib/cx';
 import { useKeyboardInset } from '@/lib/useKeyboardInset';
@@ -53,6 +55,10 @@ export function PracticeTablet() {
 
   const filled = problem.answers.every((_, i) => (session.answers[i] ?? '').trim() !== '');
   const ready = filled && session.confidence !== null;
+  // A graph question is only finished once he has marked his own drawing; until
+  // then nothing has been written to the log and Next would throw it away.
+  const graded = !problem.plot || session.selfGrade !== null;
+  const arrows = problem.plot?.lattice ?? false;
 
   return (
     <div className="relative flex h-full overflow-clip">
@@ -69,6 +75,7 @@ export function PracticeTablet() {
           onUndo={undo}
           onRedo={redo}
           onClear={askClear}
+          arrows={arrows}
         />
         <ScribbleCanvas
           ref={canvas}
@@ -77,11 +84,28 @@ export function PracticeTablet() {
           penWidth={settings.penWidth}
           penOnly={settings.penOnly}
           surface={settings.canvasSurface}
+          plane={problem.plot ? { spec: problem.plot, reveal: answered ? session.reveal : 'none' } : null}
           problemKey={`${problem.generatorId}:${problem.seed}`}
           getInitial={practice.getCanvas}
           onPersist={practice.saveCanvas}
           onToast={showToast}
         />
+        {problem.plot && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex flex-col items-center gap-2">
+            {answered && <RevealToggle value={session.reveal} onChange={store.setReveal} />}
+            <span className="rounded-full border border-strong bg-overlay px-3 py-1 text-[11px] text-muted">
+              {answered ? (
+                <>
+                  <span className="text-ink">your sketch</span> · <span className="text-accent">the answer</span>
+                </>
+              ) : arrows ? (
+                'Arrows snap to whole lattice points · hold before moving to draw free'
+              ) : (
+                'Graph paper with real axes · the answer is drawn over your sketch when you submit'
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col border-l border-edge bg-page">
@@ -129,18 +153,33 @@ export function PracticeTablet() {
                   errorClass={outcome.errorClass}
                   answers={session.answers}
                   confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
-                  durationMs={session.done.at(-1)?.durationMs ?? 0}
+                  durationMs={outcome.durationMs}
                   hintsUsed={session.rung}
                 />
+                {problem.plot && (
+                  <SelfGradeRow
+                    value={session.selfGrade}
+                    onChange={store.setSelfGrade}
+                    noun={arrows ? 'arrow' : 'sketch'}
+                  />
+                )}
                 <RulesUsed problem={problem} />
                 <button
                   onClick={store.next}
+                  disabled={!graded}
                   autoFocus
-                  className="mt-auto grid h-14 shrink-0 place-items-center rounded-lg bg-accent text-[17px] font-semibold text-on-accent hover:bg-accent-hi"
+                  className={cx(
+                    'mt-auto grid h-14 shrink-0 place-items-center rounded-lg text-[17px] font-semibold transition-colors',
+                    graded
+                      ? 'bg-accent text-on-accent hover:bg-accent-hi'
+                      : 'cursor-not-allowed bg-raised text-faint',
+                  )}
                 >
-                  {session.target !== null && session.done.length >= session.target
-                    ? 'See the summary'
-                    : 'Next problem'}
+                  {!graded
+                    ? 'Mark your drawing to continue'
+                    : session.target !== null && session.done.length >= session.target
+                      ? 'See the summary'
+                      : 'Next problem'}
                 </button>
               </>
             ) : (

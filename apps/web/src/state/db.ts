@@ -1,11 +1,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
   DEFAULT_SETTINGS,
+  tierFromDifficulty,
   type Attempt,
   type Confidence,
   type ErrorClass,
+  type SelfGrade,
   type SessionMode,
   type Settings,
+  type Tier,
 } from '@calcflow/shared';
 import type { CanvasState } from '@/canvas/strokes';
 
@@ -13,15 +16,14 @@ import type { CanvasState } from '@/canvas/strokes';
 export interface ProblemRef {
   generatorId: string;
   seed: string;
-  steps: number;
-  difficulty: number;
+  tier: Tier;
 }
 
 export interface StoredSession {
   mode: SessionMode;
   target: number | null;
   chapters: number[];
-  level: number;
+  tier: Tier;
   only?: string[];
   done: Array<
     ProblemRef & {
@@ -42,6 +44,8 @@ export interface StoredSession {
   onTrackLine?: string;
   /** Absent in sessions stored before the canvas was kept. */
   canvas?: CanvasState;
+  /** Set once a graph question's sketch has been marked, so it is not marked twice. */
+  selfGrade?: SelfGrade | null;
   answered: boolean;
   savedAt: number;
 }
@@ -76,8 +80,8 @@ interface CalcFlowDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<CalcFlowDB>> | null = null;
 
 function db() {
-  dbPromise ??= openDB<CalcFlowDB>('calcflow', 3, {
-    upgrade(database, from) {
+  dbPromise ??= openDB<CalcFlowDB>('calcflow', 4, {
+    upgrade(database, from, _to, transaction) {
       if (from < 1) {
         const attempts = database.createObjectStore('attempts', { keyPath: 'id' });
         attempts.createIndex('ts', 'ts');
@@ -90,6 +94,23 @@ function db() {
       }
       if (from < 3) {
         database.createObjectStore('meta');
+      }
+      // v4: attempts carried a 1–5 difficulty and a step count; they carry one
+      // of three tiers now. The log is the only copy of his history, so it is
+      // rewritten in place rather than dropped — and the session in flight goes,
+      // because a stored problem reference from the old build cannot be rebuilt.
+      if (from < 4) {
+        const attempts = transaction.objectStore('attempts');
+        void attempts.openCursor().then(function step(cursor): unknown {
+          if (!cursor) return undefined;
+          const old = cursor.value as Attempt & { difficulty?: number; steps?: number };
+          if (old.tier === undefined) {
+            const { difficulty, steps: _steps, ...rest } = old;
+            void cursor.update({ ...rest, tier: tierFromDifficulty(difficulty ?? 3) } as Attempt);
+          }
+          return cursor.continue().then(step);
+        });
+        transaction.objectStore('session').clear();
       }
     },
   });

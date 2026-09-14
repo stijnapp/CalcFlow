@@ -11,12 +11,17 @@ export const CHAPTERS: readonly Chapter[] = [
   { n: 2, title: 'Powers', short: 'Powers' },
   { n: 3, title: 'Fractions', short: 'Fractions' },
   { n: 4, title: 'Roots', short: 'Roots' },
+  { n: 5, title: 'Curves, functions, graphs', short: 'Functions' },
   { n: 6, title: 'exp, ln, log', short: 'Logs' },
   { n: 7, title: 'sin, cos, tan', short: 'Trig' },
   { n: 8, title: 'Equations', short: 'Equations' },
   { n: 9, title: 'Differentiation', short: 'Derivatives' },
   { n: 10, title: 'Antidifferentiation', short: 'Antiderivatives' },
   { n: 11, title: 'Integration', short: 'Integration' },
+  { n: 12, title: 'Vectors', short: 'Vectors' },
+  // Not in the practice book — the course starts here, and the exam opens with
+  // it. Numbered after the book's last chapter so the ordering still reads.
+  { n: 13, title: 'Limits & continuity', short: 'Limits' },
 ];
 
 export const CHAPTER_NUMBERS: readonly number[] = CHAPTERS.map((c) => c.n);

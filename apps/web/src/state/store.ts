@@ -10,13 +10,15 @@ import {
 import { draw, rebuild, type Problem } from '@calcflow/generators';
 import {
   DEFAULT_SETTINGS,
-  MAX_LEVEL,
-  levelSpec,
+  easier,
+  harder,
   type Attempt,
   type Confidence,
   type ErrorClass,
+  type SelfGrade,
   type SessionMode,
   type Settings,
+  type Tier,
 } from '@calcflow/shared';
 import type { CanvasState } from '@/canvas/strokes';
 import { deviceLabel } from '@/lib/deviceName';
@@ -43,6 +45,7 @@ import {
 import {
   DEVICE_LOCAL,
   SyncError,
+  type SyncFailure,
   backendOrigin,
   runSync,
   type SyncPorts,
@@ -87,6 +90,10 @@ export interface Outcome {
   errorClass: ErrorClass | null;
   /** Per answer field, in order. */
   fields: GradeResult[];
+  /** How long the problem took. Carried here because a graph question's
+   *  attempt is not written until the sketch has been marked, and the verdict
+   *  card needs the time before then. */
+  durationMs: number;
 }
 
 export interface Session {
@@ -94,8 +101,8 @@ export interface Session {
   /** null in endless mode. */
   target: number | null;
   chapters: number[];
-  /** 1–9; steps and difficulty are derived from it. */
-  level: number;
+  /** How hard this session is drawing at; adaptive mode moves it. */
+  tier: Tier;
   only?: string[];
   done: SessionItem[];
   problem: Problem;
@@ -108,6 +115,14 @@ export interface Session {
   /** Rungs revealed so far, 0–4. */
   rung: number;
   outcome: Outcome | null;
+  /**
+   * Graph questions only. The sketch cannot be graded, so he marks it himself
+   * against the answer drawn over it — and until he has, the attempt is not
+   * written: half a verdict in the log is worse than a slower one.
+   */
+  selfGrade: SelfGrade | null;
+  /** Which marks the canvas is showing while the answer is up. */
+  reveal: 'both' | 'mine' | 'answer';
   onTrack: 'yes' | 'no' | null;
   /** What is typed into the hint panel's "am I on track" box. */
   onTrackLine: string;
@@ -137,6 +152,14 @@ interface Store {
   syncing: boolean;
   /** Why the last exchange failed, for the settings screen. Cleared by a good one. */
   syncError: string | null;
+  /** Which kind of failure it was, so the notice can offer the right way out. */
+  syncErrorKind: SyncFailure | null;
+  /**
+   * The failure he has already waved away. A background sync retries every
+   * minute; without this the same notice would come back a minute after he
+   * closed it, which is how a notice teaches you to ignore it.
+   */
+  syncErrorSeen: string | null;
 
   init(): Promise<void>;
   go(screen: Screen): void;
@@ -152,6 +175,7 @@ interface Store {
   refreshQueued(): Promise<void>;
   /** Exchanges with the backend and says how it went. */
   syncNow(): void;
+  dismissSyncError(): void;
   /** The same exchange, with nothing to say unless it fails. */
   syncQuietly(): void;
 
@@ -162,6 +186,8 @@ interface Store {
   clearAnswer(): void;
   setActiveField(index: number): void;
   setConfidence(c: Confidence): void;
+  setSelfGrade(grade: SelfGrade): void;
+  setReveal(reveal: Session['reveal']): void;
 
   setHintsOpen(open: boolean): void;
   revealRung(max: number): void;
@@ -190,6 +216,8 @@ export const useStore = create<Store>((set, get) => ({
   queued: 0,
   syncing: false,
   syncError: null,
+  syncErrorKind: null,
+  syncErrorSeen: null,
 
   async init() {
     let settings = DEFAULT_SETTINGS;
@@ -302,6 +330,10 @@ export const useStore = create<Store>((set, get) => ({
     launchSync(true);
   },
 
+  dismissSyncError() {
+    set({ syncErrorSeen: get().syncError });
+  },
+
   syncQuietly() {
     launchSync(false);
   },
@@ -313,9 +345,7 @@ export const useStore = create<Store>((set, get) => ({
       get().showToast('Pick at least one chapter first');
       return;
     }
-    const { steps, difficulty } = levelSpec(settings.level);
-
-    const problem = draw({ chapters, steps, difficulty, only: opts?.only });
+    const problem = draw({ chapters, tier: settings.tier, only: opts?.only });
     if (!problem) {
       get().showToast('No topics match those settings');
       return;
@@ -327,7 +357,7 @@ export const useStore = create<Store>((set, get) => ({
         mode,
         target: mode === 'endless' ? null : Math.max(1, Math.round(settings.setLength)),
         chapters,
-        level: settings.level,
+        tier: settings.tier,
         only: opts?.only,
         done: [],
         problem,
@@ -338,6 +368,8 @@ export const useStore = create<Store>((set, get) => ({
         hintsOpen: false,
         rung: 0,
         outcome: null,
+        selfGrade: null,
+        reveal: 'both',
         onTrack: null,
         onTrackLine: '',
         canvas: null,
@@ -427,7 +459,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   submit() {
-    const { session, settings } = get();
+    const { session } = get();
     if (!session || session.outcome || session.confidence === null) return;
     // Enter reaches this too, so the guard lives here and not only on the button.
     if (session.problem.answers.some((_, i) => (session.answers[i] ?? '').trim() === '')) return;
@@ -437,48 +469,53 @@ export const useStore = create<Store>((set, get) => ({
     const errorClass = correct ? null : worstClass(fields);
     const durationMs = Date.now() - session.startedAt;
 
-    const attempt: Attempt = {
-      id: ulid(),
-      device: deviceLabel(settings.deviceName),
-      ts: Date.now(),
-      generatorId: session.problem.generatorId,
-      seed: session.problem.seed,
-      genVersion: session.problem.genVersion,
-      chapter: session.problem.chapter,
-      steps: session.problem.steps,
-      difficulty: session.problem.difficulty,
-      correct,
-      confidence: session.confidence,
-      hintsUsed: session.rung > 0 ? 1 : 0,
-      hintMaxRung: session.rung,
+    // A graph question is not finished at submit: the answer is now drawn over
+    // his sketch and he has still to say how the sketch did. Recording it here
+    // would log a verdict on the typed fields alone and call it chapter 5.
+    if (session.problem.plot) {
+      set({
+        session: {
+          ...session,
+          hintsOpen: false,
+          outcome: { correct, errorClass, fields, durationMs },
+        },
+      });
+      return;
+    }
+
+    record(set, get, session, { correct, errorClass, fields, durationMs }, durationMs, null);
+  },
+
+  setSelfGrade(selfGrade) {
+    const session = get().session;
+    if (!session?.outcome || session.selfGrade) return;
+    const fieldsOk = session.outcome.fields.every((f) => f.correct);
+    // The typed features decide whether this counts as understood; the sketch
+    // can only pull it down. A near-miss drawing lands in the same near-miss
+    // bucket as a missing +C — fluency to work on, not a misconception.
+    const correct = fieldsOk && selfGrade === 'got';
+    const errorClass: ErrorClass | null = !fieldsOk
+      ? worstClass(session.outcome.fields)
+      : selfGrade === 'got'
+        ? null
+        : selfGrade === 'close'
+          ? 'sketch'
+          : 'wrong';
+    // The clock stopped at submit: reading the answer and marking the drawing
+    // is not time spent solving it.
+    const durationMs = session.outcome.durationMs;
+    record(
+      set,
+      get,
+      { ...session, selfGrade },
+      { correct, errorClass, fields: session.outcome.fields, durationMs },
       durationMs,
-      answerRaw: session.answers.join(' | '),
-      errorClass,
-    };
+      selfGrade,
+    );
+  },
 
-    const attempts = [...get().attempts, attempt];
-    void saveAttempt(attempt).then(() => get().refreshQueued());
-
-    set({
-      attempts,
-      stats: computeStats(attempts),
-      session: {
-        ...session,
-        hintsOpen: false,
-        outcome: { correct, errorClass, fields },
-        done: [
-          ...session.done,
-          {
-            problem: session.problem,
-            correct,
-            errorClass,
-            confidence: session.confidence,
-            durationMs,
-            hintMaxRung: session.rung,
-          },
-        ],
-      },
-    });
+  setReveal(reveal) {
+    patchSession(set, get, () => ({ reveal }));
   },
 
   next() {
@@ -490,12 +527,10 @@ export const useStore = create<Store>((set, get) => ({
       return;
     }
 
-    const level = settings.adaptive ? adapt(session) : session.level;
-    const { steps, difficulty } = levelSpec(level);
+    const tier = settings.adaptive ? adapt(session) : session.tier;
     const problem = draw({
       chapters: session.chapters,
-      steps,
-      difficulty,
+      tier,
       only: session.only,
       avoid: session.problem.generatorId,
     });
@@ -508,7 +543,7 @@ export const useStore = create<Store>((set, get) => ({
       canvasFullscreen: false,
       session: {
         ...session,
-        level,
+        tier,
         problem,
         startedAt: Date.now(),
         answers: problem.answers.map(() => ''),
@@ -517,6 +552,8 @@ export const useStore = create<Store>((set, get) => ({
         hintsOpen: false,
         rung: 0,
         outcome: null,
+        selfGrade: null,
+        reveal: 'both',
         onTrack: null,
         onTrackLine: '',
         canvas: null,
@@ -606,7 +643,7 @@ async function exchange(loud: boolean): Promise<void> {
   useStore.setState({ syncing: true });
   try {
     const report = await runSync(ports, target);
-    useStore.setState({ syncError: null });
+    useStore.setState({ syncError: null, syncErrorKind: null, syncErrorSeen: null });
     useStore.getState().patchSettings({ lastSyncedAt: Date.now() });
     await useStore.getState().refreshQueued();
     if (loud) useStore.getState().showToast(summarise(report));
@@ -615,7 +652,10 @@ async function exchange(loud: boolean): Promise<void> {
     // not moved, so the next one picks up exactly where this one stopped.
     const message = err instanceof SyncError ? err.message : 'Sync failed';
     if (!(err instanceof SyncError)) console.error('CalcFlow: sync failed', err);
-    useStore.setState({ syncError: message });
+    useStore.setState({
+      syncError: message,
+      syncErrorKind: err instanceof SyncError ? err.kind : 'server',
+    });
     if (loud) useStore.getState().showToast(message);
   } finally {
     useStore.setState({ syncing: false });
@@ -686,13 +726,12 @@ function freezeSession(s: Session): StoredSession {
     mode: s.mode,
     target: s.target,
     chapters: s.chapters,
-    level: s.level,
+    tier: s.tier,
     only: s.only,
     done: s.done.map((d) => ({
       generatorId: d.problem.generatorId,
       seed: d.problem.seed,
-      steps: d.problem.steps,
-      difficulty: d.problem.difficulty,
+      tier: d.problem.tier,
       correct: d.correct,
       errorClass: d.errorClass,
       confidence: d.confidence,
@@ -702,8 +741,7 @@ function freezeSession(s: Session): StoredSession {
     problem: {
       generatorId: s.problem.generatorId,
       seed: s.problem.seed,
-      steps: s.problem.steps,
-      difficulty: s.problem.difficulty,
+      tier: s.problem.tier,
     },
     elapsedMs: Date.now() - s.startedAt,
     answers: s.answers,
@@ -712,6 +750,7 @@ function freezeSession(s: Session): StoredSession {
     rung: s.rung,
     onTrackLine: s.onTrackLine,
     canvas: s.canvas ?? undefined,
+    selfGrade: s.selfGrade,
     answered: s.outcome !== null,
     savedAt: Date.now(),
   };
@@ -723,17 +762,12 @@ function freezeSession(s: Session): StoredSession {
  * answers, so it cannot drift from what he was shown.
  */
 function reviveSession(stored: StoredSession): Session | null {
-  const problem = rebuild(
-    stored.problem.generatorId,
-    stored.problem.seed,
-    stored.problem.steps,
-    stored.problem.difficulty,
-  );
+  const problem = rebuild(stored.problem.generatorId, stored.problem.seed, stored.problem.tier);
   if (!problem) return null;
 
   const done: SessionItem[] = [];
   for (const d of stored.done) {
-    const p = rebuild(d.generatorId, d.seed, d.steps, d.difficulty);
+    const p = rebuild(d.generatorId, d.seed, d.tier);
     if (!p) continue;
     done.push({
       problem: p,
@@ -749,14 +783,19 @@ function reviveSession(stored: StoredSession): Session | null {
   if (stored.answered) {
     const fields = gradeFields(problem, stored.answers);
     const correct = fields.every((f) => f.correct);
-    outcome = { correct, errorClass: correct ? null : worstClass(fields), fields };
+    outcome = {
+      correct,
+      errorClass: correct ? null : worstClass(fields),
+      fields,
+      durationMs: stored.elapsedMs,
+    };
   }
 
   return {
     mode: stored.mode,
     target: stored.target,
     chapters: stored.chapters,
-    level: stored.level,
+    tier: stored.tier,
     only: stored.only,
     done,
     problem,
@@ -768,6 +807,8 @@ function reviveSession(stored: StoredSession): Session | null {
     hintsOpen: false,
     rung: stored.rung,
     outcome,
+    selfGrade: stored.selfGrade ?? null,
+    reveal: 'both',
     onTrack: null,
     onTrackLine: stored.onTrackLine ?? '',
     canvas: stored.canvas ?? null,
@@ -775,6 +816,65 @@ function reviveSession(stored: StoredSession): Session | null {
 }
 
 // --------------------------------------------------------------------- helpers
+
+/**
+ * Writes the attempt and closes the problem off. One place, because a typed
+ * answer and a drawn one finish at different moments — the first at submit, the
+ * second when he has marked his own sketch — and everything after that point is
+ * identical.
+ */
+function record(
+  set: (partial: Partial<Store>) => void,
+  get: () => Store,
+  session: Session,
+  outcome: Outcome,
+  durationMs: number,
+  selfGrade: SelfGrade | null,
+): void {
+  const { settings } = get();
+  const attempt: Attempt = {
+    id: ulid(),
+    device: deviceLabel(settings.deviceName),
+    ts: Date.now(),
+    generatorId: session.problem.generatorId,
+    seed: session.problem.seed,
+    genVersion: session.problem.genVersion,
+    chapter: session.problem.chapter,
+    tier: session.problem.tier,
+    correct: outcome.correct,
+    confidence: session.confidence ?? 'think',
+    hintsUsed: session.rung > 0 ? 1 : 0,
+    hintMaxRung: session.rung,
+    durationMs,
+    answerRaw: session.answers.join(' | '),
+    errorClass: outcome.errorClass,
+    selfGrade,
+  };
+
+  const attempts = [...get().attempts, attempt];
+  void saveAttempt(attempt).then(() => get().refreshQueued());
+
+  set({
+    attempts,
+    stats: computeStats(attempts),
+    session: {
+      ...session,
+      hintsOpen: false,
+      outcome,
+      done: [
+        ...session.done,
+        {
+          problem: session.problem,
+          correct: outcome.correct,
+          errorClass: outcome.errorClass,
+          confidence: session.confidence ?? 'think',
+          durationMs,
+          hintMaxRung: session.rung,
+        },
+      ],
+    },
+  });
+}
 
 type SessionPatch = (s: Session) => Partial<Session>;
 
@@ -842,17 +942,14 @@ function chaptersFor(mode: SessionMode, settings: Settings, stats: Stats): numbe
 }
 
 /**
- * Adaptive difficulty, deliberately gentle: three right in a row nudges it up,
- * two wrong nudges it down, and it never strays more than one stop from the
- * level he set.
+ * Adaptive difficulty, deliberately gentle: three right in a row moves up a
+ * tier, two wrong moves down one. With three tiers a long good run can carry a
+ * session from easy to hard, which is the point — the tier he picked is where
+ * it starts, not a ceiling.
  */
-function adapt(session: Session): number {
+function adapt(session: Session): Tier {
   const recent = session.done.slice(-3);
-  if (recent.length === 3 && recent.every((r) => r.correct)) {
-    return Math.min(MAX_LEVEL, session.level + 1);
-  }
-  if (recent.length >= 2 && recent.slice(-2).every((r) => !r.correct)) {
-    return Math.max(1, session.level - 1);
-  }
-  return session.level;
+  if (recent.length === 3 && recent.every((r) => r.correct)) return harder(session.tier);
+  if (recent.length >= 2 && recent.slice(-2).every((r) => !r.correct)) return easier(session.tier);
+  return session.tier;
 }

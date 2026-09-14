@@ -45,6 +45,11 @@ function plus(n: number): string {
   return n < 0 ? ` - ${-n}` : ` + ${n}`;
 }
 
+/** A number safe to put after an operator: negatives get their own brackets. */
+function signed(n: number): string {
+  return n < 0 ? `\\left(${n}\\right)` : String(n);
+}
+
 /** `3x`, `-x`, `x` — a coefficient in front of a symbol. */
 function coeff(n: number, sym: string): string {
   if (n === 1) return sym;
@@ -582,6 +587,606 @@ const EXAMPLES: Record<string, Build> = {
         `${f} = ${g} \\Rightarrow x = ${r1}\\ \\text{or}\\ x = ${r2}`,
         `A = \\int_{${r1}}^{${r2}}\\left(\\left(${f}\\right) - \\left(${g}\\right)\\right)dx`,
         `= \\int_{${r1}}^{${r2}}\\left(${diff}\\right)dx = ${frac(width ** 3, 6)}`,
+      ],
+    };
+  },
+
+  'cube-of-a-sum': (rng) => {
+    const b = rng.nonZero(-4, 4);
+    return {
+      given: `a = x,\\quad b = ${b}`,
+      steps: [
+        `\\left(x${plus(b)}\\right)^{3} = x^{3} + 3x^{2}\\left(${b}\\right) + 3x\\left(${b}\\right)^{2} + \\left(${b}\\right)^{3}`,
+        `= ${terms([[1, 'x^{3}'], [3 * b, 'x^{2}'], [3 * b * b, 'x'], [b ** 3, '']])}`,
+      ],
+    };
+  },
+
+  'power-of-a-product': (rng) => {
+    const a = rng.int(2, 4);
+    const n = rng.int(2, 3);
+    const p = rng.int(1, 3);
+    return {
+      given: `a = ${a},\\quad n = ${n}`,
+      steps: [
+        `\\left(${a}${pow('x', p)}y\\right)^{${n}} = ${a}^{${n}}${pow('x', p * n)}${pow('y', n)}`,
+        `= ${a ** n}${pow('x', p * n)}${pow('y', n)}`,
+        `\\text{the } ${a} \\text{ is a factor too}`,
+      ],
+    };
+  },
+
+  'fraction-multiply': (rng) => {
+    const a = rng.int(1, 9);
+    const b = rng.int(2, 9);
+    const c = rng.int(1, 9);
+    const d = rng.int(2, 9);
+    return {
+      given: `\\tfrac{${a}}{${b}} \\text{ and } \\tfrac{${c}}{${d}}`,
+      steps: [
+        `\\frac{${a}}{${b}}\\cdot\\frac{${c}}{${d}} = \\frac{${a * c}}{${b * d}} = ${frac(a * c, b * d)}`,
+        `\\frac{${a}}{${b}}\\div\\frac{${c}}{${d}} = \\frac{${a}}{${b}}\\cdot\\frac{${d}}{${c}} = ${frac(a * d, b * c)}`,
+      ],
+    };
+  },
+
+  'compound-fraction': (rng) => {
+    const a = rng.int(1, 9);
+    const b = rng.int(2, 9);
+    const c = rng.int(1, 9);
+    const d = rng.int(2, 9);
+    return {
+      given: `a = ${a},\\quad b = ${b},\\quad c = ${c},\\quad d = ${d}`,
+      steps: [
+        `\\frac{\\ \\frac{${a}}{${b}}\\ }{\\frac{${c}}{${d}}} = \\frac{${a}}{${b}}\\cdot\\frac{${d}}{${c}}`,
+        `= \\frac{${a * d}}{${b * c}} = ${frac(a * d, b * c)}`,
+      ],
+    };
+  },
+
+  'rearrange-formula': (rng) =>
+    rng.pick([
+      {
+        given: 'A = \\tfrac{1}{2}bh \\quad \\text{(solve for } h)',
+        steps: ['2A = bh', 'h = \\frac{2A}{b}'],
+      },
+      {
+        given: 'C = \\tfrac{5}{9}(F - 32) \\quad \\text{(solve for } F)',
+        steps: ['\\frac{9C}{5} = F - 32', 'F = \\frac{9C}{5} + 32'],
+      },
+      {
+        given: '\\frac{1}{R} = \\frac{1}{a} + \\frac{1}{b} \\quad \\text{(solve for } R)',
+        steps: ['\\frac{1}{R} = \\frac{a + b}{ab}', 'R = \\frac{ab}{a + b}'],
+      },
+    ]),
+
+  'root-equation': (rng) => {
+    const c = rng.int(2, 6);
+    const a = rng.nonZero(-8, 8);
+    return {
+      given: `\\sqrt{x${plus(a)}} = ${c}`,
+      steps: [
+        `x${plus(a)} = ${c * c}`,
+        `x = ${c * c - a}`,
+        `\\text{check: } \\sqrt{${c * c - a}${plus(a)}} = \\sqrt{${c * c}} = ${c}`,
+      ],
+    };
+  },
+
+  'absolute-value': (rng) => {
+    const a = rng.int(1, 4);
+    const b = rng.nonZero(-7, 7);
+    const c = rng.int(1, 9);
+    return {
+      given: `\\left|${coeff(a, 'x')}${plus(b)}\\right| = ${c}`,
+      steps: [
+        `${coeff(a, 'x')}${plus(b)} = ${c} \\quad\\text{or}\\quad ${coeff(a, 'x')}${plus(b)} = ${-c}`,
+        `x = ${frac(c - b, a)} \\quad\\text{or}\\quad x = ${frac(-c - b, a)}`,
+      ],
+    };
+  },
+
+  'log-definition': (rng) => {
+    const b = rng.pick([2, 3, 5, 10]);
+    const n = rng.int(2, 5);
+    return {
+      given: `b = ${b},\\quad a = ${b ** n}`,
+      steps: [
+        `\\log_{${b}}\\left(${b ** n}\\right) = ${n} \\iff ${b}^{${n}} = ${b ** n}`,
+        `\\log_{${b}}\\left(\\frac{1}{${b ** n}}\\right) = ${-n} \\iff ${b}^{${-n}} = \\frac{1}{${b ** n}}`,
+      ],
+    };
+  },
+
+  'addition-formulas': (rng) =>
+    rng.pick([
+      {
+        given: 'u = x,\\quad v = \\tfrac{\\pi}{6}',
+        steps: [
+          '\\sin\\left(x + \\tfrac{\\pi}{6}\\right) = \\sin x\\cos\\tfrac{\\pi}{6} + \\cos x\\sin\\tfrac{\\pi}{6}',
+          '= \\tfrac{1}{2}\\sqrt{3}\\sin x + \\tfrac{1}{2}\\cos x',
+        ],
+      },
+      {
+        given: 'u = x,\\quad v = \\tfrac{\\pi}{4}',
+        steps: [
+          '\\cos\\left(x + \\tfrac{\\pi}{4}\\right) = \\cos x\\cos\\tfrac{\\pi}{4} - \\sin x\\sin\\tfrac{\\pi}{4}',
+          '= \\tfrac{1}{2}\\sqrt{2}\\left(\\cos x - \\sin x\\right)',
+        ],
+      },
+      {
+        given: 'u = \\tfrac{\\pi}{4},\\quad v = \\tfrac{\\pi}{6}',
+        steps: [
+          '\\sin\\tfrac{5\\pi}{12} = \\sin\\tfrac{\\pi}{4}\\cos\\tfrac{\\pi}{6} + \\cos\\tfrac{\\pi}{4}\\sin\\tfrac{\\pi}{6}',
+          '= \\tfrac{1}{4}\\left(\\sqrt{6} + \\sqrt{2}\\right)',
+        ],
+      },
+    ]),
+
+  'shift-identities': (rng) =>
+    rng.pick([
+      {
+        given: 'x = \\tfrac{\\pi}{6}',
+        steps: [
+          '\\sin\\left(-\\tfrac{\\pi}{6}\\right) = -\\sin\\tfrac{\\pi}{6} = -\\tfrac{1}{2}',
+          '\\cos\\left(-\\tfrac{\\pi}{6}\\right) = \\cos\\tfrac{\\pi}{6} = \\tfrac{1}{2}\\sqrt{3}',
+        ],
+      },
+      {
+        given: 'x = \\tfrac{\\pi}{3}',
+        steps: [
+          '\\sin\\left(\\tfrac{\\pi}{3} + \\pi\\right) = -\\sin\\tfrac{\\pi}{3} = -\\tfrac{1}{2}\\sqrt{3}',
+          '\\cos\\left(\\tfrac{\\pi}{2} - \\tfrac{\\pi}{3}\\right) = \\sin\\tfrac{\\pi}{3} = \\tfrac{1}{2}\\sqrt{3}',
+        ],
+      },
+    ]),
+
+  'trig-equation': (rng) => {
+    const deg = rng.pick([30, 45, 60]);
+    const value = deg === 30 ? '\\tfrac{1}{2}' : deg === 45 ? '\\tfrac{1}{2}\\sqrt{2}' : '\\tfrac{1}{2}\\sqrt{3}';
+    return {
+      given: `\\sin x = ${value} \\text{ on } [0, 2\\pi)`,
+      steps: [
+        `x = ${piFrac(deg)} \\quad\\text{or}\\quad x = ${piFrac(180 - deg)}`,
+        `\\text{both have the same height on the unit circle}`,
+      ],
+    };
+  },
+
+  'inequality': (rng) => {
+    const a = -rng.int(2, 6);
+    const x = rng.nonZero(-6, 6);
+    const b = rng.nonZero(-9, 9);
+    const c = a * x + b;
+    return {
+      given: `${terms([[a, 'x'], [b, '']])} > ${c}`,
+      steps: [
+        `${coeff(a, 'x')} > ${c - b}`,
+        `x < ${frac(c - b, a)}`,
+        `\\text{dividing by } ${a} \\text{ turned the sign round}`,
+      ],
+    };
+  },
+
+  'completing-square': (rng) => {
+    const half = rng.nonZero(-5, 5);
+    const b = 2 * half;
+    const c = rng.nonZero(-12, 12);
+    return {
+      given: `b = ${b},\\quad c = ${c}`,
+      steps: [
+        `${terms([[1, 'x^{2}'], [b, 'x'], [c, '']])} = \\left(x${plus(half)}\\right)^{2} - ${half * half}${plus(c)}`,
+        `= \\left(x${plus(half)}\\right)^{2}${plus(c - half * half)}`,
+        `\\text{lowest point at } x = ${-half}`,
+      ],
+    };
+  },
+
+  'linear-system': (rng) => {
+    const x = rng.nonZero(-5, 5);
+    const y = rng.nonZero(-5, 5);
+    const a = rng.int(1, 4);
+    const b = rng.int(1, 4);
+    const d = rng.int(1, 4);
+    const e = -rng.int(1, 4);
+    return {
+      given: `x = ${x},\\quad y = ${y} \\text{ (what the system hides)}`,
+      steps: [
+        `${terms([[a, 'x'], [b, 'y']])} = ${a * x + b * y}`,
+        `${terms([[d, 'x'], [e, 'y']])} = ${d * x + e * y}`,
+        `${coeff(a * e - b * d, 'x')} = ${e * (a * x + b * y) - b * (d * x + e * y)} \\Rightarrow x = ${x},\\ y = ${y}`,
+      ],
+    };
+  },
+
+  'tangent-line': (rng) => {
+    const a = rng.nonZero(-4, 4);
+    return {
+      given: `f(x) = x^{2},\\quad a = ${a}`,
+      steps: [
+        `f'(x) = 2x,\\quad f'(${a}) = ${2 * a},\\quad f(${a}) = ${a * a}`,
+        `y = ${2 * a}\\left(x${plus(-a)}\\right)${plus(a * a)}`,
+        `y = ${terms([[2 * a, 'x'], [-(a * a), '']])}`,
+      ],
+    };
+  },
+
+  'stationary-point': (rng) => {
+    const half = rng.nonZero(-5, 5);
+    const b = 2 * half;
+    const c = rng.nonZero(-9, 9);
+    return {
+      given: `f(x) = ${terms([[1, 'x^{2}'], [b, 'x'], [c, '']])}`,
+      steps: [
+        `f'(x) = ${terms([[2, 'x'], [b, '']])}`,
+        `${terms([[2, 'x'], [b, '']])} = 0 \\Rightarrow x = ${-half}`,
+        `f' \\text{ goes from negative to positive, so it is a minimum}`,
+      ],
+    };
+  },
+
+  'standard-antiderivatives': (rng) => {
+    const k = rng.int(2, 6);
+    return {
+      given: `k = ${k}`,
+      steps: [
+        `\\int ${k}e^{x}\\,dx = ${k}e^{x} + C`,
+        `\\int ${k}\\sin x\\,dx = -${k}\\cos x + C`,
+        `\\int ${k}\\cos x\\,dx = ${k}\\sin x + C`,
+      ],
+    };
+  },
+
+  'log-antiderivative': (rng) => {
+    const k = rng.int(2, 8);
+    const a = rng.int(2, 5);
+    const b = rng.int(1, 9);
+    return {
+      given: `k = ${k},\\quad a = ${a},\\quad b = ${b}`,
+      steps: [
+        `\\int \\frac{${k}}{x}\\,dx = ${k}\\ln|x| + C`,
+        `\\int \\frac{${k}}{${a}x + ${b}}\\,dx = ${frac(k, a)}\\ln|${a}x + ${b}| + C`,
+        `\\text{the } ${frac(1, a)} \\text{ pays for the inner derivative}`,
+      ],
+    };
+  },
+
+  'reverse-chain': (rng) => {
+    const n = rng.int(2, 4);
+    return rng.pick([
+      {
+        given: `g(x) = x^{${n}},\\quad g'(x) = ${coeff(n, pow('x', n - 1))}`,
+        steps: [
+          `\\int ${coeff(n, pow('x', n - 1))}e^{x^{${n}}}\\,dx = e^{x^{${n}}} + C`,
+          `\\text{the derivative of the inside is already sitting there}`,
+        ],
+      },
+      {
+        given: 'g(x) = \\sin x,\\quad g\'(x) = \\cos x',
+        steps: [
+          '\\int \\cos x\\sin^{2}x\\,dx = \\tfrac{1}{3}\\sin^{3}x + C',
+          '\\text{power rule on } \\sin x, \\text{ because } \\cos x \\text{ is its derivative}',
+        ],
+      },
+    ]);
+  },
+
+  'by-parts': (rng) => {
+    const k = rng.int(1, 5);
+    return rng.pick([
+      {
+        given: `u = ${coeff(k, 'x')},\\quad v' = e^{x}`,
+        steps: [
+          `\\int ${coeff(k, 'x')}e^{x}\\,dx = ${coeff(k, 'x')}e^{x} - \\int ${k}e^{x}\\,dx`,
+          `= ${coeff(k, 'x')}e^{x} - ${k}e^{x} + C`,
+        ],
+      },
+      {
+        given: 'u = \\ln x,\\quad v\' = 1',
+        steps: [
+          '\\int \\ln x\\,dx = x\\ln x - \\int x\\cdot\\frac{1}{x}\\,dx',
+          '= x\\ln x - x + C',
+        ],
+      },
+    ]);
+  },
+
+  'partial-fractions': (rng) => {
+    const p = rng.int(1, 4);
+    const q = p + rng.int(1, 4);
+    return {
+      given: `p = ${p},\\quad q = ${q}`,
+      steps: [
+        `\\frac{1}{\\left(x - ${p}\\right)\\left(x - ${q}\\right)} = ${frac(1, p - q)}\\left(\\frac{1}{x - ${p}} - \\frac{1}{x - ${q}}\\right)`,
+        `\\int \\frac{dx}{\\left(x - ${p}\\right)\\left(x - ${q}\\right)} = ${frac(1, p - q)}\\ln\\left|\\frac{x - ${p}}{x - ${q}}\\right| + C`,
+      ],
+    };
+  },
+
+  'polynomial-division': (rng) => {
+    const d = rng.int(1, 5);
+    const e = rng.int(1, 5);
+    const r = rng.int(1, 6);
+    // (x + d)(x + e) + r, so the division comes out with remainder r.
+    const b = d + e;
+    const c = d * e + r;
+    return {
+      given: `N(x) = ${terms([[1, 'x^{2}'], [b, 'x'], [c, '']])},\\quad D(x) = x + ${d}`,
+      steps: [
+        `\\frac{${terms([[1, 'x^{2}'], [b, 'x'], [c, '']])}}{x + ${d}} = x + ${e} + \\frac{${r}}{x + ${d}}`,
+        `\\text{now every piece has a rule}`,
+      ],
+    };
+  },
+
+  'total-area': (rng) => {
+    const c = rng.int(1, 3);
+    return {
+      given: `y = ${terms([[1, 'x^{2}'], [-(c * c), '']])} \\text{ on } [0, ${2 * c}]`,
+      steps: [
+        `\\text{it crosses at } x = ${c}`,
+        `A = \\int_{0}^{${c}}\\left(${terms([[c * c, ''], [-1, 'x^{2}']])}\\right)dx + \\int_{${c}}^{${2 * c}}\\left(${terms([[1, 'x^{2}'], [-(c * c), '']])}\\right)dx`,
+        `= ${frac(2 * c ** 3, 3)} + ${frac(4 * c ** 3, 3)} = ${2 * c ** 3}`,
+      ],
+    };
+  },
+
+  'area-about-y': (rng) => {
+    const k = rng.int(1, 4);
+    const d = rng.int(2, 3);
+    return {
+      given: `x = ${terms([[1, 'y^{2}'], [k, '']])},\\quad y \\text{ from } 0 \\text{ to } ${d}`,
+      steps: [
+        `A = \\int_{0}^{${d}}\\left(${terms([[1, 'y^{2}'], [k, '']])}\\right)dy`,
+        `= \\left[\\frac{y^{3}}{3} + ${k}y\\right]_{0}^{${d}} = ${frac(d ** 3 + 3 * k * d, 3)}`,
+      ],
+    };
+  },
+
+  'limit-factor': (rng) => {
+    const r = rng.nonZero(-5, 5);
+    const s = rng.pick([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5].filter((n) => n !== r));
+    return {
+      given: `a = ${r}`,
+      steps: [
+        `\\lim_{x\\to ${r}} \\frac{${terms([[1, 'x^{2}'], [-(r + s), 'x'], [r * s, '']])}}{${terms([[1, 'x'], [-r, '']])}} = \\frac{0}{0}`,
+        `= \\lim_{x\\to ${r}} \\frac{\\left(${terms([[1, 'x'], [-r, '']])}\\right)\\left(${terms([[1, 'x'], [-s, '']])}\\right)}{${terms([[1, 'x'], [-r, '']])}}`,
+        `= \\lim_{x\\to ${r}} \\left(${terms([[1, 'x'], [-s, '']])}\\right) = ${r - s}`,
+      ],
+    };
+  },
+
+  'limit-infinity': (rng) => {
+    const a = rng.nonZero(-6, 6);
+    const b = rng.int(1, 6);
+    const c = rng.nonZero(-8, 8);
+    return {
+      given: `f(x) = \\frac{${terms([[a, 'x^{2}'], [c, 'x']])}}{${terms([[b, 'x^{2}'], [c, '']])}}`,
+      steps: [
+        `\\lim_{x\\to\\infty} \\frac{${terms([[a, 'x^{2}'], [c, 'x']])}}{${terms([[b, 'x^{2}'], [c, '']])}} = \\lim_{x\\to\\infty} \\frac{${a} + \\frac{${c}}{x}}{${b} + \\frac{${c}}{x^{2}}}`,
+        `= ${frac(a, b)}`,
+        `\\text{one degree lower on top would give } 0`,
+      ],
+    };
+  },
+
+  lhopital: (rng) => {
+    const a = rng.int(2, 6);
+    const b = rng.int(2, 6);
+    return {
+      given: `f(x) = \\sin(${a}x),\\quad g(x) = ${coeff(b, 'x')}`,
+      steps: [
+        `\\lim_{x\\to 0} \\frac{\\sin(${a}x)}{${coeff(b, 'x')}} = \\frac{0}{0}`,
+        `= \\lim_{x\\to 0} \\frac{${a}\\cos(${a}x)}{${b}} = ${frac(a, b)}`,
+        `\\text{derivatives separately, never the quotient rule}`,
+      ],
+    };
+  },
+
+  domain: (rng) => {
+    const p = rng.nonZero(-5, 5);
+    const q = rng.nonZero(-5, 5);
+    return {
+      given: `f(x) = \\frac{1}{${terms([[1, 'x^{2}'], [-(p + q), 'x'], [p * q, '']])}}`,
+      steps: [
+        `${terms([[1, 'x^{2}'], [-(p + q), 'x'], [p * q, '']])} = 0`,
+        `(x${plus(-p)})(x${plus(-q)}) = 0`,
+        `\\text{D}(f) = \\mathbb{R} \\setminus \\{${p}, ${q}\\}`,
+      ],
+    };
+  },
+
+  range: (rng) => {
+    const k = rng.int(2, 9);
+    const c = rng.nonZero(-5, 5);
+    return {
+      given: `f(x) = x^{2}${plus(c)}`,
+      steps: [`x^{2} \\ge 0`, `f(x) \\ge ${c}`, `\\text{R}(f) = [${c}, \\infty)`, `k = ${k} \\text{ is reached iff } ${k} \\ge ${c}`],
+    };
+  },
+
+  parity: (rng) => {
+    const a = rng.nonZero(-4, 4);
+    const b = rng.nonZero(-6, 6);
+    return {
+      given: `f(x) = ${terms([[a, 'x^{3}'], [b, 'x']])}`,
+      steps: [
+        `f(-x) = ${coeff(a, '(-x)^{3}')} ${b < 0 ? '-' : '+'} ${coeff(Math.abs(b), '(-x)')}`,
+        `= ${terms([[-a, 'x^{3}'], [-b, 'x']])}`,
+        `= -f(x) \\Rightarrow f \\text{ is odd}`,
+      ],
+    };
+  },
+
+  inverse: (rng) => {
+    const a = rng.nonZero(-5, 5);
+    const b = rng.nonZero(-8, 8);
+    return {
+      given: `f(x) = ${terms([[a, 'x'], [b, '']])}`,
+      steps: [`x = ${coeff(a, 'y')}${plus(b)}`, `${coeff(a, 'y')} = x${plus(-b)}`, `f^{-1}(x) = \\frac{x${plus(-b)}}{${a}}`],
+    };
+  },
+
+  composition: (rng) => {
+    const a = rng.nonZero(-4, 4);
+    const b = rng.nonZero(-6, 6);
+    return {
+      given: `f(x) = x^{2}, \\ g(x) = ${terms([[a, 'x'], [b, '']])}`,
+      steps: [
+        `f(g(x)) = (${terms([[a, 'x'], [b, '']])})^{2} = ${terms([[a * a, 'x^{2}'], [2 * a * b, 'x'], [b * b, '']])}`,
+        `g(f(x)) = ${terms([[a, 'x^{2}'], [b, '']])}`,
+      ],
+    };
+  },
+
+  'derivative-definition': (rng) => {
+    const a = rng.nonZero(-3, 3);
+    const p = rng.int(2, 4);
+    return {
+      given: `f(x) = ${coeff(p, 'x^{2}')}, \\ a = ${a}`,
+      steps: [
+        `\\frac{${p}(${a}+h)^{2} - ${p * a * a}}{h} = \\frac{${2 * p * a}h + ${p}h^{2}}{h}`,
+        `= ${2 * p * a} + ${p}h`,
+        `\\xrightarrow{h\\to 0} ${2 * p * a}`,
+      ],
+    };
+  },
+
+  'higher-derivatives': (rng) => {
+    const a = rng.int(2, 3);
+    const n = rng.int(4, 6);
+    const cycle = ['\\sin', '\\cos', '-\\sin', '-\\cos'];
+    return {
+      given: `f(x) = \\sin(${coeff(a, 'x')}), \\ n = ${n}`,
+      steps: [
+        `f' = ${a}\\cos(${coeff(a, 'x')}), \\quad f'' = -${a * a}\\sin(${coeff(a, 'x')})`,
+        `f^{(k)} = ${a}^{k}\\cdot${cycle[0]}\\text{-cycle}[k \\bmod 4]`,
+        `f^{(${n})} = ${a ** n}${cycle[n % 4]}(${coeff(a, 'x')})`,
+      ],
+    };
+  },
+
+  'logarithmic-differentiation': () => ({
+    given: 'f(x) = x^{x}',
+    steps: ['\\ln f = x\\ln x', "\\frac{f'}{f} = \\ln x + 1", "f' = x^{x}(\\ln x + 1)"],
+  }),
+
+  squeeze: (rng) => {
+    const p = rng.int(2, 3);
+    return {
+      given: `f(x) = x^{${p}}\\sin\\left(\\frac{1}{x}\\right), \\ x \\to 0`,
+      steps: [
+        `-1 \\le \\sin\\left(\\frac{1}{x}\\right) \\le 1`,
+        `-\\left|x^{${p}}\\right| \\le x^{${p}}\\sin\\left(\\frac{1}{x}\\right) \\le \\left|x^{${p}}\\right|`,
+        `\\left|x^{${p}}\\right| \\to 0 \\Rightarrow \\lim = 0`,
+      ],
+    };
+  },
+
+  'limit-exponential': (rng) => {
+    const a = rng.int(2, 6);
+    return {
+      given: `\\lim_{x\\to\\infty}\\left(\\frac{x + ${a}}{x}\\right)^{x}`,
+      steps: [
+        `= \\lim_{x\\to\\infty}\\left(1 + \\frac{${a}}{x}\\right)^{x}`,
+        `= e^{${a}}`,
+      ],
+    };
+  },
+
+  slope: (rng) => {
+    const m = rng.nonZero(-3, 3);
+    const q = rng.nonZero(-5, 5);
+    const x1 = rng.int(-3, 0);
+    const x2 = rng.int(1, 4);
+    return {
+      given: `(${x1}, ${m * x1 + q}) \\text{ and } (${x2}, ${m * x2 + q})`,
+      steps: [
+        `m = \\frac{${m * x2 + q} - (${m * x1 + q})}{${x2} - (${x1})} = ${m}`,
+        `${m * x1 + q} = ${coeff(m, String(x1))} + q \\Rightarrow q = ${q}`,
+        `y = ${terms([[m, 'x'], [q, '']])}`,
+      ],
+    };
+  },
+
+  circle: (rng) => {
+    const h = rng.int(-3, 3);
+    const k = rng.int(-3, 3);
+    const r = rng.int(2, 5);
+    return {
+      given: `x^{2}${plus(-2 * h)}x + y^{2}${plus(-2 * k)}y${plus(h * h + k * k - r * r)} = 0`,
+      steps: [
+        `(x${plus(-h)})^{2} + (y${plus(-k)})^{2} = ${r * r}`,
+        `\\text{centre } (${h}, ${k}), \\ r = ${r}`,
+      ],
+    };
+  },
+
+  'vector-arithmetic': (rng) => {
+    const a = [rng.nonZero(-4, 4), rng.nonZero(-4, 4)];
+    const b = [rng.nonZero(-4, 4), rng.nonZero(-4, 4)];
+    const k = rng.pick([2, 3, -2]);
+    const col = (v: number[]) => `\\begin{pmatrix}${v[0]}\\\\${v[1]}\\end{pmatrix}`;
+    return {
+      given: `\\vec{a} = ${col(a)}, \\ \\vec{b} = ${col(b)}, \\ k = ${k}`,
+      steps: [
+        `\\vec{a} + \\vec{b} = ${col([a[0]! + b[0]!, a[1]! + b[1]!])}`,
+        `${k}\\vec{a} = ${col([k * a[0]!, k * a[1]!])}`,
+      ],
+    };
+  },
+
+  'vector-length': (rng) => {
+    const pairs: Array<[number, number]> = [[3, 4], [5, 12], [8, 6], [7, 24]];
+    const [x, y] = rng.pick(pairs);
+    const s = rng.pick([1, -1]);
+    return {
+      given: `\\vec{a} = \\begin{pmatrix}${s * x}\\\\${y}\\end{pmatrix}`,
+      steps: [
+        `\\left|\\vec{a}\\right| = \\sqrt{${x * x} + ${y * y}} = \\sqrt{${x * x + y * y}}`,
+        `= ${Math.round(Math.sqrt(x * x + y * y))}`,
+      ],
+    };
+  },
+
+  'dot-product': (rng) => {
+    const a = [rng.nonZero(-4, 4), rng.nonZero(-4, 4)];
+    const perpendicular = rng.bool();
+    const b = perpendicular ? [-a[1]!, a[0]!] : [rng.nonZero(-4, 4), rng.nonZero(-4, 4)];
+    const dot = a[0]! * b[0]! + a[1]! * b[1]!;
+    const col = (v: number[]) => `\\begin{pmatrix}${v[0]}\\\\${v[1]}\\end{pmatrix}`;
+    return {
+      given: `\\vec{a} = ${col(a)}, \\ \\vec{b} = ${col(b)}`,
+      steps: [
+        `\\vec{a}\\cdot\\vec{b} = ${signed(a[0]!)}\\cdot${signed(b[0]!)} + ${signed(a[1]!)}\\cdot${signed(b[1]!)} = ${dot}`,
+        dot === 0 ? `\\Rightarrow \\theta = 90°` : dot > 0 ? `\\Rightarrow \\theta < 90°` : `\\Rightarrow \\theta > 90°`,
+      ],
+    };
+  },
+
+  continuity: (rng) => {
+    const c = rng.int(1, 4);
+    const m = rng.nonZero(-5, 5);
+    const a = m * c - c * c;
+    return {
+      given: `f(x) = x^{2} + a \\text{ below } ${c}, \\ ${coeff(m, 'x')} \\text{ from } ${c}`,
+      steps: [
+        `\\lim_{x\\uparrow ${c}} \\left(x^{2} + a\\right) = ${c * c} + a`,
+        `\\lim_{x\\downarrow ${c}} ${coeff(m, 'x')} = ${m * c}`,
+        `${c * c} + a = ${m * c} \\Rightarrow a = ${a}`,
+      ],
+    };
+  },
+
+  asymptote: (rng) => {
+    const c = rng.nonZero(-5, 5);
+    const a = rng.nonZero(-4, 4);
+    const b = rng.nonZero(-9, 9);
+    return {
+      given: `f(x) = \\frac{${terms([[a, 'x'], [b, '']])}}{${terms([[1, 'x'], [-c, '']])}}`,
+      steps: [
+        `\\text{vertical: } ${terms([[1, 'x'], [-c, '']])} = 0 \\Rightarrow x = ${c}`,
+        `\\text{horizontal: } \\lim_{x\\to\\infty} \\frac{${terms([[a, 'x'], [b, '']])}}{${terms([[1, 'x'], [-c, '']])}} = ${a}`,
       ],
     };
   },
