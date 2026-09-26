@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronDown, Sparkles, X } from 'lucide-react';
+import { Check, ChevronDown, Repeat2, Sparkles, X } from 'lucide-react';
 import { readDerivative } from '@calcflow/engine';
 import type { ErrorClass } from '@calcflow/shared';
 import { ruleById, type Problem } from '@calcflow/generators';
@@ -21,6 +21,11 @@ interface Props {
   durationMs: number;
   hintsUsed: number;
   compact?: boolean;
+  /**
+   * Another one like it, added to the set. Offered with the steps, which is
+   * where he is when he thinks he has it now and wants to find out.
+   */
+  similar?: { onPick(): void; adds: boolean };
 }
 
 /**
@@ -109,6 +114,7 @@ export function FeedbackCard({
   durationMs,
   hintsUsed,
   compact,
+  similar,
 }: Props) {
   const [showSteps, setShowSteps] = useState(false);
   const showToast = useStore((s) => s.showToast);
@@ -205,6 +211,21 @@ export function FeedbackCard({
             {problem.solution.map((s, i) => (
               <Step key={i} step={s} index={i} onOpenRule={setOpenRule} />
             ))}
+
+            {similar && (
+              <button
+                onClick={similar.onPick}
+                className="flex w-full items-center gap-2 rounded-[10px] border border-accent/60 bg-accent/10 px-3.5 py-2.5 text-left text-[13px] font-medium text-accent hover:bg-accent/15"
+              >
+                <Repeat2 className="size-4 shrink-0" />
+                Practice a similar problem
+                {similar.adds && (
+                  <span className="ml-auto shrink-0 font-mono text-[11px] font-normal text-faint">
+                    +1 to the set
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* The steps say what the answer was. When that is not the same as
                 knowing why his own line was wrong, this hands the pair over to

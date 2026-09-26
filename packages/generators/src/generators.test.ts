@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fuzz } from './harness.js';
-import { GENERATORS, build, candidates, rebuild } from './registry.js';
+import { GENERATORS, build, candidates, rebuild, similar } from './registry.js';
 import { RULES } from './rules.js';
 import { CHAPTER_NUMBERS, TIERS } from '@calcflow/shared';
 
@@ -38,6 +38,21 @@ describe('registry', () => {
       const first = build(g, 'seed-1', tier);
       const again = rebuild(g.id, 'seed-1', tier);
       expect(again).toEqual(first);
+    }
+  });
+});
+
+describe('similar', () => {
+  it('keeps the generator and the tier, and changes the question', () => {
+    for (const g of GENERATORS) {
+      for (const tier of g.supports) {
+        const missed = build(g, 'missed', tier);
+        const next = similar(missed)!;
+        expect(next.generatorId, g.id).toBe(g.id);
+        expect(next.tier, g.id).toBe(tier);
+        expect(next.seed, g.id).not.toBe(missed.seed);
+        expect(next.prompt, `${g.id} at ${tier}`).not.toBe(missed.prompt);
+      }
     }
   });
 });

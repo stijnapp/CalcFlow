@@ -160,6 +160,9 @@ export function PracticeTablet() {
                   confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
                   durationMs={outcome.durationMs}
                   hintsUsed={session.rung}
+                  similar={
+                    graded ? { onPick: store.practiceSimilar, adds: session.target !== null } : undefined
+                  }
                 />
                 {problem.plot && (
                   <SelfGradeRow

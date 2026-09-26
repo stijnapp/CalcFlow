@@ -19,6 +19,7 @@ import { AnswerField } from '@/components/AnswerField';
 import { ConfidenceRow } from '@/components/ConfidenceRow';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackCard } from '@/components/FeedbackCard';
+import { Eyebrow } from '@/components/Eyebrow';
 import { Fit } from '@/components/Fit';
 import { HintPanel } from '@/components/HintPanel';
 import { ArrowSnap } from '@/components/ArrowSnap';
@@ -26,6 +27,7 @@ import { HoverLabel } from '@/components/HoverLabel';
 import { PenWidth } from '@/components/PenWidth';
 import { ProblemCard } from '@/components/ProblemCard';
 import { ProgressDots } from '@/components/ProgressDots';
+import { Prose } from '@/components/Prose';
 import { RevealToggle } from '@/components/RevealToggle';
 import { SelfGradeRow } from '@/components/SelfGrade';
 import { Sheet, SHEET_PEEK } from '@/components/Sheet';
@@ -152,29 +154,97 @@ export function PracticePhone() {
   if (fullscreen) {
     return (
       <div className="relative flex h-full flex-col bg-canvas">
-        {/* The problem stays readable while writing, as one thin bar. */}
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-edge bg-page/95 px-4 py-3.5">
-          <Fit className="min-w-0 flex-1 text-[17px]">
-            <Tex>{problem.prompt}</Tex>
-          </Fit>
-          {/* Pen-only is a mode he flips mid-thought, so it keeps a fixed place
-              up here rather than sliding away with the scrolling tools. */}
-          <PhoneTool
-            small
-            tint
-            active={settings.penOnly}
-            onClick={() => patchSettings({ penOnly: !settings.penOnly })}
-            label="Pen-only mode"
-          >
-            <Hand className="size-[15px]" />
-          </PhoneTool>
-          <button
-            onClick={() => setFullscreen(false)}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-raised px-2.5 text-accent"
-          >
-            <Minimize className="size-3.5" />
-            <span className="font-mono text-[10px] tracking-[0.08em]">EXIT</span>
-          </button>
+        {/* The problem stays readable while writing, as one thin bar — or,
+            tapped, as the whole question. */}
+        <div className="flex shrink-0 flex-col border-b border-edge bg-page/95">
+          <div className="flex items-center gap-2.5 px-4 py-3.5">
+            <button
+              onClick={store.toggleQuestion}
+              aria-expanded={session.questionOpen}
+              aria-label={session.questionOpen ? 'Shrink the question' : 'Show the whole question'}
+              className="relative min-w-0 flex-1 text-left"
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                {session.questionOpen ? (
+                  <motion.div
+                    key="instruction"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={SPRING}
+                  >
+                    <Eyebrow className="text-[10px] leading-snug">
+                      {problem.instruction.toUpperCase()}
+                    </Eyebrow>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="line"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={SPRING}
+                  >
+                    <Fit className="text-[17px]">
+                      <Tex>{problem.prompt}</Tex>
+                    </Fit>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+            {/* Pen-only is a mode he flips mid-thought, so it keeps a fixed place
+                up here rather than sliding away with the scrolling tools. */}
+            <PhoneTool
+              small
+              tint
+              active={settings.penOnly}
+              onClick={() => patchSettings({ penOnly: !settings.penOnly })}
+              label="Pen-only mode"
+            >
+              <Hand className="size-[15px]" />
+            </PhoneTool>
+            <button
+              onClick={() => setFullscreen(false)}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-raised px-2.5 text-accent"
+            >
+              <Minimize className="size-3.5" />
+              <span className="font-mono text-[10px] tracking-[0.08em]">EXIT</span>
+            </button>
+          </div>
+          <AnimatePresence initial={false}>
+            {session.questionOpen && (
+              <motion.button
+                key="whole"
+                onClick={store.toggleQuestion}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={SPRING}
+                className="block w-full shrink-0 overflow-hidden text-left"
+              >
+                {/* Grows out of the line it replaces, rather than fading in over it. */}
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.8 }}
+                  transition={SPRING}
+                  className="flex origin-top-left flex-col gap-3 px-4 pb-4"
+                >
+                  {problem.promptText && (
+                    <Prose className="text-sm leading-relaxed text-ink2 text-pretty">
+                      {problem.promptText}
+                    </Prose>
+                  )}
+                  <Fit className="text-2xl">
+                    <Tex>{problem.prompt}</Tex>
+                  </Fit>
+                  {problem.note && (
+                    <Prose className="-mt-1 text-xs text-faint text-pretty">{problem.note}</Prose>
+                  )}
+                </motion.div>
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="relative min-h-0 flex-1">{canvasEl}</div>
@@ -343,7 +413,7 @@ export function PracticePhone() {
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={SPRING}
-          className="absolute inset-x-0 bottom-0 z-30 flex flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
+          className="scroll-y absolute inset-x-0 bottom-0 z-30 flex max-h-full flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
         >
           <FeedbackCard
             problem={problem}
@@ -353,6 +423,9 @@ export function PracticePhone() {
             confidence={CONFIDENCE_LABEL[session.confidence ?? 'think']}
             durationMs={outcome.durationMs}
             hintsUsed={session.rung}
+            similar={
+              graded ? { onPick: store.practiceSimilar, adds: session.target !== null } : undefined
+            }
             compact
           />
           {problem.plot && (

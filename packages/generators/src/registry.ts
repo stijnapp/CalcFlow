@@ -300,3 +300,19 @@ export function draw(opts: DrawOptions): Problem | null {
   const g = pool[Math.floor(random() * pool.length)]!;
   return build(g, newSeed(random), opts.tier);
 }
+
+/**
+ * Another problem of the same kind and at the same tier — the one to try
+ * straight after missing this one, to find out whether the steps have landed.
+ * A generator with little room can come back with the very same numbers, so
+ * it gets a few more goes at something he has not just seen.
+ */
+export function similar(problem: Problem, random: () => number = Math.random): Problem | null {
+  const g = generatorById(problem.generatorId);
+  if (!g) return null;
+  let next = build(g, newSeed(random), problem.tier);
+  for (let i = 0; i < 8 && next.prompt === problem.prompt; i++) {
+    next = build(g, newSeed(random), problem.tier);
+  }
+  return next;
+}

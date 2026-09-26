@@ -7,7 +7,7 @@ import {
   stripPlusC,
   type GradeResult,
 } from '@calcflow/engine';
-import { draw, rebuild, type Problem } from '@calcflow/generators';
+import { draw, rebuild, similar, type Problem } from '@calcflow/generators';
 import {
   DEFAULT_SETTINGS,
   type Attempt,
@@ -156,6 +156,12 @@ export interface Session {
   /** What is typed into the hint panel's "am I on track" box. */
   onTrackLine: string;
   /**
+   * The fullscreen canvas shows the question at full size rather than as one
+   * thin line. His to open and close; it lasts until the next problem, and is
+   * not saved — reopening the app starts from the thin line again.
+   */
+  questionOpen: boolean;
+  /**
    * The working on the canvas. It is state like any other: closing the app and
    * coming back, or dropping the canvas into fullscreen — which remounts it —
    * used to throw the derivation away and leave him with the question again.
@@ -239,6 +245,13 @@ interface Store {
 
   submit(): void;
   next(): void;
+  /**
+   * Moves on to another problem like the one just missed, added to the set
+   * rather than taking the place of one still to come: the second of three,
+   * missed, becomes the third of four.
+   */
+  practiceSimilar(): void;
+  toggleQuestion(): void;
   setCanvasFullscreen(on: boolean): void;
 }
 
@@ -415,19 +428,7 @@ export const useStore = create<Store>((set, get) => ({
         level: levelOf(settings.tier),
         only: opts?.only,
         done: [],
-        problem,
-        startedAt: Date.now(),
-        answers: problem.answers.map(() => ''),
-        activeField: 0,
-        confidence: null,
-        hintsOpen: false,
-        rung: 0,
-        outcome: null,
-        selfGrade: null,
-        reveal: 'both',
-        onTrack: null,
-        onTrackLine: '',
-        canvas: null,
+        ...fresh(problem),
       },
     });
     navigateFn?.(SCREEN_PATH.practice);
@@ -596,25 +597,28 @@ export const useStore = create<Store>((set, get) => ({
       return;
     }
 
+    set({ canvasFullscreen: false, session: { ...session, ...fresh(problem) } });
+  },
+
+  practiceSimilar() {
+    const { session } = get();
+    // Only from an answer that is in the log: a sketch not yet marked has not
+    // been written, and moving on would throw it away.
+    if (!session?.outcome || (session.problem.plot && !session.selfGrade)) return;
+    const problem = similar(session.problem);
+    if (!problem) return;
     set({
       canvasFullscreen: false,
       session: {
         ...session,
-        problem,
-        startedAt: Date.now(),
-        answers: problem.answers.map(() => ''),
-        activeField: 0,
-        confidence: null,
-        hintsOpen: false,
-        rung: 0,
-        outcome: null,
-        selfGrade: null,
-        reveal: 'both',
-        onTrack: null,
-        onTrackLine: '',
-        canvas: null,
+        target: session.target === null ? null : session.target + 1,
+        ...fresh(problem),
       },
     });
+  },
+
+  toggleQuestion() {
+    patchSession(set, get, (s) => ({ questionOpen: !s.questionOpen }));
   },
 
   setCanvasFullscreen(canvasFullscreen) {
@@ -871,6 +875,7 @@ function reviveSession(stored: StoredSession): Session | null {
     reveal: 'both',
     onTrack: null,
     onTrackLine: stored.onTrackLine ?? '',
+    questionOpen: false,
     canvas: stored.canvas ?? null,
   };
 }
@@ -937,6 +942,26 @@ function record(
       ],
     },
   });
+}
+
+/** Everything about a session that belongs to the problem on screen, as it starts. */
+function fresh(problem: Problem) {
+  return {
+    problem,
+    startedAt: Date.now(),
+    answers: problem.answers.map(() => ''),
+    activeField: 0,
+    confidence: null,
+    hintsOpen: false,
+    rung: 0,
+    outcome: null,
+    selfGrade: null,
+    reveal: 'both',
+    onTrack: null,
+    onTrackLine: '',
+    questionOpen: false,
+    canvas: null,
+  } satisfies Partial<Session>;
 }
 
 type SessionPatch = (s: Session) => Partial<Session>;
