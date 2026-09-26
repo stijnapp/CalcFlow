@@ -31,13 +31,14 @@ export default defineConfig({
         description: 'Unlimited practice for the RU Mathematics Practice Book.',
         theme_color: '#141210',
         background_color: '#141210',
-        // No browser chrome, but Android's own bars stay: the clock and the
-        // battery are worth the strip they sit in, and a gesture bar drawn over
-        // the app is a gesture bar he cannot see the edge of. `theme_color`
-        // paints the status bar and `background_color` the navigation bar, so
-        // both read as part of the page rather than as black bands around it.
-        display: 'standalone',
-        display_override: ['standalone', 'minimal-ui'],
+        // No browser chrome and no system bars. The 9th batch tried keeping
+        // Android's bars, coloured to match; in use they were two bands of
+        // screen spent on a clock, and a swipe from the edge still brings them
+        // back over the app when he wants them. `theme_color` and
+        // `background_color` stay matched to the page for that moment, and
+        // for the standalone fallback.
+        display: 'fullscreen',
+        display_override: ['fullscreen', 'standalone', 'minimal-ui'],
         orientation: 'any',
         start_url: '/',
         scope: '/',

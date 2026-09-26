@@ -28,7 +28,7 @@ export function Notices() {
   const [updateHidden, setUpdateHidden] = useState(false);
   const error = useStore((s) => s.syncError);
   const kind = useStore((s) => s.syncErrorKind);
-  const seen = useStore((s) => s.syncErrorSeen);
+  const dismissed = useStore((s) => s.syncErrorDismissed);
   const store = useStore();
 
   // Losing the tailnet for a moment is not news — the minute timer would
@@ -49,7 +49,7 @@ export function Notices() {
   }, [error, kind]);
 
   const out = WAY_OUT[kind ?? 'server'];
-  const showSync = Boolean(error) && error !== seen && settled;
+  const showSync = Boolean(error) && kind !== dismissed && settled;
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-14 z-50 flex flex-col items-center gap-2 px-3">

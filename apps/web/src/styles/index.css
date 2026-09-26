@@ -77,6 +77,16 @@
     height: 100%;
   }
 
+  /*
+   * Fullscreen with `viewport-fit=cover` draws the page under a camera cutout
+   * too. The insets are 0 everywhere there is nothing in the way, so this
+   * only ever moves the app off the hole in the screen.
+   */
+  #root {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+
   body {
     margin: 0;
     background: var(--color-page);

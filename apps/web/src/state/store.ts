@@ -54,6 +54,28 @@ import {
 import { sampleAttempts } from './sample';
 import { computeStats, slowChapters, weakChapters, type Stats } from './stats';
 
+const DISMISSED_KEY = 'calcflow.syncDismissed';
+const FAILURES: readonly string[] = ['offline', 'auth', 'server', 'protocol'] satisfies SyncFailure[];
+
+/** Storage can be missing or refuse (private mode); the notice then just shows again. */
+function loadDismissed(): SyncFailure | null {
+  try {
+    const value = localStorage.getItem(DISMISSED_KEY);
+    return value && FAILURES.includes(value) ? (value as SyncFailure) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDismissed(kind: SyncFailure | null): void {
+  try {
+    if (kind) localStorage.setItem(DISMISSED_KEY, kind);
+    else localStorage.removeItem(DISMISSED_KEY);
+  } catch {
+    // Dismissed for this run only.
+  }
+}
+
 export type Screen = 'home' | 'practice' | 'summary' | 'stats' | 'settings' | 'rules';
 
 export const SCREEN_PATH: Record<Screen, string> = {
@@ -168,11 +190,17 @@ interface Store {
   /** Which kind of failure it was, so the notice can offer the right way out. */
   syncErrorKind: SyncFailure | null;
   /**
-   * The failure he has already waved away. A background sync retries every
-   * minute; without this the same notice would come back a minute after he
+   * The kind of failure he has already waved away. A background sync retries
+   * every minute; without this the same notice comes back a minute after he
    * closed it, which is how a notice teaches you to ignore it.
+   *
+   * Keyed by kind and not by wording — a backend that is down alternates
+   * between "did not answer" and "unreachable", and each used to count as news
+   * — and kept on the device, so closing the app does not un-dismiss it. It
+   * lapses when a sync gets through or the address or token changes: either
+   * is the start of a different story.
    */
-  syncErrorSeen: string | null;
+  syncErrorDismissed: SyncFailure | null;
 
   init(): Promise<void>;
   go(screen: Screen): void;
@@ -231,7 +259,7 @@ export const useStore = create<Store>((set, get) => ({
   syncing: false,
   syncError: null,
   syncErrorKind: null,
-  syncErrorSeen: null,
+  syncErrorDismissed: loadDismissed(),
 
   async init() {
     let settings = DEFAULT_SETTINGS;
@@ -304,6 +332,10 @@ export const useStore = create<Store>((set, get) => ({
     };
     set({ settings });
     void saveSettings(settings);
+    if ('backendUrl' in patch || 'token' in patch) {
+      set({ syncErrorDismissed: null });
+      saveDismissed(null);
+    }
   },
 
   toggleChapter(n) {
@@ -352,7 +384,9 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   dismissSyncError() {
-    set({ syncErrorSeen: get().syncError });
+    const kind = get().syncErrorKind;
+    set({ syncErrorDismissed: kind });
+    saveDismissed(kind);
   },
 
   syncQuietly() {
@@ -665,7 +699,8 @@ async function exchange(loud: boolean): Promise<void> {
   useStore.setState({ syncing: true });
   try {
     const report = await runSync(ports, target);
-    useStore.setState({ syncError: null, syncErrorKind: null, syncErrorSeen: null });
+    useStore.setState({ syncError: null, syncErrorKind: null, syncErrorDismissed: null });
+    saveDismissed(null);
     useStore.getState().patchSettings({ lastSyncedAt: Date.now() });
     await useStore.getState().refreshQueued();
     if (loud) useStore.getState().showToast(summarise(report));

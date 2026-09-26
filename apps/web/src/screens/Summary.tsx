@@ -44,7 +44,7 @@ export function Summary({ compact }: { compact?: boolean }) {
       <div
         className={cx(
           'flex w-full flex-col gap-8 rounded-4xl border border-border bg-card',
-          compact ? 'gap-6' : 'max-w-[900px] px-11 py-10',
+          compact ? 'gap-6 px-5 py-6' : 'max-w-[900px] px-11 py-10',
         )}
       >
         <div className="flex flex-wrap items-end gap-7">
@@ -57,7 +57,7 @@ export function Summary({ compact }: { compact?: boolean }) {
               <span className="text-[28px] text-faint">/ {items.length}</span>
             </div>
           </div>
-          <div className="ml-auto flex gap-8">
+          <div className={cx('flex gap-8', compact ? 'w-full justify-between' : 'ml-auto')}>
             <Stat label="TIME" value={duration(totalMs)} />
             <Stat label="HINTS" value={String(hints)} />
             <Stat label="MEDIAN" value={duration(median(items.map((i) => i.durationMs)))} />
@@ -120,7 +120,10 @@ export function Summary({ compact }: { compact?: boolean }) {
               })
             }
             className={cx(
-              'grid h-[60px] flex-1 place-items-center rounded-lg text-[17px] font-semibold',
+              // Not `flex-1` in the phone's column: a zero basis there is what
+              // squeezed this to the height of its own label.
+              'grid h-[60px] place-items-center rounded-lg text-[17px] font-semibold',
+              compact ? 'shrink-0' : 'flex-1',
               misses.length === 0
                 ? 'cursor-not-allowed bg-raised text-faint'
                 : 'bg-accent text-on-accent hover:bg-accent-hi',
@@ -134,7 +137,7 @@ export function Summary({ compact }: { compact?: boolean }) {
             onClick={() => store.go('home')}
             className={cx(
               'grid h-[60px] place-items-center rounded-lg border border-border bg-card text-base text-ink2',
-              compact ? '' : 'w-[200px]',
+              compact ? 'shrink-0' : 'w-[200px]',
             )}
           >
             Done for now
