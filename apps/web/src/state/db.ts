@@ -22,7 +22,8 @@ export interface StoredSession {
   mode: SessionMode;
   target: number | null;
   chapters: number[];
-  tier: Tier;
+  /** Where adaptive difficulty had got to; see `Session.level`. */
+  level: number;
   only?: string[];
   done: Array<
     ProblemRef & {

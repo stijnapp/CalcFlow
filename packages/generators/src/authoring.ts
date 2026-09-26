@@ -62,6 +62,13 @@ export function power(base: Latex, n: number | Latex): Latex {
   return `${base}^{${n}}`;
 }
 
+/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th, 21st. */
+export function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+}
+
 /** A coefficient glued to a body: 1 vanishes, -1 becomes a bare minus. */
 export function term(coef: number, body: Latex = ''): Latex {
   if (body === '') return String(coef);

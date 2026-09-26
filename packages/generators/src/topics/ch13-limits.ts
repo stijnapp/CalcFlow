@@ -46,7 +46,7 @@ export const factorLimit: Generator = {
             'limit-factor',
             'Multiply by the conjugate',
             `\\lim_{x\\to ${a}} \\frac{x - ${a}}{\\left(x - ${a}\\right)\\left(${rootOf('x')} + ${q}\\right)}`,
-            `\\left(\\sqrt{x} - ${q}\\right)\\left(\\sqrt{x} + ${q}\\right) = x - ${a}.`,
+            `$\\left(\\sqrt{x} - ${q}\\right)\\left(\\sqrt{x} + ${q}\\right) = x - ${a}$.`,
           ),
           setup(
             'limit-factor',
@@ -128,7 +128,7 @@ export const limitAtInfinity: Generator = {
             'limit-infinity',
             'Divide top and bottom by x',
             `\\lim_{x\\to\\infty} \\frac{${a} + ${frac(String(b), 'x')}}{${rootOf(`1 + ${frac(String(k), 'x^{2}')}`)}}`,
-            `Inside the root, dividing by x means dividing by x^{2} — that is where the root's own square comes from.`,
+            `Inside the root, dividing by $x$ means dividing by $x^{2}$ — that is where the root's own square comes from.`,
           ),
           aside('Everything with an x underneath dies', `\\frac{${a} + 0}{${rootOf('1 + 0')}}`),
           step('limit-infinity', 'The value', String(a)),
@@ -478,7 +478,7 @@ export const squeeze: Generator = {
           'The oscillating factor is bounded',
           `${bounds[0]} \\le ${oscillating} \\le ${bounds[1]}`,
           tier === 'hard'
-            ? `The exponent never leaves [-1, 1], and e^t is increasing — so the whole factor is stuck between e^{-1} and e. It never gets close to 0, but it never runs away either, and that is enough.`
+            ? `The exponent never leaves $[-1, 1]$, and $e^{t}$ is increasing — so the whole factor is stuck between $e^{-1}$ and $e$. It never gets close to 0, but it never runs away either, and that is enough.`
             : 'Which is all that is ever known about it, and all that is needed.',
         ),
         aside(

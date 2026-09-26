@@ -10,8 +10,6 @@ import {
 import { draw, rebuild, type Problem } from '@calcflow/generators';
 import {
   DEFAULT_SETTINGS,
-  easier,
-  harder,
   type Attempt,
   type Confidence,
   type ErrorClass,
@@ -21,6 +19,7 @@ import {
   type Tier,
 } from '@calcflow/shared';
 import type { CanvasState } from '@/canvas/strokes';
+import { levelOf, nextLevel, tierFor } from './adaptive';
 import { deviceLabel } from '@/lib/deviceName';
 import { ulid } from '@/lib/ulid';
 import {
@@ -96,13 +95,21 @@ export interface Outcome {
   durationMs: number;
 }
 
+export interface Summary {
+  target: number | null;
+  done: SessionItem[];
+}
+
 export interface Session {
   mode: SessionMode;
   /** null in endless mode. */
   target: number | null;
   chapters: number[];
-  /** How hard this session is drawing at; adaptive mode moves it. */
-  tier: Tier;
+  /**
+   * How hard this session is drawing at, from 0 (all easy) to 2 (all hard).
+   * Fixed at the tier he picked unless adaptive mode is on; see `adaptive.ts`.
+   */
+  level: number;
   only?: string[];
   done: SessionItem[];
   problem: Problem;
@@ -140,6 +147,12 @@ interface Store {
   attempts: Attempt[];
   stats: Stats;
   session: Session | null;
+  /**
+   * The set that just ended, for the summary screen. Only in memory: the
+   * attempts are in the log, and a summary is something to read on the way
+   * out, not somewhere to come back to.
+   */
+  summary: Summary | null;
   canvasFullscreen: boolean;
   toast: string | null;
   /** Identity of the toast on screen; a change is what replays the animation. */
@@ -209,6 +222,7 @@ export const useStore = create<Store>((set, get) => ({
   attempts: [],
   stats: computeStats([]),
   session: null,
+  summary: null,
   canvasFullscreen: false,
   toast: null,
   toastId: 0,
@@ -232,6 +246,13 @@ export const useStore = create<Store>((set, get) => ({
       settings = loadedSettings;
       attempts = loadedAttempts;
       session = stored ? reviveSession(stored) : null;
+      // A set with every answer in has nothing left to come back to: it was
+      // finished, and reopening the app on its last verdict read as a question
+      // still waiting for him.
+      if (session && isComplete(session)) {
+        session = null;
+        void clearStoredSession();
+      }
     } catch (err) {
       // A store that will not open — private mode, a corrupted database — must
       // still leave a usable app rather than a splash screen that never ends.
@@ -357,7 +378,7 @@ export const useStore = create<Store>((set, get) => ({
         mode,
         target: mode === 'endless' ? null : Math.max(1, Math.round(settings.setLength)),
         chapters,
-        tier: settings.tier,
+        level: levelOf(settings.tier),
         only: opts?.only,
         done: [],
         problem,
@@ -380,9 +401,9 @@ export const useStore = create<Store>((set, get) => ({
 
   endSession() {
     const session = get().session;
-    const done = session ? session.done.length > 0 : false;
-    set({ session: null, canvasFullscreen: false });
-    navigateFn?.(done ? SCREEN_PATH.summary : SCREEN_PATH.home, { replace: true });
+    const summary = session && session.done.length > 0 ? { target: session.target, done: session.done } : null;
+    set({ session: null, summary: summary ?? get().summary, canvasFullscreen: false });
+    navigateFn?.(summary ? SCREEN_PATH.summary : SCREEN_PATH.home, { replace: true });
   },
 
   setAnswer(value) {
@@ -522,12 +543,14 @@ export const useStore = create<Store>((set, get) => ({
     const { session, settings } = get();
     if (!session) return;
 
-    if (session.target !== null && session.done.length >= session.target) {
-      navigateFn?.(SCREEN_PATH.summary);
+    // The set is over the moment he moves on from its last answer. Keeping it
+    // as the live session is what used to reopen the app on that answer.
+    if (isComplete(session)) {
+      get().endSession();
       return;
     }
 
-    const tier = settings.adaptive ? adapt(session) : session.tier;
+    const tier = tierFor(session.level);
     const problem = draw({
       chapters: session.chapters,
       tier,
@@ -543,7 +566,6 @@ export const useStore = create<Store>((set, get) => ({
       canvasFullscreen: false,
       session: {
         ...session,
-        tier,
         problem,
         startedAt: Date.now(),
         answers: problem.answers.map(() => ''),
@@ -726,7 +748,7 @@ function freezeSession(s: Session): StoredSession {
     mode: s.mode,
     target: s.target,
     chapters: s.chapters,
-    tier: s.tier,
+    level: s.level,
     only: s.only,
     done: s.done.map((d) => ({
       generatorId: d.problem.generatorId,
@@ -762,6 +784,9 @@ function freezeSession(s: Session): StoredSession {
  * answers, so it cannot drift from what he was shown.
  */
 function reviveSession(stored: StoredSession): Session | null {
+  // Saved before the session had a level. Not carried forward: nothing stored
+  // before the first deploy is.
+  if (typeof stored.level !== 'number') return null;
   const problem = rebuild(stored.problem.generatorId, stored.problem.seed, stored.problem.tier);
   if (!problem) return null;
 
@@ -795,7 +820,7 @@ function reviveSession(stored: StoredSession): Session | null {
     mode: stored.mode,
     target: stored.target,
     chapters: stored.chapters,
-    tier: stored.tier,
+    level: stored.level,
     only: stored.only,
     done,
     problem,
@@ -859,6 +884,9 @@ function record(
     stats: computeStats(attempts),
     session: {
       ...session,
+      // Once per answer, here where the answer is final: a streak counted
+      // again at every draw is what used to carry a session up two tiers.
+      level: settings.adaptive ? nextLevel(session.level, attempt) : session.level,
       hintsOpen: false,
       outcome,
       done: [
@@ -941,15 +969,7 @@ function chaptersFor(mode: SessionMode, settings: Settings, stats: Stats): numbe
   return settings.chapters;
 }
 
-/**
- * Adaptive difficulty, deliberately gentle: three right in a row moves up a
- * tier, two wrong moves down one. With three tiers a long good run can carry a
- * session from easy to hard, which is the point — the tier he picked is where
- * it starts, not a ceiling.
- */
-function adapt(session: Session): Tier {
-  const recent = session.done.slice(-3);
-  if (recent.length === 3 && recent.every((r) => r.correct)) return harder(session.tier);
-  if (recent.length >= 2 && recent.slice(-2).every((r) => !r.correct)) return easier(session.tier);
-  return session.tier;
+/** Every question of a fixed-length set has been answered. */
+function isComplete(session: Session): boolean {
+  return session.target !== null && session.done.length >= session.target;
 }

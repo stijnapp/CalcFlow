@@ -316,7 +316,7 @@ export const totalArea: Generator = {
       return {
         instruction: 'Find the total area',
         prompt: `y = ${integrand}`,
-        promptText: `Find the total area enclosed between the curve y = ${integrand} and the x-axis, for x between 0 and 2\\pi.`,
+        promptText: `Find the total area enclosed between the curve $y = ${integrand}$ and the x-axis, for $x$ between $0$ and $2\\pi$.`,
         note: 'Area, not the value of the integral. Give the exact value.',
         answers: [answer(String(4 * k), { keyboard: 'numeric', kind: 'number' })],
         solution: [
@@ -348,7 +348,7 @@ export const totalArea: Generator = {
     return {
       instruction: 'Find the total area',
       prompt: `y = ${integrand}`,
-      promptText: `Find the total area enclosed between the curve y = ${integrand} and the x-axis, for x between ${lo} and ${hi}.`,
+      promptText: `Find the total area enclosed between the curve $y = ${integrand}$ and the x-axis, for $x$ between $${lo}$ and $${hi}$.`,
       note: 'Area, not the value of the integral. Give the exact value.',
       answers: [answer(String(area), { keyboard: 'numeric', kind: 'number' })],
       solution: [
@@ -410,7 +410,7 @@ export const areaFindBounds: Generator = {
     return {
       instruction: 'Find the enclosed area',
       prompt: `y = ${curve},\\quad y = ${line}`,
-      promptText: `Find the area of the region enclosed between the curve y = ${curve} and the line y = ${line}.`,
+      promptText: `Find the area of the region enclosed between the curve $y = ${curve}$ and the line $y = ${line}$.`,
       note: 'The bounds are not given. Give the exact value.',
       answers: [answer(area, { keyboard: 'numeric', kind: 'number' })],
       solution: [
@@ -480,7 +480,7 @@ export const areaAboutY: Generator = {
     return {
       instruction: 'Find the area',
       prompt: `x = ${g}`,
-      promptText: `Find the area of the region bounded by the curve x = ${g}, the y-axis, y = ${lo} and y = ${hi}.`,
+      promptText: `Find the area of the region bounded by the curve $x = ${g}$, the y-axis, $y = ${lo}$ and $y = ${hi}$.`,
       note: 'Give the exact value.',
       answers: [answer(value, { keyboard: 'numeric', kind: 'number' })],
       solution: [

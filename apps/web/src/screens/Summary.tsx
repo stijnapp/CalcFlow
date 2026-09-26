@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { generatorById } from '@calcflow/generators';
 import { chapterTitle } from '@calcflow/shared';
 import { Eyebrow } from '@/components/Eyebrow';
@@ -12,9 +13,9 @@ const CONFIDENCE_ROWS = [
 ] as const;
 
 export function Summary({ compact }: { compact?: boolean }) {
-  const session = useStore((s) => s.session);
+  const session = useStore((s) => s.summary);
   const store = useStore();
-  if (!session || session.done.length === 0) return null;
+  if (!session) return <Navigate to="/" replace />;
 
   const items = session.done;
   const correct = items.filter((i) => i.correct).length;
@@ -49,7 +50,7 @@ export function Summary({ compact }: { compact?: boolean }) {
         <div className="flex flex-wrap items-end gap-7">
           <div className="flex flex-col gap-1">
             <Eyebrow className="text-xs">
-              {session.target === null ? 'ENDLESS' : 'SET OF 10'} · COMPLETE
+              {session.target === null ? 'ENDLESS' : `SET OF ${session.target}`} · COMPLETE
             </Eyebrow>
             <div className="flex items-baseline gap-2">
               <span className="text-[68px] font-semibold leading-none tracking-[-0.03em]">{correct}</span>

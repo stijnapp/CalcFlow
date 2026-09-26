@@ -128,12 +128,39 @@ export function checkProblem(problem: Problem, generator: Generator): string[] {
     }
   }
 
+  // The words around the maths are set as text, and only what is between `$`
+  // fences goes through KaTeX. A `\\lim_{h\\to 0}` outside them reaches him as
+  // its own source code.
+  const prose: [string, string | undefined][] = [
+    ['instruction', problem.instruction],
+    ['promptText', problem.promptText],
+    ['note', problem.note],
+    ...problem.solution.map((s): [string, string | undefined] => [`note on "${s.ruleLabel}"`, s.note]),
+  ];
+  for (const [where, text] of prose) {
+    const reason = text === undefined ? null : unfencedTex(text);
+    if (reason) push(`${where} ${reason}: ${text}`);
+  }
+
   if (problem.verify) {
     const reason = runVerification(problem.verify, problem);
     if (reason) push(reason);
   }
 
   return problems;
+}
+
+/**
+ * Why a line of prose would show raw LaTeX, or null if it would not. Outside
+ * the fences a backslash command, a braced superscript or subscript, or a brace
+ * of any kind is markup nobody will render.
+ */
+export function unfencedTex(text: string): string | null {
+  const parts = text.split('$');
+  if (parts.length % 2 === 0) return 'has an unclosed $ fence';
+  const outside = parts.filter((_, i) => i % 2 === 0).join(' ');
+  const markup = /\\[a-zA-Z]+|[\^_]\{|[{}]/.exec(outside);
+  return markup ? `has LaTeX outside $ fences ("${markup[0]}")` : null;
 }
 
 /** Independent numeric checks — the ones that catch a wrong answer, not just an inconsistent one. */

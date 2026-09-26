@@ -197,13 +197,13 @@ export const completeTheSquare: Generator = {
           'completing-square',
           'Half the coefficient of x',
           `${left} = ${poly([[1, 2], [b, 1]])} + ${fracTex(b * b, 4)}`,
-          `Half of ${b} is ${fracTex(b, 2)}, and squaring the bracket puts ${fracTex(b * b, 4)} in that was never there.`,
+          `Half of $${b}$ is $${fracTex(b, 2)}$, and squaring the bracket puts $${fracTex(b * b, 4)}$ in that was never there.`,
         ),
         step(
           'completing-square',
           'Subtract what the bracket added',
           result,
-          `${c} - ${fracTex(b * b, 4)} = ${constant}.`,
+          `$${c} - ${fracTex(b * b, 4)} = ${constant}$.`,
         ),
       ],
       ruleIds: ['completing-square'],
@@ -503,8 +503,8 @@ export const longDivision: Generator = {
       prompt: `\\frac{${dividend}}{${divisor}}`,
       promptText:
         remainder === 0
-          ? `Divide ${dividend} by ${divisor}. The remainder is 0, so ${r} is a root.`
-          : `Divide ${dividend} by ${divisor} and give the quotient. The remainder is ${remainder}.`,
+          ? `Divide $${dividend}$ by $${divisor}$. The remainder is 0, so ${r} is a root.`
+          : `Divide $${dividend}$ by $${divisor}$ and give the quotient. The remainder is ${remainder}.`,
       note: 'Just the quotient — the remainder is already given.',
       answers: [answer(quotient, { keyboard: 'algebra' })],
       solution: [
@@ -512,7 +512,7 @@ export const longDivision: Generator = {
           'polynomial-division',
           'What multiplies x to give the leading term',
           `x^{2}`,
-          `x² · (${divisor}) = ${poly([[1, 3], [-r, 2]])}, and subtracting that clears the x³.`,
+          `$x^{2}\\left(${divisor}\\right) = ${poly([[1, 3], [-r, 2]])}$, and subtracting that clears the $x^{3}$.`,
         ),
         setup(
           'polynomial-division',

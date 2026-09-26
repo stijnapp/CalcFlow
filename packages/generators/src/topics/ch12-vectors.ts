@@ -68,7 +68,7 @@ export const linearCombination: Generator = {
     return {
       instruction: 'Draw the resultant',
       prompt: `\\vec{a} = ${column(a)},\\quad \\vec{b} = ${column(b)}`,
-      promptText: `Both vectors are already on the grid. Draw ${combo.replace(/\\vec\{(.)\}/g, '$1')} from the origin.`,
+      promptText: `Both vectors are already on the grid. Draw $${combo}$ from the origin.`,
       note: 'The components and the length are checked; the arrow you check yourself.',
       answers: [
         answer(String(result[0]), { label: 'x component', keyboard: 'numeric', kind: 'number' }),
@@ -155,7 +155,7 @@ export const dotProduct: Generator = {
           dot === 0 ? '\\theta = 90°' : dot > 0 ? '\\theta < 90°' : '\\theta > 90°',
           dot === 0
             ? 'Zero means perpendicular. Nothing else in the chapter is this easy to check.'
-            : `a·b = |a||b|\\cos\\theta, and the lengths are positive — so the sign of the dot product is the sign of the cosine, and ${dot > 0 ? 'a positive cosine means an angle under 90°' : 'a negative cosine means an angle over 90°'}.`,
+            : `$\\vec{a}\\cdot\\vec{b} = |\\vec{a}||\\vec{b}|\\cos\\theta$, and the lengths are positive — so the sign of the dot product is the sign of the cosine, and ${dot > 0 ? 'a positive cosine means an angle under 90°' : 'a negative cosine means an angle over 90°'}.`,
         ),
       ],
       ruleIds: ['dot-product', 'vector-length'],

@@ -187,7 +187,7 @@ export const logIntegral: Generator = {
           'reverse-chain',
           'The 1/x is the derivative of the ln',
           `u = \\ln x,\\quad du = ${frac('1', 'x')}dx`,
-          'Which makes the whole integrand u^{' + k + '} du — the power rule, in disguise.',
+          `Which makes the whole integrand $u^{${k}}\\,du$ — the power rule, in disguise.`,
         ),
         setup(
           'antiderivative-power',
@@ -198,7 +198,7 @@ export const logIntegral: Generator = {
           'definite-integral',
           'Substitute the bounds',
           value,
-          `ln ${hiTex} = ${upper} and ln 1 = 0, which is why those bounds were chosen.`,
+          `$\\ln ${hiTex} = ${upper}$ and $\\ln 1 = 0$, which is why those bounds were chosen.`,
         ),
       ],
       ruleIds: ['reverse-chain', 'antiderivative-power', 'definite-integral'],

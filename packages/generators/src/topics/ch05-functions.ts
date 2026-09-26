@@ -342,7 +342,7 @@ export const inverse: Generator = {
       return {
         instruction: 'Find the inverse',
         prompt: `f(x) = ${fx}`,
-        note: 'Give f^{-1}(x).',
+        note: 'Give $f^{-1}(x)$.',
         answers: [answer(inv, { keyboard: 'algebra' })],
         solution: [
           setup('inverse', 'Write y for f(x) and swap', `x = ${term(a, 'y')}${shift(b)}`),
@@ -364,8 +364,8 @@ export const inverse: Generator = {
         instruction: 'Find the inverse',
         prompt: `f(x) = ${fx}`,
         note: useRoot
-          ? `Give f^{-1}(x). f only takes x from ${k} upwards, so its inverse only produces those.`
-          : 'Give f^{-1}(x).',
+          ? `Give $f^{-1}(x)$. f only takes x from ${k} upwards, so its inverse only produces those.`
+          : 'Give $f^{-1}(x)$.',
         answers: [answer(inv, { keyboard: useRoot ? 'algebra' : 'logs' })],
         solution: [
           setup(
@@ -398,7 +398,7 @@ export const inverse: Generator = {
     return {
       instruction: 'Find the inverse',
       prompt: `f(x) = ${fx}`,
-      note: `Give f^{-1}(x), fully simplified.`,
+      note: `Give $f^{-1}(x)$, fully simplified.`,
       answers: [answer(inv, { keyboard: 'algebra' })],
       solution: [
         setup(
@@ -453,7 +453,7 @@ export const compose: Generator = {
         answers: [answer(expanded, { keyboard: 'algebra' })],
         solution: [
           setup('composition', "Put g where f's x was", composed, 'Not the square of x with a g bolted on the end — the whole of g becomes the thing being squared.'),
-          step('composition', 'Expand', expanded, `(${gx})² = ${poly([[a * a, 2], [2 * a * b, 1], [b * b, 0]])}.`),
+          step('composition', 'Expand', expanded, `$\\left(${gx}\\right)^{2} = ${poly([[a * a, 2], [2 * a * b, 1], [b * b, 0]])}$.`),
         ],
         ruleIds: ['composition', 'notable-products'],
         verify: { kind: 'identity', of: composed },
@@ -478,7 +478,7 @@ export const compose: Generator = {
             'domain',
             'The domain shrinks',
             composed,
-            `The composition is only defined where ${inner} \\ge 0, that is x \\ge ${fracTex(-offset, slope)} — g's own domain was all of ℝ.`,
+            `The composition is only defined where $${inner} \\ge 0$, that is $x \\ge ${fracTex(-offset, slope)}$ — g's own domain was all of $\\mathbb{R}$.`,
           ),
         ],
         ruleIds: ['composition', 'domain'],

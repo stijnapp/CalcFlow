@@ -5,6 +5,7 @@ import {
   frac,
   fracTex,
   gcd,
+  ordinal,
   paren,
   poly,
   power,
@@ -138,7 +139,7 @@ export const chainRule: Generator = {
         'standard-derivatives',
         'Inner derivative',
         derivative,
-        `The inside differentiates to ${inner.dTex}.`,
+        `The inside differentiates to $${inner.dTex}$.`,
       ),
     ];
 
@@ -578,7 +579,7 @@ export const nestedChain: Generator = {
           'Chain rule',
           `f'(x) = ${s.outerD} \\cdot \\frac{d}{dx}\\left(${s.inner}\\right)`,
         ),
-        step('standard-derivatives', 'Inner derivative', s.derivative, `The inside differentiates to ${s.innerD}.`),
+        step('standard-derivatives', 'Inner derivative', s.derivative, `The inside differentiates to $${s.innerD}$.`),
       ],
       ruleIds: ['chain-rule', 'standard-derivatives'],
       verify: { kind: 'derivative', of: s.fx, wrt: 'x' },
@@ -950,7 +951,7 @@ export const fromDefinition: Generator = {
       return {
         instruction: `Use the definition to find f'(${a})`,
         prompt: `f(x) = ${fx}`,
-        promptText: `Use f'(a) = \\lim_{h\\to 0}\\frac{f(a+h)-f(a)}{h}, not the power rule.`,
+        promptText: `Use $f'(a) = \\lim_{h\\to 0}\\frac{f(a+h)-f(a)}{h}$, not the power rule.`,
         note: 'A number, not a function.',
         answers: [answer(String(value), { keyboard: 'calculus', kind: 'number' })],
         solution: [
@@ -986,7 +987,7 @@ export const fromDefinition: Generator = {
       return {
         instruction: `Use the definition to find f'(${at})`,
         prompt: `f(x) = ${fx}`,
-        promptText: `Use f'(a) = \\lim_{h\\to 0}\\frac{f(a+h)-f(a)}{h}, not the quotient rule.`,
+        promptText: `Use $f'(a) = \\lim_{h\\to 0}\\frac{f(a+h)-f(a)}{h}$, not the quotient rule.`,
         note: 'Exact value.',
         answers: [answer(value, { keyboard: 'calculus', kind: 'number' })],
         solution: [
@@ -1018,7 +1019,7 @@ export const fromDefinition: Generator = {
     return {
       instruction: "Use the definition to find f'(x)",
       prompt: `f(x) = ${fx}`,
-      promptText: `Use f'(x) = \\lim_{h\\to 0}\\frac{f(x+h)-f(x)}{h}. The answer holds at every x where f is defined.`,
+      promptText: `Use $f'(x) = \\lim_{h\\to 0}\\frac{f(x+h)-f(x)}{h}$. The answer holds at every x where f is defined.`,
       note: 'Exact, simplified.',
       answers: [answer(derivative, { keyboard: 'calculus' })],
       solution: [
@@ -1037,7 +1038,7 @@ export const fromDefinition: Generator = {
         aside(
           'The top, multiplied out',
           `${det}h`,
-          `Every term with an x in it cancels; what is left is (${p}\\cdot${s} - ${q}\\cdot${r})h = ${det}h.`,
+          `Every term with an x in it cancels; what is left is $\\left(${p}\\cdot${s} - ${q}\\cdot${r}\\right)h = ${det}h$.`,
         ),
         setup(
           'derivative-definition',
@@ -1086,9 +1087,9 @@ export const higherDerivatives: Generator = {
           : `${term(coefficient, `${base}${arg}`)}`;
       };
       return {
-        instruction: `Find the ${n}th derivative`,
+        instruction: `Find the ${ordinal(n)} derivative`,
         prompt: `f(x) = \\${useSin ? 'sin' : 'cos'}\\left(${term(a, 'x')}\\right)`,
-        note: `Give f^{(${n})}(x). Differentiating four times gets you back where you started.`,
+        note: `Give $f^{(${n})}(x)$. Differentiating four times gets you back where you started.`,
         answers: [answer(cycle(n), { keyboard: 'trig' })],
         solution: [
           aside(
@@ -1099,9 +1100,9 @@ export const higherDerivatives: Generator = {
           aside(
             'So the pattern is',
             `f^{(k)}(x) = ${a}^{k}\\cdot\\left(\\text{the } k \\text{th entry of the cycle}\\right)`,
-            `${n} \\bmod 4 = ${n % 4}, which is the entry to use.`,
+            `$${n} \\bmod 4 = ${n % 4}$, which is the entry to use.`,
           ),
-          step('higher-derivatives', `The ${n}th`, cycle(n)),
+          step('higher-derivatives', `The ${ordinal(n)}`, cycle(n)),
         ],
         ruleIds: ['higher-derivatives', 'chain-rule', 'standard-derivatives'],
         verify: { kind: 'derivative', of: cycle(n - 1), wrt: 'x' },
@@ -1118,9 +1119,9 @@ export const higherDerivatives: Generator = {
         : frac(String((k % 2 === 0 ? 1 : -1) * factorial(k)), `\\left(x + ${c}\\right)^{${k + 1}}`);
 
     return {
-      instruction: `Find the ${n}th derivative`,
+      instruction: `Find the ${ordinal(n)} derivative`,
       prompt: `f(x) = ${frac('1', `x + ${c}`)}`,
-      note: `Give f^{(${n})}(x).`,
+      note: `Give $f^{(${n})}(x)$.`,
       answers: [answer(nth(n), { keyboard: 'calculus' })],
       solution: [
         aside(
@@ -1134,7 +1135,7 @@ export const higherDerivatives: Generator = {
           `f^{(k)}(x) = \\frac{\\left(-1\\right)^{k}k!}{\\left(x + ${c}\\right)^{k+1}}`,
           'Each step drops the exponent by one, which supplies the next factor of the factorial and one more minus sign.',
         ),
-        step('higher-derivatives', `The ${n}th`, nth(n)),
+        step('higher-derivatives', `The ${ordinal(n)}`, nth(n)),
       ],
       ruleIds: ['higher-derivatives', 'power-rule', 'chain-rule'],
       verify: { kind: 'derivative', of: nth(n - 1), wrt: 'x' },

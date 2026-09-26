@@ -6,6 +6,7 @@ import { candidates, draw } from '@calcflow/generators';
 import { Eyebrow } from '@/components/Eyebrow';
 import { Fit } from '@/components/Fit';
 import { HoverLabel } from '@/components/HoverLabel';
+import { Prose } from '@/components/Prose';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
 import { cx } from '@/lib/cx';
@@ -106,9 +107,9 @@ export function Home({ compact }: { compact?: boolean }) {
         {sample ? (
           <motion.div key={sample.seed} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
             {sample.promptText && (
-              <p className="mb-1.5 line-clamp-2 text-[13px] leading-relaxed text-ink2">
+              <Prose className="mb-1.5 line-clamp-2 text-[13px] leading-relaxed text-ink2">
                 {sample.promptText}
-              </p>
+              </Prose>
             )}
             <Fit className="text-xl">
               <Tex>{sample.prompt}</Tex>
@@ -231,7 +232,7 @@ export function Home({ compact }: { compact?: boolean }) {
       <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-card px-5 py-4">
         <div className="flex flex-col gap-0.5">
           <div className="text-sm font-medium">Adaptive difficulty</div>
-          <div className="text-xs text-faint">nudges up after three right, down after two wrong</div>
+          <div className="text-xs text-faint">mixes in the next tier as you get them right</div>
         </div>
         <div className="ml-auto">
           <Toggle

@@ -24,7 +24,7 @@ export function ProblemCard({ problem, compact }: Props) {
       </Eyebrow>
 
       {problem.promptText && (
-        <p className="text-sm leading-relaxed text-ink2 text-pretty">{problem.promptText}</p>
+        <Prose className="text-sm leading-relaxed text-ink2 text-pretty">{problem.promptText}</Prose>
       )}
 
       {/* A long question shrinks to fit rather than wrapping or running off the

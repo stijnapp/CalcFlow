@@ -152,7 +152,7 @@ export const fractionalExponents: Generator = {
             ]
           : []),
         step('fractional-exponent', 'Root first, then power', negative ? frac('1', power(`\\sqrt[${root}]{${base}}`, exp)) : power(`\\sqrt[${root}]{${base}}`, exp)),
-        step('fractional-exponent', 'Evaluate', result, `\\sqrt[${root}]{${base}} = ${rootValue}.`),
+        step('fractional-exponent', 'Evaluate', result, `$\\sqrt[${root}]{${base}} = ${rootValue}$.`),
       ],
       ruleIds: negative ? ['fractional-exponent', 'negative-exponent'] : ['fractional-exponent'],
       verify: { kind: 'identity', of: prompt },
@@ -384,7 +384,7 @@ export const sameBaseEquation: Generator = {
             'exponential-equation',
             'Write both sides to the same base',
             `${power(paren(power(String(base), m)), 'x')} = ${power(String(base), n)}`,
-            `${base ** m} is ${base}^{${m}}.`,
+            `$${base ** m} = ${base}^{${m}}$.`,
           ),
           setup('power-rules', 'Nested powers multiply', `${base}^{${m}x} = ${base}^{${n}}`),
           step('exponential-equation', 'Equate the exponents', `${m}x = ${n}`),
@@ -405,7 +405,7 @@ export const sameBaseEquation: Generator = {
     return {
       instruction: 'Solve for x',
       prompt: equation,
-      note: `Give the exact value. ${base ** n} is ${base}^{${n}}.`,
+      note: `Give the exact value. $${base ** n} = ${base}^{${n}}$.`,
       answers: [answer(result, { keyboard: 'numeric', kind: 'number' })],
       solution: [
         step(
