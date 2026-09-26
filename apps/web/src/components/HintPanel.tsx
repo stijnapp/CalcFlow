@@ -1,4 +1,5 @@
-import { ChevronRight, Check, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { ChevronRight, Check, Lock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ruleById } from '@calcflow/generators';
 import { cx } from '@/lib/cx';
@@ -9,7 +10,7 @@ import { Fit } from './Fit';
 import { Prose } from './Prose';
 import { Sheet, SHEET_TALL } from './Sheet';
 import { Tex } from './Tex';
-import { buildRungs } from './hints';
+import { buildHints, hintCount, type Hint, type HintCard } from './hints';
 
 const SPRING = { type: 'spring' as const, stiffness: 400, damping: 40 };
 
@@ -57,8 +58,28 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
   const setLine = useStore((s) => s.setOnTrackLine);
   const line = session.onTrackLine;
 
-  const rungs = buildRungs(session.problem);
-  const shown = Math.min(session.rung, rungs.length);
+  const cards = buildHints(session.problem);
+  const total = hintCount(cards);
+  const shown = Math.min(session.rung, total);
+  const next = nextHint(cards, shown);
+
+  // The newest hint is brought into view: on a phone, the one he just asked
+  // for would otherwise open below the fold of the sheet, under the button.
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const box = list.current;
+      // Found by attribute: a motion element keeps the ref it mounted with, so
+      // a ref handed from card to card stays on the first one.
+      const el = box?.querySelector('[data-newest]');
+      if (!box || !el) return;
+      // Measured, not `scrollIntoView`: that also scrolls every ancestor that
+      // can be, overflow hidden or not, and the practice screen must not move.
+      const over = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 72;
+      if (over > 0) box.scrollBy({ top: over, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [shown]);
 
   return (
     <>
@@ -70,7 +91,7 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
       >
         <h2 className="text-[18px] font-semibold">Hints</h2>
         <span className="font-mono text-xs text-faint">
-          RUNG {shown} / {rungs.length}
+          {shown} / {total}
         </span>
         <button
           onClick={onClose}
@@ -81,84 +102,74 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
         </button>
       </div>
 
-      <div className={cx('scroll-y flex min-h-0 flex-1 flex-col gap-3 pb-12 pt-5', panel ? 'px-6' : 'px-4')}>
-        {rungs.map((rung, i) => {
-          const open = i < shown;
+      <div
+        ref={list}
+        className={cx('scroll-y flex min-h-0 flex-1 flex-col gap-3 pt-5', panel ? 'px-6' : 'px-4', !next && 'pb-8')}
+      >
+        {cards.map((card, i) => {
+          const seen = Math.max(0, Math.min(card.hints.length, shown - card.from));
+          const open = seen > 0;
+          const latest = open && shown > card.from && shown <= card.from + card.hints.length;
           return (
             <motion.div
-              key={rung.num}
+              key={card.label}
+              data-newest={latest || undefined}
               /* Position only: animating the box itself scales its contents,
                  which is what was squashing the button at the end of the list. */
               layout="position"
               initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: open ? 1 : 0.5, y: 0 }}
-              transition={{ ...SPRING, delay: i * 0.04 }}
+              animate={{ opacity: open ? 1 : 0.55, y: 0 }}
+              transition={{ ...SPRING, delay: i * 0.03 }}
               className={cx(
-                'flex shrink-0 flex-col gap-2 rounded-lg border bg-sunken py-4',
+                'flex shrink-0 flex-col gap-2.5 rounded-lg border bg-sunken',
                 panel ? 'px-[18px]' : 'px-3.5',
-                open ? 'border-soft' : 'border-overlay',
+                open ? 'border-soft py-4' : 'border-overlay py-3',
               )}
             >
+              {/* Where it is, never what it says. */}
               <div className="flex items-center gap-2.5">
-                <span className={cx('font-mono text-[11px]', open ? 'text-accent' : 'text-faint')}>
-                  {rung.num}
+                <span
+                  className={cx(
+                    'font-mono text-[11px] uppercase tracking-[0.08em]',
+                    open ? 'text-accent' : 'text-faint',
+                  )}
+                >
+                  {card.label}
                 </span>
-                <span className={cx('text-sm font-medium', open ? 'text-ink' : 'text-[#8a8177]')}>
-                  {rung.title}
-                </span>
-                {!open && <span className="ml-auto text-xs text-faint">locked</span>}
+                {!open && <Lock className="ml-auto size-3.5 text-faint" aria-label="locked" />}
               </div>
 
-              {open && (
-                <div className="flex flex-col gap-2.5">
-                  <Prose className="text-sm leading-relaxed text-ink2 text-pretty">{rung.body}</Prose>
-                  {rung.tex && (
-                    <div
-                      className={cx(
-                        'rounded-[10px] border border-border bg-page',
-                        panel ? 'px-4 py-3.5 text-xl' : 'px-2.5 py-2.5 text-[15px]',
-                      )}
-                    >
-                      <Fit>
-                        <Tex>{rung.tex}</Tex>
-                      </Fit>
-                    </div>
-                  )}
-                  {/* Every card the problem leans on, each one a tap from its
-                      statement and a worked example of it. */}
-                  {rung.ruleIds && rung.ruleIds.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      {rung.ruleIds.map((id) => {
-                        const card = ruleById(id);
-                        if (!card) return null;
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => setOpenRule(id)}
-                            className="flex items-center gap-2 rounded-md border border-border bg-page px-3 py-2 text-left text-[13px] text-accent hover:border-accent"
-                          >
-                            {card.name}
-                            <ChevronRight className="ml-auto size-3.5 shrink-0 text-faint" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+              {card.hints.slice(0, seen).map((hint, j) => (
+                <motion.div
+                  key={j}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={SPRING}
+                >
+                  <HintBody hint={hint} panel={panel} onOpenRule={setOpenRule} />
+                </motion.div>
+              ))}
             </motion.div>
           );
         })}
 
-        {shown < rungs.length && (
-          <motion.button
-            layout="position"
-            whileTap={{ scale: 0.98 }}
-            onClick={() => revealRung(rungs.length)}
-            className="grid h-12 min-h-[48px] shrink-0 place-items-center rounded-md border border-dashed border-rail px-3 text-sm font-medium text-accent hover:bg-overlay"
+        {/* Held at the foot of the list, so the next tap is always under his
+            thumb however far the working has grown. */}
+        {next && (
+          <div
+            className={cx(
+              'sticky bottom-0 -mx-1 mt-auto shrink-0 bg-linear-to-t from-70% to-transparent px-1 pb-4 pt-6',
+              panel ? 'from-raised' : 'from-card',
+            )}
           >
-            Reveal {rungs[shown]!.title.toLowerCase()}
-          </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => revealRung(total)}
+              className="grid h-12 min-h-[48px] w-full place-items-center rounded-md border border-dashed border-rail bg-sunken px-3 text-sm font-medium text-accent hover:bg-overlay"
+            >
+              {next}
+            </motion.button>
+          </div>
         )}
       </div>
 
@@ -207,5 +218,122 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * What the next tap is, in words that give none of it away: the step it
+ * belongs to, or that it is the answer — which he should get to decide to see.
+ */
+function nextHint(cards: readonly HintCard[], shown: number): string | null {
+  for (const card of cards) {
+    const i = shown - card.from;
+    if (i < 0 || i >= card.hints.length) continue;
+    const hint = card.hints[i]!;
+    switch (hint.kind) {
+      case 'start':
+        return 'Where to start';
+      case 'move':
+        return `Show ${card.label.toLowerCase()}`;
+      case 'line':
+        return hint.answer ? 'Show the answer' : 'Show what it gives';
+      case 'answer':
+        return 'Show the answer';
+    }
+  }
+  return null;
+}
+
+function HintBody({
+  hint,
+  panel,
+  onOpenRule,
+}: {
+  hint: Hint;
+  panel: boolean;
+  onOpenRule(id: string): void;
+}) {
+  if (hint.kind === 'start') {
+    return (
+      <div className="flex flex-col gap-2.5">
+        <Prose className="text-sm leading-relaxed text-ink2 text-pretty">{hint.body}</Prose>
+        {/* Every card the problem leans on, each one a tap from its statement
+            and a worked example of it. */}
+        {hint.ruleIds.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {hint.ruleIds.map((id) => {
+              const card = ruleById(id);
+              if (!card) return null;
+              return (
+                <button
+                  key={id}
+                  onClick={() => onOpenRule(id)}
+                  className="flex items-center gap-2 rounded-md border border-border bg-page px-3 py-2 text-left text-[13px] text-accent hover:border-accent"
+                >
+                  {card.name}
+                  <ChevronRight className="ml-auto size-3.5 shrink-0 text-faint" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (hint.kind === 'move') {
+    // A move that applies a boxed rule opens that rule's card, as the same
+    // line does under "See the steps".
+    const rule = hint.ruleId ? ruleById(hint.ruleId) : undefined;
+    return (
+      <div className="flex flex-col gap-1.5">
+        {rule ? (
+          <button
+            onClick={() => onOpenRule(rule.id)}
+            className="flex items-center gap-1.5 self-start text-left text-[15px] font-medium text-accent hover:underline"
+          >
+            {hint.title}
+            <ChevronRight className="size-3.5 shrink-0 text-faint" />
+          </button>
+        ) : (
+          <p className="text-[15px] font-medium text-ink">{hint.title}</p>
+        )}
+        {hint.body && (
+          <Prose className="text-sm leading-relaxed text-ink2 text-pretty">{hint.body}</Prose>
+        )}
+      </div>
+    );
+  }
+
+  const box = (answer: boolean) =>
+    cx(
+      'rounded-[10px] border bg-page',
+      answer ? 'border-accent/50' : 'border-border',
+      panel ? 'px-4 py-3.5 text-xl' : 'px-2.5 py-2.5 text-[15px]',
+    );
+
+  if (hint.kind === 'line') {
+    return (
+      <div className={box(hint.answer)}>
+        <Fit>
+          <Tex>{hint.tex}</Tex>
+        </Fit>
+      </div>
+    );
+  }
+
+  // Three bare numbers in a row say nothing about which box each one goes in,
+  // so each sits under its field's name, as the fields themselves do.
+  return (
+    <div className={cx(box(true), 'flex flex-col gap-2.5')}>
+      {hint.answers.map((a, i) => (
+        <div key={i} className="flex min-w-0 flex-col gap-0.5">
+          {a.label && <span className="text-[13px] text-faint">{a.label}</span>}
+          <Fit>
+            <Tex>{a.tex}</Tex>
+          </Fit>
+        </div>
+      ))}
+    </div>
   );
 }

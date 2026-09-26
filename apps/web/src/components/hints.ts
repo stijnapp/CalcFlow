@@ -1,74 +1,101 @@
 import { ruleById, type Problem } from '@calcflow/generators';
 
-export interface Rung {
-  num: string;
-  title: string;
-  body: string;
-  tex?: string;
-  /**
-   * Rung 1 deep-links into the rule sheet — every card the problem touches, not
-   * just the headline one. `e^{x+3}` is a chain-rule problem whose actual
-   * difficulty is remembering that e^x differentiates to itself, and naming only
-   * the chain rule left the useful half of the answer in the panel he sees
-   * *after* submitting.
-   */
-  ruleIds?: string[];
-}
-
-/** However long the working is, a ladder past this is a solution, not a hint. */
-const MAX_RUNGS = 5;
+/**
+ * One tap's worth of help. A line of working is two of them: what to do, and
+ * then what doing it gives. Showing both at once made the second hint the
+ * answer in all but name — "chain rule" and then the whole derivative, with
+ * nothing in between to try it himself against.
+ */
+export type Hint =
+  | {
+      kind: 'start';
+      body: string;
+      /**
+       * Every card the problem touches, not just the headline one. `e^{x+3}` is
+       * a chain-rule problem whose actual difficulty is remembering that e^x
+       * differentiates to itself.
+       */
+      ruleIds: string[];
+    }
+  | { kind: 'move'; title: string; body?: string; ruleId?: string }
+  | { kind: 'line'; tex: string; answer: boolean }
+  /** One row per field he types, under that field's own name when it has one. */
+  | { kind: 'answer'; answers: Array<{ label?: string; tex: string }> };
 
 /**
- * The ladder is read straight off the generator's solution tree, one rung per
- * line of working, so its length tracks the problem rather than a fixed four.
- * A one-step expansion gets "which rule" and the answer; a four-step chain gets
- * the whole staircase. No handwriting recognition is involved: he taps until he
- * reaches something he did not already know.
+ * The hints a locked card holds, under a name that says where in the working
+ * they are and nothing about what they say. A title like "Take ln of both
+ * sides" on a locked card was the hint, read before he had asked for it.
  */
-export function buildRungs(problem: Problem): Rung[] {
+export interface HintCard {
+  label: string;
+  hints: Hint[];
+  /** Where its first hint sits in the order they are revealed. */
+  from: number;
+}
+
+/**
+ * Read straight off the generator's solution — the same lines "See the steps"
+ * shows afterwards, in the same order, none of them left out — so the hints
+ * and the worked solution are one staircase, climbed a tap at a time.
+ */
+export function buildHints(problem: Problem): HintCard[] {
   const rules = [...new Set(problem.ruleIds)].map(ruleById).filter((r) => r !== undefined);
   // `ruleIds[0]` is the headline by contract, so it is the one worth spelling
   // out in prose; the rest are listed under it and are one tap from their card.
   const rule = rules[0];
   const answer = problem.answers.map((a) => a.tex).join(' \\quad\\text{and}\\quad ');
-  const naming = rule
-    ? `${rule.name}. ${rule.note}`
-    : 'Look for the structure before you calculate anything.';
 
-  const rungs: Rung[] = [
+  const cards: Array<Omit<HintCard, 'from'>> = [
     {
-      num: '01',
-      title: rules.length > 1 ? 'Which rules' : 'Which rule',
-      body: naming,
-      ruleIds: rules.map((r) => r.id),
+      label: 'Where to start',
+      hints: [
+        {
+          kind: 'start',
+          body: rule ? `${rule.name}. ${rule.note}` : 'Look for the structure before you calculate anything.',
+          ruleIds: rules.map((r) => r.id),
+        },
+      ],
     },
   ];
 
-  // Every line except the last, which is the answer and has its own rung.
   const steps = problem.solution;
-  const middle = steps.slice(0, Math.max(0, steps.length - 1)).slice(0, MAX_RUNGS - 2);
-  for (const step of middle) {
-    const own = step.note ?? `Apply the ${step.ruleLabel.toLowerCase()}.`;
-    rungs.push({
-      num: label(rungs.length + 1),
-      title: step.ruleLabel,
-      // Repeating rung 1 word for word wastes a rung he has spent a tap on.
-      body: own === naming ? `Write the ${step.ruleLabel.toLowerCase()} out before evaluating.` : own,
-      // Never show the answer early, however the generator wrote its working.
-      tex: step.expr === answer ? undefined : step.expr,
+  steps.forEach((step, i) => {
+    const last = i === steps.length - 1;
+    cards.push({
+      label: `Step ${i + 1}`,
+      hints: [
+        { kind: 'move', title: step.ruleLabel, body: step.note, ruleId: step.ruleId },
+        { kind: 'line', tex: step.expr, answer: last && landsOn(step.expr, answer) },
+      ],
+    });
+  });
+
+  // Working that ends on `x = -8 or x = 6`, or on a sign rather than on the
+  // numbers asked for, still owes him the answer as he has to type it.
+  const final = steps.at(-1);
+  if (!final || !landsOn(final.expr, answer)) {
+    cards.push({
+      label: 'Answer',
+      hints: [{ kind: 'answer', answers: problem.answers.map(({ label, tex }) => ({ label, tex })) }],
     });
   }
 
-  rungs.push({
-    num: label(rungs.length + 1),
-    title: 'Full solution',
-    body: steps.at(-1)?.note ?? 'Simplify, and this is what you should land on.',
-    tex: answer,
+  let from = 0;
+  return cards.map((card) => {
+    const placed = { ...card, from };
+    from += card.hints.length;
+    return placed;
   });
-
-  return rungs;
 }
 
-function label(n: number): string {
-  return String(n).padStart(2, '0');
+/** How many taps the whole staircase is. */
+export function hintCount(cards: readonly HintCard[]): number {
+  return cards.reduce((n, c) => n + c.hints.length, 0);
+}
+
+/** The last line is the answer when it is the answer, or `f'(x) =` it. */
+function landsOn(line: string, answer: string): boolean {
+  const flat = (s: string) => s.replace(/\s+/g, '');
+  return flat(line) === flat(answer) || flat(line).endsWith(`=${flat(answer)}`);
 }
