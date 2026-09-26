@@ -293,8 +293,14 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     const mine = saved && saved.key === problemKey ? saved : null;
     surfaceRef.current.reset();
     if (mine) surfaceRef.current.restore(mine.strokes);
-    setBlocks(mine?.blocks ?? []);
-    setArrows(mine?.arrows ?? []);
+    // Into the refs as well as the state: an unmount before the next render —
+    // StrictMode's rehearsal, or a fullscreen toggle landing on one — writes
+    // the page back from the refs, and the state has not reached them yet. The
+    // strokes never had this problem because the surface is restored in place.
+    blocksRef.current = mine?.blocks ?? [];
+    arrowsRef.current = mine?.arrows ?? [];
+    setBlocks(blocksRef.current);
+    setArrows(arrowsRef.current);
     arrowsUndone.current = [];
     drawingArrow.current = null;
     lastWasArrow.current = false;
