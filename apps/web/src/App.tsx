@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Notices } from '@/components/Notices';
@@ -17,7 +17,6 @@ import { KeyBar } from '@/components/KeyBar';
 
 export function App() {
   const ready = useStore((s) => s.ready);
-  const session = useStore((s) => s.session);
   const reducedMotion = useStore((s) => s.settings.reducedMotion);
   const init = useStore((s) => s.init);
   const navigate = useNavigate();
@@ -67,13 +66,7 @@ export function App() {
             <Route path="/" element={<Page><Home compact={compact} /></Page>} />
             <Route
               path="/practice"
-              element={
-                session ? (
-                  <Page fade>{layout === 'tablet' ? <PracticeTablet /> : <PracticePhone />}</Page>
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
+              element={<PracticeRoute tablet={layout === 'tablet'} />}
             />
             <Route path="/summary" element={<Page><Summary compact={compact} /></Page>} />
             <Route path="/stats" element={<Page><Stats compact={compact} /></Page>} />
@@ -90,6 +83,23 @@ export function App() {
       </main>
     </MotionConfig>
   );
+}
+
+/**
+ * The practice screen, while there is a session to show on it.
+ *
+ * Arriving here without one — a stale history entry, a link — goes home. A
+ * session ending *while* it is on screen does not: the store has already asked
+ * for the summary, but the router applies a move as a transition while the
+ * store's change lands at once, so for one render this route sees no session
+ * at its own address. Redirecting then sent "See the summary" to the home
+ * screen, over the top of the move that was on its way.
+ */
+function PracticeRoute({ tablet }: { tablet: boolean }) {
+  const session = useStore((s) => s.session);
+  const [arrived] = useState(() => session !== null);
+  if (!session) return arrived ? null : <Navigate to="/" replace />;
+  return <Page fade>{tablet ? <PracticeTablet /> : <PracticePhone />}</Page>;
 }
 
 /**
