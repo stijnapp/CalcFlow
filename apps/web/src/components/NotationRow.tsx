@@ -5,7 +5,7 @@ import { HoverLabel } from './HoverLabel';
 import { Tex } from './Tex';
 
 /**
- * The keys, in his order, above whichever field he is typing into. Nothing but
+ * The keys, in his order, on the bar over the keyboard. Nothing but
  * pressing them happens here: the row is a plain horizontal scroller, so a swipe
  * across it flings and coasts the way every other list on the phone does.
  *

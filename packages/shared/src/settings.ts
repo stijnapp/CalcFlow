@@ -25,8 +25,10 @@ export interface Settings {
   penOnly: boolean;
   reducedMotion: boolean;
   canvasSurface: CanvasSurface;
-  /** Ids of the LaTeX insert buttons shown above the answer field, in order. */
+  /** Ids of the LaTeX insert buttons on the key bar, in order. */
   keys: string[];
+  /** The key bar comes up over the keyboard while a LaTeX field has the caret. */
+  keyBar: boolean;
   /** His own additions to that pool, referenced from `keys` by id. */
   customKeys: CustomKey[];
   /** Stroke width for the one pen, in CSS pixels at full pressure. */
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reducedMotion: false,
   canvasSurface: 'ruled',
   keys: DEFAULT_KEYS,
+  keyBar: true,
   customKeys: [],
   penWidth: 3.6,
   deviceName: '',

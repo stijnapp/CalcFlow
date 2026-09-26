@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useKeyBar } from './keyBar';
 
 /**
  * How much of the bottom of the layout is behind the on-screen keyboard.
@@ -38,4 +39,15 @@ export function useKeyboardInset(): number {
   }, []);
 
   return inset;
+}
+
+/**
+ * Everything covering the bottom of the layout: the keyboard, and the key bar
+ * riding on top of it. What lifts itself clear of the keyboard lifts itself
+ * clear of this, or the bar sits over the submit button.
+ */
+export function useBottomInset(): number {
+  const keyboard = useKeyboardInset();
+  const bar = useKeyBar((s) => s.height);
+  return keyboard + bar;
 }

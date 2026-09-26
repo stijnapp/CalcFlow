@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { animate, motion, useDragControls, useMotionValue } from 'motion/react';
 import { cx } from '@/lib/cx';
-import { useKeyboardInset } from '@/lib/useKeyboardInset';
+import { useBottomInset } from '@/lib/useKeyboardInset';
 
 /** Open, or put away at the bottom of the screen. There is nothing in between. */
 export type SheetSnap = 'open' | 'down';
@@ -46,12 +46,13 @@ export function Sheet({ children, closeable, onClose, height, className }: Props
   const [openPx, setOpenPx] = useState(0);
   const [vh, setVh] = useState(() => (typeof window === 'undefined' ? 0 : window.innerHeight));
   /*
-   * The sheet sits on top of the keyboard rather than behind it. Everything it
-   * holds then fits between the two, and the scroll surface inside it becomes a
-   * real one: he can push the answer box up the screen to see his notes, which
-   * behind the keyboard there was no way to ask for.
+   * The sheet sits on top of the keyboard — and of the key bar on it — rather
+   * than behind them. Everything it holds then fits between the two, and the
+   * scroll surface inside it becomes a real one: he can push the answer box up
+   * the screen to see his notes, which behind the keyboard there was no way to
+   * ask for.
    */
-  const keyboard = useKeyboardInset();
+  const keyboard = useBottomInset();
   const avail = Math.max(0, vh - keyboard);
 
   // The on-screen keyboard changes the height the sheet has to work with, and

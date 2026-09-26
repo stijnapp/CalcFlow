@@ -15,7 +15,7 @@ import { RulesUsed } from '@/components/RulesUsed';
 import { SelfGradeRow } from '@/components/SelfGrade';
 import { ToolRail } from '@/components/ToolRail';
 import { cx } from '@/lib/cx';
-import { useKeyboardInset } from '@/lib/useKeyboardInset';
+import { useBottomInset } from '@/lib/useKeyboardInset';
 import { useStore } from '@/state/store';
 import { usePractice } from './usePractice';
 
@@ -45,7 +45,7 @@ export function PracticeTablet() {
    * canvas keeps its height. Handing the covered strip to the scroller as
    * padding is what lets him push the column up and see what is under it.
    */
-  const keyboard = useKeyboardInset();
+  const keyboard = useBottomInset();
 
   // Submitting from the bottom of a long column would otherwise leave him
   // looking at the last line of the verdict instead of at the verdict.

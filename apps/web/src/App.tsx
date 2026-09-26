@@ -13,6 +13,7 @@ import { Rules } from '@/screens/Rules';
 import { Settings } from '@/screens/Settings';
 import { Stats } from '@/screens/Stats';
 import { Summary } from '@/screens/Summary';
+import { KeyBar } from '@/components/KeyBar';
 
 export function App() {
   const ready = useStore((s) => s.ready);
@@ -83,6 +84,7 @@ export function App() {
         </AnimatePresence>
 
         <RuleCardModal />
+        <KeyBar />
         <Notices />
         <Toast />
       </main>

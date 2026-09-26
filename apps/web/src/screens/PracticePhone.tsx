@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react';
 import {
   ArrowLeft,
   Eraser,
@@ -53,26 +52,6 @@ export function PracticePhone() {
   const store = useStore();
   const practice = usePractice();
   const { canvas, tool, setTool, clearAsk, setClearAsk, askClear, confirmClear, undo, redo } = practice;
-
-  /**
-   * While the caret is in the answer the screen gives the field everything it
-   * can: the problem card at the top folds away — the sheet repeats the
-   * question anyway — and the confidence row and the submit button move onto
-   * one line beside each other. Nothing leaves. Taking them off the screen
-   * entirely saved more room, but submitting then meant dismissing the keyboard
-   * first, and a row that vanishes under his thumb reads as a glitch.
-   */
-  const [typing, setTyping] = useState(false);
-  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  function startTyping() {
-    clearTimeout(blurTimer.current);
-    setTyping(true);
-  }
-  /** Moving between two answer boxes is a blur and a focus; it is not leaving. */
-  function stopTyping() {
-    clearTimeout(blurTimer.current);
-    blurTimer.current = setTimeout(() => setTyping(false), 120);
-  }
 
   const { problem, outcome } = session;
   const answered = outcome !== null;
@@ -278,19 +257,12 @@ export function PracticePhone() {
         </button>
       </header>
 
-      {/* Folded away while he types. It is repeated at the top of the answer
-          sheet, and the room it gives back is a line or two more of his notes
-          above the keyboard. */}
-      <motion.div
-        initial={false}
-        animate={{ height: typing ? 0 : 'auto', opacity: typing ? 0 : 1 }}
-        transition={SPRING}
-        className="shrink-0 overflow-hidden"
-      >
-        <div className="px-4 pt-3">
-          <ProblemCard problem={problem} compact />
-        </div>
-      </motion.div>
+      {/* It stays put while he types. Folding it away on focus bought a line
+          of notes and cost a screen that jumped every time the caret went in
+          or came out. */}
+      <div className="shrink-0 px-4 pt-3">
+        <ProblemCard problem={problem} compact />
+      </div>
 
       {/* The canvas stops above the answer bar rather than behind it. */}
       <div
@@ -418,44 +390,31 @@ export function PracticePhone() {
               specs={problem.answers}
               values={session.answers}
               activeField={session.activeField}
-              onFocusField={(i) => {
-                store.setActiveField(i);
-                startTyping();
-              }}
-              onBlurField={stopTyping}
+              onFocusField={store.setActiveField}
               onChange={store.setAnswer}
               onSubmit={ready ? store.submit : undefined}
               state="editing"
               compact
             />
           </div>
-          <motion.div
-            layout
-            transition={SPRING}
-            className={cx('flex shrink-0 gap-2.5', typing ? 'items-stretch' : 'flex-col')}
-          >
-            <motion.div layout className="min-w-0 flex-1">
+          {/* One line, always: the row used to fold onto one line only while he
+              typed, and a layout that rearranges itself under his thumb as the
+              keyboard comes and goes is the thing he asked to be rid of. */}
+          <div className="flex shrink-0 items-stretch gap-2">
+            <div className="min-w-0 flex-1">
               <ConfidenceRow value={session.confidence} onChange={store.setConfidence} compact />
-            </motion.div>
-            <motion.button
-              layout
+            </div>
+            <button
               onClick={store.submit}
               disabled={!ready}
               className={cx(
-                'grid shrink-0 place-items-center rounded-md font-semibold',
-                typing ? 'h-10 w-[92px] text-[14px]' : 'h-[52px] text-[17px]',
+                'grid h-10 w-[84px] shrink-0 place-items-center rounded-md text-[14px] font-semibold',
                 ready ? 'bg-accent text-on-accent' : 'cursor-not-allowed bg-raised text-faint',
               )}
             >
-              {/* No room for a sentence beside the confidence row, and no need
-                  for one: what is missing is the line he is typing. */}
-              {typing || (filled && session.confidence !== null)
-                ? 'Submit'
-                : !filled
-                  ? 'Type an answer'
-                  : 'Pick a confidence'}
-            </motion.button>
-          </motion.div>
+              Submit
+            </button>
+          </div>
         </Sheet>
       )}
 

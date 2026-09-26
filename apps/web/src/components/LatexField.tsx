@@ -1,18 +1,20 @@
 import {
+  useEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
 } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sigma } from 'lucide-react';
 import { motion } from 'motion/react';
 import { TapDetector } from '@/canvas/gestures';
 import { cx } from '@/lib/cx';
-import { caretOffset, resolveKeys, type LatexKey } from '@/lib/latexKeys';
+import { claimKeyBar, releaseKeyBar, type KeyTarget } from '@/lib/keyBar';
+import { caretOffset, type LatexKey } from '@/lib/latexKeys';
 import { useEditHistory } from '@/lib/useEditHistory';
 import { useStore } from '@/state/store';
-import { NotationRow } from './NotationRow';
 import { Tex } from './Tex';
 
 export type FieldTone = 'editing' | 'correct' | 'wrong' | 'near';
@@ -49,10 +51,10 @@ const BORDER: Record<FieldTone, string> = {
 };
 
 /**
- * One box, three storeys: the notation he cannot type, what it renders to, and
- * the raw LaTeX underneath. Keeping the keys inside the field is what makes two
- * answer boxes work — each one types into itself — and puts them above the
- * on-screen keyboard rather than behind it.
+ * One box, two storeys: what it renders to, and the raw LaTeX underneath. The
+ * notation he cannot type is on the key bar over the keyboard, which types into
+ * whichever box has the caret — so two answer boxes still each type into
+ * themselves, without each carrying its own row of keys.
  */
 export function LatexField({
   value,
@@ -76,10 +78,9 @@ export function LatexField({
   // with a notation row, an answer field and a hint field all in accent, an
   // edge that is always lit says nothing at all.
   const [focused, setFocused] = useState(false);
-  const ids = useStore((s) => s.settings.keys);
-  const custom = useStore((s) => s.settings.customKeys);
-  const keys = resolveKeys(ids, custom);
   const showToast = useStore((s) => s.showToast);
+  const keyBar = useStore((s) => s.settings.keyBar);
+  const patchSettings = useStore((s) => s.patchSettings);
 
   /**
    * Two fingers step back, three step forward — the same tap he already uses on
@@ -131,35 +132,29 @@ export function LatexField({
     place(Math.min(value.length, Math.max(0, at + by)));
   }
 
+  // The bar holds on to one object for as long as this field has the caret, so
+  // it is stable and reads the latest `value` through the ref at each press.
+  const latest = useRef({ insert, step });
+  latest.current = { insert, step };
+  const box = useRef<HTMLDivElement>(null);
+  const target = useMemo<KeyTarget>(
+    () => ({
+      insert: (key) => latest.current.insert(key),
+      step: (by) => latest.current.step(by),
+      anchor: () => box.current,
+    }),
+    [],
+  );
+  useEffect(() => () => releaseKeyBar(target), [target]);
+
   return (
     <div
+      ref={box}
       className={cx(
         'flex min-w-0 flex-col rounded-lg border bg-well transition-colors',
         BORDER[tone] || (focused ? 'border-accent' : 'border-border'),
       )}
     >
-      {!readOnly && (
-        <div className={cx('flex items-stretch gap-1.5 border-b border-edge', compact ? 'p-1.5' : 'p-2')}>
-          <NotationRow keys={keys} compact={compact} onInsert={insert} />
-          {(['left', 'right'] as const).map((dir) => (
-            <motion.button
-              key={dir}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: 'spring', stiffness: 700, damping: 30 }}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => step(dir === 'left' ? -1 : 1)}
-              aria-label={dir === 'left' ? 'Move the caret left' : 'Move the caret right'}
-              className={cx(
-                'grid shrink-0 place-items-center rounded-[9px] border border-edge bg-sunken text-muted hover:border-accent hover:text-ink',
-                compact ? 'size-9' : 'size-10',
-              )}
-            >
-              {dir === 'left' ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
-            </motion.button>
-          ))}
-        </div>
-      )}
-
       {/* The rendered line is the biggest target in the box, so it is also the
           one that opens the keyboard. */}
       <button
@@ -194,10 +189,12 @@ export function LatexField({
           autoFocus={autoFocus}
           onFocus={() => {
             setFocused(true);
+            if (!readOnly) claimKeyBar(target);
             onFocus?.();
           }}
           onBlur={() => {
             setFocused(false);
+            releaseKeyBar(target);
             onBlur?.();
           }}
           onChange={(e) => onChange(e.target.value)}
@@ -229,6 +226,27 @@ export function LatexField({
             compact ? 'pt-1.5 text-[12px]' : 'pt-2 text-[13px]',
           )}
         />
+        {!readOnly && (
+          <button
+            type="button"
+            // Pressing it must not take the caret out of the field, or the
+            // keyboard the bar sits on closes as the bar comes up.
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              patchSettings({ keyBar: !keyBar });
+              if (!keyBar) inputRef.current?.focus({ preventScroll: true });
+            }}
+            aria-pressed={keyBar}
+            aria-label={keyBar ? 'Hide the key bar' : 'Show the key bar'}
+            className={cx(
+              'grid shrink-0 place-items-center rounded-md border transition-colors',
+              compact ? 'size-7' : 'size-8',
+              keyBar ? 'border-accent/60 bg-accent/10 text-accent' : 'border-edge bg-sunken text-faint',
+            )}
+          >
+            <Sigma className="size-3.5" />
+          </button>
+        )}
         {trailing}
       </div>
     </div>
