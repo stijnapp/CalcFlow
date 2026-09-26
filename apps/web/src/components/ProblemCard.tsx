@@ -33,8 +33,12 @@ export function ProblemCard({ problem, compact }: Props) {
         <Tex>{problem.prompt}</Tex>
       </Fit>
 
-      {problem.note && !compact && (
-        <Prose className="text-[13px] text-faint text-pretty">{problem.note}</Prose>
+      {/* On the phone as well: "two solutions, the smaller first" and "in the
+          form mx + c" are part of the question, not decoration. */}
+      {problem.note && (
+        <Prose className={cx('text-faint text-pretty', compact ? '-mt-1 text-xs' : 'text-[13px]')}>
+          {problem.note}
+        </Prose>
       )}
     </div>
   );

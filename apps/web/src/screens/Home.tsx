@@ -138,7 +138,14 @@ export function Home({ compact }: { compact?: boolean }) {
         <div className="h-px flex-1 bg-line" />
       </div>
 
-      <div className={cx('grid gap-3 pb-4', compact ? 'grid-cols-2' : 'scroll-y grid-cols-3 content-start')}>
+      {/* On the tablet the list runs to the bottom edge of the screen, and its
+          own padding is what lets the last row scroll up clear of it. */}
+      <div
+        className={cx(
+          'grid gap-3',
+          compact ? 'grid-cols-2 pb-4' : 'scroll-y grid-cols-3 content-start pb-10',
+        )}
+      >
         {CHAPTERS.map((ch) => {
           const stat = stats.byChapter.find((c) => c.chapter === ch.n)!;
           const on = settings.chapters.includes(ch.n);
@@ -268,7 +275,7 @@ export function Home({ compact }: { compact?: boolean }) {
     <div
       className={cx(
         'flex h-full flex-col gap-6',
-        compact ? 'scroll-y px-5 pb-16 pt-4' : 'px-11 pb-10 pt-6',
+        compact ? 'scroll-y px-5 pb-16 pt-4' : 'px-11 pt-6',
       )}
     >
       <div className="flex shrink-0 flex-wrap items-end gap-5">
@@ -333,7 +340,7 @@ export function Home({ compact }: { compact?: boolean }) {
             {difficulty}
             {chapters}
           </div>
-          <div className="flex w-[380px] shrink-0 flex-col gap-4.5">{mode}</div>
+          <div className="flex w-[380px] shrink-0 flex-col gap-4.5 pb-10">{mode}</div>
         </div>
       )}
     </div>
