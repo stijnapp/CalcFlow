@@ -42,6 +42,41 @@ export function useKeyboardInset(): number {
 }
 
 /**
+ * Where the top of the keyboard is, as a distance up from the bottom of the
+ * layout — which is what `bottom` means to something fixed.
+ *
+ * The same number as the inset until the browser pans. A field low on the
+ * screen is brought into sight by sliding the visual viewport down the page,
+ * a moment after the keyboard is up, and anything fixed to the layout rides up
+ * with the page and off the keys it was sitting on: the key bar went up into
+ * the middle of the fullscreen canvas, or out of sight altogether. It reads
+ * this instead, and stays on the keyboard wherever the page has been moved to.
+ */
+export function useKeyboardTop(): number {
+  const [top, setTop] = useState(0);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const read = () => {
+      const inset = window.innerHeight - vv.height;
+      setTop(inset > 120 ? Math.max(0, Math.round(inset - vv.offsetTop)) : 0);
+    };
+    read();
+    vv.addEventListener('resize', read);
+    vv.addEventListener('scroll', read);
+    window.addEventListener('resize', read);
+    return () => {
+      vv.removeEventListener('resize', read);
+      vv.removeEventListener('scroll', read);
+      window.removeEventListener('resize', read);
+    };
+  }, []);
+
+  return top;
+}
+
+/**
  * Everything covering the bottom of the layout: the keyboard, and the key bar
  * riding on top of it. What lifts itself clear of the keyboard lifts itself
  * clear of this, or the bar sits over the submit button.

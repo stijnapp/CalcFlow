@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -14,6 +15,7 @@ import type { CanvasSurface } from '@calcflow/shared';
 import { LatexField } from '@/components/LatexField';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
+import { useBottomInset } from '@/lib/useKeyboardInset';
 import {
   RULE_SPACING,
   Surface,
@@ -109,6 +111,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef(new Surface());
   const tapsRef = useRef(new TapDetector());
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -835,7 +838,12 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   // Leaving the type tool settles whatever was being written, and leaving the
   // lasso drops what it was holding — a box he cannot drag is just a box.
   useEffect(() => {
-    if (tool !== 'type') deselect();
+    if (tool !== 'type') {
+      deselect();
+      // The field goes with the tool, and a field taken away while it has the
+      // caret does not always say it has lost it.
+      setTyping(false);
+    }
     if (tool !== 'lasso') setSelection(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool]);
@@ -866,6 +874,28 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     target.addEventListener('pointerup', up);
   }
 
+  /*
+   * The line he is typing stands clear of the keyboard and the key bar on it.
+   * Left at the foot of the canvas it was under both, and Android fetched it
+   * out by sliding the whole page up a moment after the keyboard arrived —
+   * taking everything on the screen with it. Lifted as the keyboard rises, it
+   * is already in sight by the time the browser looks, and nothing moves.
+   */
+  const [typing, setTyping] = useState(false);
+  const covered = useBottomInset();
+  const [lift, setLift] = useState(0);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!typing || covered === 0 || !el) {
+      setLift(0);
+      return;
+    }
+    const below = window.innerHeight - el.getBoundingClientRect().bottom;
+    // Room over the bar for the tablet's gap under it, and for a breath; never
+    // so high that the canvas's own top edge cuts the field off.
+    setLift(Math.min(Math.max(0, covered + 20 - below), Math.max(0, el.clientHeight - 72)));
+  }, [typing, covered]);
+
   // The surface is 4/3 of a screen to begin with, grows past whatever he has
   // written, and always reaches at least one screen below where he is now —
   // so scrolling down never stops and the thumb resizes as he goes.
@@ -883,7 +913,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const thumbTop = Math.min(100 - thumbHeight, Math.max(0, ((panY - ceiling) / extent) * 100));
 
   return (
-    <div className={cx('relative min-w-0 overflow-hidden', className)}>
+    <div ref={rootRef} className={cx('relative min-w-0 overflow-hidden', className)}>
       <canvas
         ref={canvasRef}
         onPointerDown={onPointerDown}
@@ -980,12 +1010,15 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
             animate={{ y: 0 }}
             exit={{ y: 'calc(100% + 12px)' }}
             transition={SPRING}
-            className="absolute inset-x-3 bottom-3 rounded-lg shadow-[0_18px_44px_-16px_#000]"
+            style={{ bottom: 12 + lift }}
+            className="absolute inset-x-3 rounded-lg shadow-[0_18px_44px_-16px_#000]"
           >
           <LatexField
             value={active?.latex ?? ''}
             onChange={editActive}
             onSubmit={deselect}
+            onFocus={() => setTyping(true)}
+            onBlur={() => setTyping(false)}
             placeholder="\frac{d}{dx}\ln(x)"
             ariaLabel="The line you are placing on the canvas"
             compact
