@@ -48,6 +48,8 @@ interface Props {
   tool: CanvasTool;
   penWidth: number;
   penOnly: boolean;
+  /** On a lattice question, whether a vector's ends land on whole numbers. */
+  snap: boolean;
   surface: CanvasSurface;
   /**
    * Set on a graph question: real axes under the ink, and the answer drawn over
@@ -80,8 +82,6 @@ const FLING_DECAY = 0.9965;
 const TAP_SLOP = 10;
 /** A finger resting this long is not tapping any more. */
 const TAP_HOLD_MS = 700;
-/** Hold this long before moving and the arrow ignores the lattice. */
-const ARROW_FREE_MS = 400;
 /** Quiet after a mark before the page is written back. */
 const SAVE_MS = 600;
 /** A typed block has no measured width here; this is enough to draw a box round. */
@@ -105,7 +105,7 @@ function distanceToSegment(x: number, y: number, a: StoredArrow): number {
  * he pans within the canvas instead.
  */
 const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanvas(
-  { tool, penWidth, penOnly, surface, plane, problemKey, getInitial, onPersist, onToast, className },
+  { tool, penWidth, penOnly, snap, surface, plane, problemKey, getInitial, onPersist, onToast, className },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -148,8 +148,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   /** His own arrows on a graph question, in maths coordinates. */
   const [arrows, setArrows] = useState<StoredArrow[]>([]);
   const arrowsUndone = useRef<StoredArrow[]>([]);
-  /** The arrow under the pen, and whether the hold has turned snapping off. */
-  const drawingArrow = useRef<{ start: StoredArrow; downAt: number; free: boolean } | null>(null);
+  /** The arrow under the pen. */
+  const drawingArrow = useRef<{ start: StoredArrow } | null>(null);
   /** Whether the newest mark was an arrow, so undo knows which stack to pop. */
   const lastWasArrow = useRef(false);
   const nextBlockId = useRef(1);
@@ -490,14 +490,11 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       const geo = geometry();
       if (!geo) return;
       const p = toWorld(e);
-      const at = planeRef.current?.spec.lattice
-        ? snapToLattice(geo, p.x, p.y)
-        : toMaths(geo, p.x, p.y);
-      drawingArrow.current = {
-        start: { x1: at.x, y1: at.y, x2: at.x, y2: at.y },
-        downAt: e.timeStamp,
-        free: false,
-      };
+      const at =
+        planeRef.current?.spec.lattice && snap
+          ? snapToLattice(geo, p.x, p.y)
+          : toMaths(geo, p.x, p.y);
+      drawingArrow.current = { start: { x1: at.x, y1: at.y, x2: at.x, y2: at.y } };
       schedulePaint();
       return;
     }
@@ -561,12 +558,9 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     if (live) {
       const geo = geometry();
       if (!geo) return;
-      // Held still before moving: he wants the arrow where he puts it, not
-      // where the lattice thinks it should go.
-      if (e.timeStamp - live.downAt > ARROW_FREE_MS) live.free = true;
       const p = toWorld(e);
       const at =
-        planeRef.current?.spec.lattice && !live.free
+        planeRef.current?.spec.lattice && snap
           ? snapToLattice(geo, p.x, p.y)
           : toMaths(geo, p.x, p.y);
       live.start = { ...live.start, x2: at.x, y2: at.y };

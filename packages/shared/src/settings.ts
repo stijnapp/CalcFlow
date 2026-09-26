@@ -33,6 +33,8 @@ export interface Settings {
   customKeys: CustomKey[];
   /** Stroke width for the one pen, in CSS pixels at full pressure. */
   penWidth: number;
+  /** A vector drawn on a lattice question starts and ends on whole numbers. */
+  arrowSnap: boolean;
   /** Blank means "whatever this browser calls itself" — see `detectDeviceName`. */
   deviceName: string;
   backendUrl: string;
@@ -69,6 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keyBar: true,
   customKeys: [],
   penWidth: 3.6,
+  arrowSnap: true,
   deviceName: '',
   backendUrl: '',
   token: '',

@@ -7,7 +7,9 @@ import type { Draft, Generator } from '../types.js';
  * Chapter 12, drawn on the lattice.
  *
  * Same split as chapter 5: the arrow is self-graded against the answer drawn
- * over it, and the components and lengths are typed and checked. The window is
+ * over it, and the components and lengths are typed and checked — never more
+ * than two of them, since the drawing is half the answer already and three
+ * boxes crowd it off a phone. The window is
  * always a whole number of units either side of the origin and `lattice` is on,
  * so a drawn arrow snaps to the grid — an arrow that lands between points
  * cannot be compared with anything.
@@ -36,13 +38,13 @@ function windowFor(points: Vec[]): PlotSpec['window'] {
   return { xMin: -span, xMax: span, yMin: -Math.round(span * 0.62), yMax: Math.round(span * 0.62), step: 1 };
 }
 
-/** Draw pa + qb, then say what it is and how long. */
+/** Draw pa + qb, then say what it is. */
 export const linearCombination: Generator = {
   id: 'vec.combination',
   chapter: 12,
   title: 'Draw a linear combination',
   tags: ['vectors', 'sketching'],
-  version: 1,
+  version: 2,
   supports: TIERS,
   invariant: 'value-preserving',
 
@@ -69,11 +71,10 @@ export const linearCombination: Generator = {
       instruction: 'Draw the resultant',
       prompt: `\\vec{a} = ${column(a)},\\quad \\vec{b} = ${column(b)}`,
       promptText: `Both vectors are already on the grid. Draw $${combo}$ from the origin.`,
-      note: 'The components and the length are checked; the arrow you check yourself.',
+      note: 'The components are checked; the arrow you check yourself.',
       answers: [
         answer(String(result[0]), { label: 'x component', keyboard: 'numeric', kind: 'number' }),
         answer(String(result[1]), { label: 'y component', keyboard: 'numeric', kind: 'number' }),
-        answer(lengthTex(result), { label: 'length', keyboard: 'algebra', kind: 'number' }),
       ],
       solution: [
         setup(
@@ -83,19 +84,13 @@ export const linearCombination: Generator = {
           'Componentwise, both times — there is nothing else a vector sum can mean.',
         ),
         setup('vector-arithmetic', 'Which is', column(result)),
-        setup(
-          'vector-length',
-          'And its length',
-          `\\left|${combo}\\right| = ${rootOf(`${num(result[0])}^{2} + ${num(result[1])}^{2}`)} = ${lengthTex(result)}`,
-          'Pythagoras on the components. Leave the root — a decimal is not the answer.',
-        ),
         aside(
           'Drawing it',
           `\\text{tip to tail}`,
           `Put the tail of ${q < 0 ? 'the reversed, doubled b' : 'the scaled b'} at the tip of the scaled a; the resultant runs from the origin to where you end up.`,
         ),
       ],
-      ruleIds: ['vector-arithmetic', 'vector-length'],
+      ruleIds: ['vector-arithmetic'],
       plot,
     };
   },
@@ -222,7 +217,7 @@ export const distance: Generator = {
   chapter: 12,
   title: 'Distance between two points',
   tags: ['vectors', 'distance'],
-  version: 1,
+  version: 2,
   supports: TIERS,
   invariant: 'value-preserving',
 
@@ -249,13 +244,11 @@ export const distance: Generator = {
     return {
       instruction: 'Draw PQ and give its length',
       prompt: `P${column(p).replace('pmatrix', 'pmatrix')} \\quad Q${column(q)}`,
-      promptText: `Draw the arrow from P(${p[0]}, ${p[1]}) to Q(${q[0]}, ${q[1]}), then give its components and its length.`,
-      note: 'The typed fields are checked; the arrow you check yourself.',
-      answers: [
-        answer(String(d[0]), { label: 'x component', keyboard: 'numeric', kind: 'number' }),
-        answer(String(d[1]), { label: 'y component', keyboard: 'numeric', kind: 'number' }),
-        answer(lengthTex(d), { label: 'length', keyboard: 'algebra', kind: 'number' }),
-      ],
+      promptText: `Draw the arrow from P(${p[0]}, ${p[1]}) to Q(${q[0]}, ${q[1]}), then give its length.`,
+      // The components are on the drawing, and the answer drawn over it shows
+      // them; the length is the distance, which is the question.
+      note: 'The length is checked; the arrow you check yourself.',
+      answers: [answer(lengthTex(d), { label: 'length', keyboard: 'algebra', kind: 'number' })],
       solution: [
         setup(
           'vector-arithmetic',

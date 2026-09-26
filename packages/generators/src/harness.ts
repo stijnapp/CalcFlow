@@ -51,6 +51,11 @@ export function checkProblem(problem: Problem, generator: Generator): string[] {
   const push = (m: string) => problems.push(m);
 
   if (problem.answers.length === 0) push('no answers declared');
+  // A vector is drawn as well as typed, and a third box pushes the drawing off
+  // a phone's screen.
+  if (problem.plot?.lattice && problem.answers.length > 2) {
+    push(`a lattice question asks for ${problem.answers.length} typed answers; two at most`);
+  }
 
   for (const [i, spec] of problem.answers.entries()) {
     if (!spec.tex.trim()) push(`answer ${i} is empty`);

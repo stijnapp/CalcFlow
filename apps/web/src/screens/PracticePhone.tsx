@@ -21,6 +21,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackCard } from '@/components/FeedbackCard';
 import { Fit } from '@/components/Fit';
 import { HintPanel } from '@/components/HintPanel';
+import { ArrowSnap } from '@/components/ArrowSnap';
 import { HoverLabel } from '@/components/HoverLabel';
 import { PenWidth } from '@/components/PenWidth';
 import { ProblemCard } from '@/components/ProblemCard';
@@ -69,6 +70,7 @@ export function PracticePhone() {
         tool={tool}
         penWidth={settings.penWidth}
         penOnly={settings.penOnly}
+        snap={settings.arrowSnap}
         surface={settings.canvasSurface}
         plane={
           problem.plot ? { spec: problem.plot, reveal: answered ? session.reveal : 'none' } : null
@@ -86,14 +88,23 @@ export function PracticePhone() {
     </>
   );
 
-  const penPicker = (
+  /** The second tap's menu: the pen's width, or whether a vector snaps. */
+  const toolPicker = (className: string) => (
     <AnimatePresence>
-      {practice.penMenu && tool === 'pen' && (
+      {practice.toolMenu && tool === 'pen' && (
         <PenWidth
           key="pen-width"
           width={settings.penWidth}
           onChange={(penWidth) => patchSettings({ penWidth })}
-          className="pointer-events-auto absolute left-3.5 top-full mt-2"
+          className={className}
+        />
+      )}
+      {practice.toolMenu && tool === 'arrow' && (
+        <ArrowSnap
+          key="arrow-snap"
+          snap={settings.arrowSnap}
+          onChange={(arrowSnap) => patchSettings({ arrowSnap })}
+          className={className}
         />
       )}
     </AnimatePresence>
@@ -101,10 +112,10 @@ export function PracticePhone() {
 
   /* The picker has no close button: it is put away by touching the drawing, or
      the tool it came out of, or anywhere at all. */
-  const penScrim = practice.penMenu && tool === 'pen' && (
+  const menuScrim = practice.toolMenu && (
     <button
-      aria-label="Close the width picker"
-      onClick={() => practice.setPenMenu(false)}
+      aria-label="Close the menu"
+      onClick={() => practice.setToolMenu(false)}
       className="absolute inset-0 z-20 cursor-default"
     />
   );
@@ -168,7 +179,7 @@ export function PracticePhone() {
 
         <div className="relative min-h-0 flex-1">{canvasEl}</div>
 
-        {penScrim}
+        {menuScrim}
 
         {/* More tools than the phone is wide, so the row scrolls. The picker
             has to live outside the scroller: a box that clips horizontally
@@ -215,16 +226,7 @@ export function PracticePhone() {
               <Trash2 className="size-[18px]" />
             </PhoneTool>
           </div>
-          <AnimatePresence>
-            {practice.penMenu && tool === 'pen' && (
-              <PenWidth
-                key="pen-width"
-                width={settings.penWidth}
-                onChange={(penWidth) => patchSettings({ penWidth })}
-                className="absolute bottom-full left-4 mb-1"
-              />
-            )}
-          </AnimatePresence>
+          {toolPicker('absolute bottom-full left-4 mb-1')}
         </div>
 
         {dialogs}
@@ -330,11 +332,11 @@ export function PracticePhone() {
               <Maximize className="size-[15px] text-accent" />
             </PhoneTool>
           </div>
-          {penPicker}
+          {toolPicker('pointer-events-auto absolute left-3.5 top-full mt-2')}
         </div>
       </div>
 
-      {penScrim}
+      {menuScrim}
 
       {answered ? (
         <motion.div

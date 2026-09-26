@@ -2,6 +2,7 @@ import { Eraser, Hand, Lasso, MoveUpRight, PenTool, Redo2, Trash2, Type, Undo2 }
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import type { CanvasTool } from '@/canvas/ScribbleCanvas';
+import { ArrowSnap } from './ArrowSnap';
 import { HoverLabel } from './HoverLabel';
 import { PenWidth } from './PenWidth';
 
@@ -10,8 +11,11 @@ interface Props {
   onTool(tool: CanvasTool): void;
   penWidth: number;
   onPenWidth(next: number): void;
-  penMenu: boolean;
-  onClosePenMenu(): void;
+  arrowSnap: boolean;
+  onArrowSnap(next: boolean): void;
+  /** The active tool's second-tap menu: the pen's width, or the vector's snapping. */
+  toolMenu: boolean;
+  onCloseToolMenu(): void;
   penOnly: boolean;
   onPenOnly(next: boolean): void;
   onUndo(): void;
@@ -31,8 +35,10 @@ export function ToolRail({
   onTool,
   penWidth,
   onPenWidth,
-  penMenu,
-  onClosePenMenu,
+  arrowSnap,
+  onArrowSnap,
+  toolMenu,
+  onCloseToolMenu,
   penOnly,
   onPenOnly,
   onUndo,
@@ -55,13 +61,25 @@ export function ToolRail({
         <Lasso className="size-[17px]" />
       </RailButton>
       {arrows && (
-        <RailButton
-          label="Draw a vector · hold before moving to leave the lattice"
-          active={tool === 'arrow'}
-          onClick={() => onTool('arrow')}
-        >
-          <MoveUpRight className="size-[17px]" />
-        </RailButton>
+        <div className="relative">
+          <RailButton
+            label="Draw a vector · tap again for snapping"
+            active={tool === 'arrow'}
+            onClick={() => onTool('arrow')}
+          >
+            <MoveUpRight className="size-[17px]" />
+          </RailButton>
+          <AnimatePresence>
+            {toolMenu && tool === 'arrow' && (
+              <ArrowSnap
+                key="arrow-snap"
+                snap={arrowSnap}
+                onChange={onArrowSnap}
+                className="absolute left-[60px] -top-1"
+              />
+            )}
+          </AnimatePresence>
+        </div>
       )}
 
       <div className="my-1 h-px w-7 bg-border" />
@@ -82,15 +100,15 @@ export function ToolRail({
         </RailButton>
       </div>
 
-      {penMenu && tool === 'pen' && (
+      {toolMenu && (
         <button
-          aria-label="Close the width picker"
-          onClick={onClosePenMenu}
+          aria-label="Close the menu"
+          onClick={onCloseToolMenu}
           className="fixed inset-0 z-20 cursor-default"
         />
       )}
       <AnimatePresence>
-        {penMenu && tool === 'pen' && (
+        {toolMenu && tool === 'pen' && (
           <PenWidth
             key="pen-width"
             width={penWidth}

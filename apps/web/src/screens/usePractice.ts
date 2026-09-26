@@ -8,7 +8,7 @@ import type { CanvasState } from '@/canvas/strokes';
 export function usePractice() {
   const canvas = useRef<CanvasHandle>(null);
   const [tool, setToolState] = useState<CanvasTool>('pen');
-  const [penMenu, setPenMenu] = useState(false);
+  const [toolMenu, setToolMenu] = useState(false);
   const [clearAsk, setClearAsk] = useState(false);
   const [leaveAsk, setLeaveAsk] = useState(false);
   const showToast = useStore((s) => s.showToast);
@@ -34,10 +34,13 @@ export function usePractice() {
     setLeaveAsk(true);
   });
 
-  /** Tapping the pen a second time is what opens its width picker. */
+  /**
+   * Tapping the pen a second time opens its width picker, and the vector tool
+   * its snapping. Any other tool, or the other one of those two, puts it away.
+   */
   const setTool = useCallback(
     (next: CanvasTool) => {
-      setPenMenu(next === 'pen' && tool === 'pen' ? (open) => !open : false);
+      setToolMenu(next === tool && (next === 'pen' || next === 'arrow') ? (open) => !open : false);
       setToolState(next);
     },
     [tool],
@@ -68,8 +71,8 @@ export function usePractice() {
     saveCanvas,
     tool,
     setTool,
-    penMenu,
-    setPenMenu,
+    toolMenu,
+    setToolMenu,
     clearAsk,
     setClearAsk,
     askClear,

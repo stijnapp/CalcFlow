@@ -68,8 +68,10 @@ export function PracticeTablet() {
           onTool={setTool}
           penWidth={settings.penWidth}
           onPenWidth={(penWidth) => patchSettings({ penWidth })}
-          penMenu={practice.penMenu}
-          onClosePenMenu={() => practice.setPenMenu(false)}
+          arrowSnap={settings.arrowSnap}
+          onArrowSnap={(arrowSnap) => patchSettings({ arrowSnap })}
+          toolMenu={practice.toolMenu}
+          onCloseToolMenu={() => practice.setToolMenu(false)}
           penOnly={settings.penOnly}
           onPenOnly={(penOnly) => patchSettings({ penOnly })}
           onUndo={undo}
@@ -83,6 +85,7 @@ export function PracticeTablet() {
           tool={tool}
           penWidth={settings.penWidth}
           penOnly={settings.penOnly}
+          snap={settings.arrowSnap}
           surface={settings.canvasSurface}
           plane={problem.plot ? { spec: problem.plot, reveal: answered ? session.reveal : 'none' } : null}
           problemKey={`${problem.generatorId}:${problem.seed}`}
@@ -99,7 +102,9 @@ export function PracticeTablet() {
                   <span className="text-ink">your sketch</span> · <span className="text-accent">the answer</span>
                 </>
               ) : arrows ? (
-                'Arrows snap to whole lattice points · hold before moving to draw free'
+                settings.arrowSnap
+                  ? 'Arrows snap to whole lattice points · tap the vector tool again to draw free'
+                  : 'Arrows go where the pen does · tap the vector tool again to snap'
               ) : (
                 'Graph paper with real axes · the answer is drawn over your sketch when you submit'
               )}
