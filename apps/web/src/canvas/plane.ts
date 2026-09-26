@@ -59,7 +59,15 @@ export function snapToLattice(plane: Plane, worldX: number, worldY: number): { x
   return { x: Math.round(m.x), y: Math.round(m.y) };
 }
 
-/** Grid, axes and tick labels. Drawn under everything, in world coordinates. */
+/**
+ * Grid, axes and tick labels. Drawn under everything, in world coordinates.
+ *
+ * The window sets the scale and where the origin sits, not where the grid
+ * stops: the page scrolls half a screen above it and forever below it, and a
+ * canvas taller than it is wide shows more than the window on its own. So the
+ * grid covers whatever is on screen, and the y axis runs on past the window in
+ * both directions.
+ */
 export function paintPlane(
   ctx: CanvasRenderingContext2D,
   plane: Plane,
@@ -68,21 +76,30 @@ export function paintPlane(
   panY: number,
 ): void {
   const { window: w, scale } = plane;
+  const step = w.step;
+  // Lines by index rather than by adding up steps, so a fractional step does
+  // not drift and every fifth line is still the major one.
+  const first = (lo: number) => Math.ceil(lo / step - 1e-9);
+  const last = (hi: number) => Math.floor(hi / step + 1e-9);
+  const top = toMaths(plane, 0, panY).y;
+  const bottom = toMaths(plane, 0, panY + height).y;
+  const lineColour = (k: number) => (k === 0 ? AXIS : k % 5 === 0 ? GRID_MAJOR : GRID);
+
   ctx.save();
   ctx.translate(0, -panY);
 
   ctx.lineWidth = 1;
-  for (let x = Math.ceil(w.xMin / w.step) * w.step; x <= w.xMax; x += w.step) {
-    const px = Math.round(toWorld(plane, x, 0).x) + 0.5;
-    ctx.strokeStyle = x === 0 ? AXIS : Math.abs(x % (w.step * 5)) < 1e-9 ? GRID_MAJOR : GRID;
+  for (let k = first(w.xMin); k <= last(w.xMax); k += 1) {
+    const px = Math.round(toWorld(plane, k * step, 0).x) + 0.5;
+    ctx.strokeStyle = lineColour(k);
     ctx.beginPath();
-    ctx.moveTo(px, toWorld(plane, 0, w.yMax).y);
-    ctx.lineTo(px, toWorld(plane, 0, w.yMin).y);
+    ctx.moveTo(px, panY);
+    ctx.lineTo(px, panY + height);
     ctx.stroke();
   }
-  for (let y = Math.ceil(w.yMin / w.step) * w.step; y <= w.yMax; y += w.step) {
-    const py = Math.round(toWorld(plane, 0, y).y) + 0.5;
-    ctx.strokeStyle = y === 0 ? AXIS : Math.abs(y % (w.step * 5)) < 1e-9 ? GRID_MAJOR : GRID;
+  for (let k = first(bottom); k <= last(top); k += 1) {
+    const py = Math.round(toWorld(plane, 0, k * step).y) + 0.5;
+    ctx.strokeStyle = lineColour(k);
     ctx.beginPath();
     ctx.moveTo(0, py);
     ctx.lineTo(width, py);
@@ -90,31 +107,36 @@ export function paintPlane(
   }
 
   // Numbers on the axes, every other unit so they do not collide on a phone.
-  const every = scale < 26 ? w.step * 2 : w.step;
+  const every = scale * step < 26 ? 2 : 1;
   ctx.fillStyle = LABEL;
   ctx.font = '11px ui-monospace, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   const axisY = toWorld(plane, 0, 0).y;
-  for (let x = Math.ceil(w.xMin / every) * every; x <= w.xMax; x += every) {
-    if (x === 0) continue;
-    ctx.fillText(String(x), toWorld(plane, x, 0).x, axisY + 4);
+  for (let k = first(w.xMin); k <= last(w.xMax); k += 1) {
+    if (k === 0 || k % every !== 0) continue;
+    ctx.fillText(label(k * step), toWorld(plane, k * step, 0).x, axisY + 4);
   }
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   const axisX = toWorld(plane, 0, 0).x;
-  for (let y = Math.ceil(w.yMin / every) * every; y <= w.yMax; y += every) {
-    if (y === 0) continue;
-    ctx.fillText(String(y), axisX - 6, toWorld(plane, 0, y).y);
+  for (let k = first(bottom); k <= last(top); k += 1) {
+    if (k === 0 || k % every !== 0) continue;
+    ctx.fillText(label(k * step), axisX - 6, toWorld(plane, 0, k * step).y);
   }
   ctx.fillStyle = AXIS;
   ctx.textAlign = 'left';
   ctx.fillText('x', width - 12, axisY - 12);
   ctx.textAlign = 'center';
-  ctx.fillText('y', axisX + 12, toWorld(plane, 0, w.yMax).y + 8);
+  // At the top of the window, or of the screen once that has scrolled away.
+  ctx.fillText('y', axisX + 12, Math.max(toWorld(plane, 0, w.yMax).y, panY) + 8);
 
   ctx.restore();
-  void height;
+}
+
+/** A tick's number without the float noise of `k * step`. */
+function label(value: number): string {
+  return String(Math.round(value * 1000) / 1000);
 }
 
 /** The question's own marks, or the revealed answer. */
@@ -123,6 +145,7 @@ export function paintItems(
   plane: Plane,
   items: readonly PlotItem[],
   panY: number,
+  height: number,
   role: 'given' | 'answer',
 ): void {
   const colour = role === 'answer' ? ANSWER_INK : GIVEN;
@@ -145,6 +168,7 @@ export function paintItems(
           ctx,
           plane,
           item.axis === 'vertical' ? { x: item.at } : { y: item.at },
+          { top: panY, bottom: panY + height },
           item.label,
         );
         break;
@@ -219,6 +243,8 @@ function paintDashed(
   ctx: CanvasRenderingContext2D,
   plane: Plane,
   at: { x: number } | { y: number },
+  /** What is on screen, in world pixels: a vertical asymptote runs its whole height, like the grid. */
+  view: { top: number; bottom: number },
   label?: string,
 ): void {
   ctx.save();
@@ -227,14 +253,14 @@ function paintDashed(
   ctx.beginPath();
   if ('x' in at) {
     const px = toWorld(plane, at.x, 0).x;
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, plane.height);
+    ctx.moveTo(px, view.top);
+    ctx.lineTo(px, view.bottom);
     ctx.stroke();
     if (label) {
       ctx.setLineDash([]);
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(label, px + 6, 8);
+      ctx.fillText(label, px + 6, Math.max(0, view.top) + 8);
     }
   } else {
     const py = toWorld(plane, 0, at.y).y;

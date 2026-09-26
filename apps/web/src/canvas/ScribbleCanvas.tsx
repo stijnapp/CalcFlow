@@ -214,7 +214,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       underlay: geo
         ? (c, pan) => {
             paintPlane(c, geo, w, h, pan);
-            if (view?.spec.given) paintItems(c, geo, view.spec.given, pan, 'given');
+            if (view?.spec.given) paintItems(c, geo, view.spec.given, pan, h, 'given');
           }
         : undefined,
       overlay: geo
@@ -224,7 +224,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
               paintArrows(c, geo, arrowsRef.current, pan);
               if (live) paintArrows(c, geo, [live.start], pan, '#a89e92');
             }
-            if (showAnswer) paintItems(c, geo, view!.spec.answer, pan, 'answer');
+            if (showAnswer) paintItems(c, geo, view!.spec.answer, pan, h, 'answer');
           }
         : undefined,
     });
