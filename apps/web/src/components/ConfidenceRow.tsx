@@ -16,6 +16,10 @@ interface Props {
 /**
  * Captured at submit, before the result is shown — that ordering is the whole
  * reason the confidence × correctness grid means anything.
+ *
+ * A press leaves the focus where it was. Picking "Sure" mid-answer used to take
+ * the caret out of the field, the keyboard went down and the screen dropped
+ * under his thumb; with nothing focused it stays that way too.
  */
 export function ConfidenceRow({ value, onChange, compact }: Props) {
   return (
@@ -23,6 +27,7 @@ export function ConfidenceRow({ value, onChange, compact }: Props) {
       {OPTIONS.map((o) => (
         <button
           key={o.id}
+          onPointerDown={(e) => e.preventDefault()}
           onClick={() => onChange(o.id)}
           aria-pressed={value === o.id}
           className={cx(
