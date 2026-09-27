@@ -14,7 +14,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ScribbleCanvas } from '@/canvas/ScribbleCanvas';
+import { ScribbleCanvas, type CanvasInsets } from '@/canvas/ScribbleCanvas';
 import { AnswerField } from '@/components/AnswerField';
 import { ConfidenceRow } from '@/components/ConfidenceRow';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -33,11 +33,23 @@ import { SelfGradeRow } from '@/components/SelfGrade';
 import { Sheet, SHEET_PEEK } from '@/components/Sheet';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
+import { useKeyBar } from '@/lib/keyBar';
+import { useHeight } from '@/lib/useHeight';
 import { useStore } from '@/state/store';
 import { usePractice } from './usePractice';
 
 const CONFIDENCE_LABEL = { sure: 'sure', think: 'think so', guess: 'guessed' } as const;
 const SPRING = { type: 'spring' as const, stiffness: 420, damping: 40 };
+
+/**
+ * The fullscreen tools' frost is whole under the buttons and eases out above
+ * them, so the page is not cut off by a hard edge where the frost begins.
+ */
+const FROST_FADE = (() => {
+  const mask =
+    'linear-gradient(to top, #000 0, #000 22px, rgba(0,0,0,0.92) 40px, rgba(0,0,0,0.72) 58px, rgba(0,0,0,0.45) 72px, rgba(0,0,0,0.2) 86px, rgba(0,0,0,0.06) 96px, transparent 104px)';
+  return { maskImage: mask, WebkitMaskImage: mask };
+})();
 
 /**
  * Stacked: problem on top, canvas in the middle, answer sheet pinned to the
@@ -64,7 +76,14 @@ export function PracticePhone() {
   const graded = !problem.plot || session.selfGrade !== null;
   const arrows = problem.plot?.lattice ?? false;
 
-  const canvasEl = (
+  // What floats over the fullscreen canvas, which runs on underneath it.
+  const [headerRef, headerHeight] = useHeight<HTMLDivElement>();
+  const [toolsRef, toolsHeight] = useHeight<HTMLDivElement>();
+  // While a line is being typed, the key bar takes the tool row's place at
+  // the bottom rather than half covering it.
+  const keyBarUp = useKeyBar((s) => s.height > 0);
+
+  const canvasEl = (insets?: CanvasInsets) => (
     <>
       <ScribbleCanvas
         ref={canvas}
@@ -81,9 +100,13 @@ export function PracticePhone() {
         getInitial={practice.getCanvas}
         onPersist={practice.saveCanvas}
         onToast={showToast}
+        insets={insets}
       />
       {problem.plot && answered && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+        <div
+          className="pointer-events-none absolute inset-x-0 flex justify-center"
+          style={{ bottom: (insets?.bottom ?? 0) + 12 }}
+        >
           <RevealToggle value={session.reveal} onChange={store.setReveal} />
         </div>
       )}
@@ -153,10 +176,18 @@ export function PracticePhone() {
 
   if (fullscreen) {
     return (
-      <div className="relative flex h-full flex-col bg-canvas">
+      <div className="relative h-full bg-canvas">
+        <div className="absolute inset-0">
+          {canvasEl({ top: headerHeight, bottom: keyBarUp ? 0 : toolsHeight })}
+        </div>
+
         {/* The problem stays readable while writing, as one thin bar — or,
-            tapped, as the whole question. */}
-        <div className="flex shrink-0 flex-col border-b border-edge bg-page/95">
+            tapped, as the whole question. Frosted, so the page reads as
+            carrying on underneath it. */}
+        <div
+          ref={headerRef}
+          className="absolute inset-x-0 top-0 z-30 flex flex-col border-b border-edge/60 bg-page/65 backdrop-blur-md"
+        >
           <div className="flex items-center gap-2.5 px-4 py-3.5">
             <button
               onClick={store.toggleQuestion}
@@ -247,8 +278,6 @@ export function PracticePhone() {
           </AnimatePresence>
         </div>
 
-        <div className="relative min-h-0 flex-1">{canvasEl}</div>
-
         {menuScrim}
 
         {/* More tools than the phone is wide, so the row scrolls. The picker
@@ -258,8 +287,19 @@ export function PracticePhone() {
             stops short of the screen looks like it has run out of tools, and
             one that runs to the edge and pads its own ends looks the same at
             rest and honest once it moves. */}
-        <div className="relative z-30 shrink-0 pb-[22px] pt-3">
-          <div className="scroll-x flex gap-2 px-4">
+        <div
+          ref={toolsRef}
+          className={cx(
+            'absolute inset-x-0 bottom-0 z-30 pb-[22px] pt-3 transition-opacity duration-150',
+            keyBarUp && 'pointer-events-none opacity-0',
+          )}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 -top-6 bottom-0 bg-page/55 backdrop-blur-md"
+            style={FROST_FADE}
+          />
+          <div className="scroll-x relative flex gap-2 px-4">
             <PhoneTool active={tool === 'pen'} onClick={() => setTool('pen')} label="Pen">
               <PenTool className="size-[18px]" />
             </PhoneTool>
@@ -341,7 +381,7 @@ export function PracticePhone() {
         className="relative mx-4 mt-3 min-h-0 flex-1 overflow-hidden rounded-xl border border-edge"
         style={{ marginBottom: answered ? 16 : SHEET_PEEK + 12 }}
       >
-        {canvasEl}
+        {canvasEl()}
         {/* The tools scroll; pen-only and fullscreen do not. Those two are how
             he gets his hand out of the way and how he gets more room, and
             hunting for either by swiping a row is exactly the wrong moment. */}

@@ -37,6 +37,8 @@ interface Props {
   trailing?: ReactNode;
   /** Lets an owner outside the field put the caret in it. */
   fieldRef?: RefObject<HTMLTextAreaElement | null>;
+  /** See-through and blurred, for a field floating over the canvas. */
+  frosted?: boolean;
 }
 
 /**
@@ -71,6 +73,7 @@ export function LatexField({
   autoFocus,
   trailing,
   fieldRef,
+  frosted,
 }: Props) {
   const ownRef = useRef<HTMLTextAreaElement>(null);
   const inputRef = fieldRef ?? ownRef;
@@ -151,7 +154,8 @@ export function LatexField({
     <div
       ref={box}
       className={cx(
-        'flex min-w-0 flex-col rounded-lg border bg-well transition-colors',
+        'flex min-w-0 flex-col rounded-lg border transition-colors',
+        frosted ? 'bg-well/70 backdrop-blur-md' : 'bg-well',
         BORDER[tone] || (focused ? 'border-accent' : 'border-border'),
       )}
     >

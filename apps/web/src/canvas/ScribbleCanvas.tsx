@@ -70,8 +70,21 @@ interface Props {
   getInitial?(): CanvasState | null;
   onPersist?(state: CanvasState): void;
   onToast(message: string): void;
+  /**
+   * How far bars floating over the canvas reach in from its top and bottom
+   * edges. The ink runs on underneath them; the scroll thumb, the gesture hint
+   * and the line being typed keep clear.
+   */
+  insets?: CanvasInsets;
   className?: string;
 }
+
+export interface CanvasInsets {
+  top: number;
+  bottom: number;
+}
+
+const NO_INSETS: CanvasInsets = { top: 0, bottom: 0 };
 
 const SPRING = { type: 'spring' as const, stiffness: 480, damping: 36 };
 /** Roughly a block's height, so one hanging off the end still extends the surface. */
@@ -107,7 +120,20 @@ function distanceToSegment(x: number, y: number, a: StoredArrow): number {
  * he pans within the canvas instead.
  */
 const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanvas(
-  { tool, penWidth, penOnly, snap, surface, plane, problemKey, getInitial, onPersist, onToast, className },
+  {
+    tool,
+    penWidth,
+    penOnly,
+    snap,
+    surface,
+    plane,
+    problemKey,
+    getInitial,
+    onPersist,
+    onToast,
+    insets = NO_INSETS,
+    className,
+  },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -935,7 +961,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       />
 
       {/* Where he is on the infinite surface. */}
-      <div className="pointer-events-none absolute top-4 bottom-4 right-2 w-1 rounded-full bg-line">
+      <div
+        className="pointer-events-none absolute right-2 w-1 rounded-full bg-line"
+        style={{ top: insets.top + 16, bottom: insets.bottom + 16 }}
+      >
         <div
           className="absolute left-0 w-1 rounded-full bg-rail"
           style={{ top: `${thumbTop}%`, height: `${thumbHeight}%` }}
@@ -1019,10 +1048,11 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
             animate={{ y: 0 }}
             exit={{ y: 'calc(100% + 12px)' }}
             transition={SPRING}
-            style={{ bottom: 12 + lift }}
+            style={{ bottom: 12 + Math.max(insets.bottom, lift) }}
             className="absolute inset-x-3 rounded-lg shadow-[0_18px_44px_-16px_#000]"
           >
           <LatexField
+            frosted={insets.bottom > 0}
             value={active?.latex ?? ''}
             onChange={editActive}
             onSubmit={deselect}
@@ -1048,7 +1078,10 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       </AnimatePresence>
 
       {tool !== 'type' && (
-        <div className="pointer-events-none absolute bottom-4 left-4 font-mono text-[11px] tracking-[0.08em] text-ghost">
+        <div
+          className="pointer-events-none absolute left-4 font-mono text-[11px] tracking-[0.08em] text-ghost"
+          style={{ bottom: insets.bottom + 16 }}
+        >
           {tool === 'lasso'
             ? 'LOOP ROUND SOME WORKING · THEN DRAG THE BOX'
             : penOnly
