@@ -279,7 +279,7 @@ export const powerSum: Generator = {
   invariant: 'value-preserving',
 
   generate({ tier, rng }): Draft {
-    const count = tier === 'easy' ? 2 : tier === 'medium' ? 3 : 3;
+    const count = tier === 'easy' ? 2 : 3;
     const exponents = new Set<number>();
     while (exponents.size < count) {
       exponents.add(tier !== 'easy' ? rng.pick([-2, -1, 2, 3, 4]) : rng.int(1, 4));

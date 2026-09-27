@@ -1,6 +1,6 @@
 import { TIERS, type Tier } from '@calcflow/shared';
 import { answer, aside, frac, paren, setup, step, term } from '../authoring.js';
-import type { Draft, Generator, Rng } from '../types.js';
+import type { Draft, Generator } from '../types.js';
 
 interface Angle {
   deg: number;
@@ -396,7 +396,7 @@ export const trigEquation: Generator = {
     if (tier === 'hard') {
       // sin 2x = s on [0, π): the doubled argument halves the spacing.
       const halves = [alpha / 2, 90 - alpha / 2].sort((a, b) => a - b);
-      const equation = `\\sin\\left(2x\\right) = ${fn === 'sin' ? base.sin : base.sin}`;
+      const equation = `\\sin\\left(2x\\right) = ${base.sin}`;
       return {
         instruction: 'Solve for x on [0, π)',
         prompt: equation,

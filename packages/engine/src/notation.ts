@@ -139,7 +139,7 @@ function splitAt(raw: string): number {
 /** LaTeX that decorates rather than means, and the spaces around it. */
 function clean(s: string): string {
   return s
-    .replace(/\\left|\\right|\\!|\\,|\;|\\:|\\quad|\\qquad/g, '')
+    .replace(/\\left|\\right|\\!|\\,|\\;|\\:|\\quad|\\qquad/g, '')
     .replace(/\s+/g, '')
     .trim();
 }

@@ -42,7 +42,7 @@ describe('rule examples', () => {
       for (const line of [...(example.given ? [example.given] : []), ...example.steps]) {
         expect(() => katex.renderToString(line, { throwOnError: true }), `${id} #${i}: ${line}`).not.toThrow();
         // A `+ -3` or a `- -3` is legal LaTeX and still wrong on the page.
-        expect(line, `${id} #${i}`).not.toMatch(/[+\-]\s+-\d/);
+        expect(line, `${id} #${i}`).not.toMatch(/[+-]\s+-\d/);
       }
     }
   });

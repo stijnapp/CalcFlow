@@ -33,16 +33,13 @@ export function KeyBar() {
    * of the tool rail, so it lines up under the field instead — the answer
    * column, or the line being placed on the canvas.
    */
-  const [span, setSpan] = useState<{ left: number; width: number } | null>(null);
+  const [measured, setMeasured] = useState<{ left: number; width: number; of: typeof target } | null>(null);
   useLayoutEffect(() => {
     const el = target?.anchor();
-    if (layout !== 'tablet' || !el) {
-      setSpan(null);
-      return;
-    }
+    if (layout !== 'tablet' || !el) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      setSpan({ left: r.left, width: r.width });
+      setMeasured({ left: r.left, width: r.width, of: target });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -53,6 +50,8 @@ export function KeyBar() {
       window.removeEventListener('resize', measure);
     };
   }, [target, layout]);
+  // A measurement of another field, or from before the layout changed, is not this one's.
+  const span = layout === 'tablet' && measured?.of === target ? measured : null;
 
   // Published so the answer sheet can stand on the bar rather than under it.
   useLayoutEffect(() => {

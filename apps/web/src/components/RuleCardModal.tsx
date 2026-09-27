@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { makeRng, newSeed, ruleById, ruleExample } from '@calcflow/generators';
@@ -18,22 +18,6 @@ export function RuleCardModal() {
   const compact = useLayout() === 'phone';
   const rule = openRule ? ruleById(openRule) : undefined;
   useBackDismiss(rule !== undefined, () => setOpenRule(null));
-
-  /**
-   * The example is a draw, and this is the draw. Rerolled on the way in as well
-   * as on the button, so opening the same card twice is not the same numbers
-   * twice — half the value of an example is seeing the rule survive a different
-   * set of them.
-   */
-  const [seed, setSeed] = useState(newSeed);
-  useEffect(() => {
-    if (openRule) setSeed(newSeed());
-  }, [openRule]);
-
-  const example = useMemo(
-    () => (rule ? ruleExample(rule.id, makeRng(`${rule.id}:${seed}`)) : undefined),
-    [rule, seed],
-  );
 
   return (
     <AnimatePresence>
@@ -97,52 +81,66 @@ export function RuleCardModal() {
                 {rule.note}
               </Prose>
 
-              {example && (
-                <section className="flex shrink-0 flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <Eyebrow>EXAMPLE</Eyebrow>
-                    <div className="h-px flex-1 bg-line" />
-                    <HoverLabel label="Another set of numbers">
-                      <button
-                        onClick={() => setSeed(newSeed())}
-                        aria-label="Show a different example"
-                        className="flex items-center gap-1.5 rounded-sm border border-strong bg-raised px-2.5 py-1 text-[12px] text-muted hover:border-accent hover:text-ink"
-                      >
-                        <RefreshCw className="size-3" />
-                        Randomise
-                      </button>
-                    </HoverLabel>
-                  </div>
-
-                  {/* Keyed on the seed so a reroll reads as a new example
-                      arriving rather than as the old one silently changing. */}
-                  <motion.div
-                    key={seed}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className={cx(
-                      'flex flex-col gap-2 rounded-lg border border-edge bg-card',
-                      compact ? 'px-3 py-3' : 'px-4 py-3.5',
-                    )}
-                  >
-                    {example.given && (
-                      <Fit className={cx('text-muted', compact ? 'text-[14px]' : 'text-[15px]')}>
-                        <Tex>{example.given}</Tex>
-                      </Fit>
-                    )}
-                    {example.steps.map((line, i) => (
-                      <Fit key={i} className={compact ? 'text-[15px]' : 'text-[17px]'}>
-                        <Tex>{line}</Tex>
-                      </Fit>
-                    ))}
-                  </motion.div>
-                </section>
-              )}
+              <RuleExample key={rule.id} ruleId={rule.id} compact={compact} />
             </div>
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * The example is a draw, and this is the draw. It is mounted afresh each time a
+ * card opens, so opening the same card twice is not the same numbers twice —
+ * half the value of an example is seeing the rule survive a different set of
+ * them — and the button draws again.
+ */
+function RuleExample({ ruleId, compact }: { ruleId: string; compact: boolean }) {
+  const [seed, setSeed] = useState(newSeed);
+  const example = useMemo(() => ruleExample(ruleId, makeRng(`${ruleId}:${seed}`)), [ruleId, seed]);
+  if (!example) return null;
+
+  return (
+    <section className="flex shrink-0 flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <Eyebrow>EXAMPLE</Eyebrow>
+        <div className="h-px flex-1 bg-line" />
+        <HoverLabel label="Another set of numbers">
+          <button
+            onClick={() => setSeed(newSeed())}
+            aria-label="Show a different example"
+            className="flex items-center gap-1.5 rounded-sm border border-strong bg-raised px-2.5 py-1 text-[12px] text-muted hover:border-accent hover:text-ink"
+          >
+            <RefreshCw className="size-3" />
+            Randomise
+          </button>
+        </HoverLabel>
+      </div>
+
+      {/* Keyed on the seed so a reroll reads as a new example
+          arriving rather than as the old one silently changing. */}
+      <motion.div
+        key={seed}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+        className={cx(
+          'flex flex-col gap-2 rounded-lg border border-edge bg-card',
+          compact ? 'px-3 py-3' : 'px-4 py-3.5',
+        )}
+      >
+        {example.given && (
+          <Fit className={cx('text-muted', compact ? 'text-[14px]' : 'text-[15px]')}>
+            <Tex>{example.given}</Tex>
+          </Fit>
+        )}
+        {example.steps.map((line, i) => (
+          <Fit key={i} className={compact ? 'text-[15px]' : 'text-[17px]'}>
+            <Tex>{line}</Tex>
+          </Fit>
+        ))}
+      </motion.div>
+    </section>
   );
 }

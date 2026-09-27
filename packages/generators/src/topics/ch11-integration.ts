@@ -25,7 +25,7 @@ export const definitePolynomial: Generator = {
   invariant: 'value-preserving',
 
   generate({ tier, rng }): Draft {
-    const count = tier === 'easy' ? 2 : tier === 'medium' ? 3 : 3;
+    const count = tier === 'easy' ? 2 : 3;
     const exponents = new Set<number>();
     while (exponents.size < count) exponents.add(rng.int(0, tier !== 'easy' ? 3 : 2));
     const pairs = [...exponents]

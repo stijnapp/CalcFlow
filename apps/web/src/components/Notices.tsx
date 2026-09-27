@@ -34,19 +34,16 @@ export function Notices() {
   // Losing the tailnet for a moment is not news — the minute timer would
   // otherwise announce every walk out of wifi range. A minute of it is news,
   // and the retries mean a real outage still surfaces.
-  const [settled, setSettled] = useState(false);
+  const [offlineAMinute, setOfflineAMinute] = useState(false);
   useEffect(() => {
-    if (!error) {
-      setSettled(false);
-      return;
-    }
-    if (kind !== 'offline') {
-      setSettled(true);
-      return;
-    }
-    const timer = setTimeout(() => setSettled(true), 60_000);
-    return () => clearTimeout(timer);
+    if (!error || kind !== 'offline') return;
+    const timer = setTimeout(() => setOfflineAMinute(true), 60_000);
+    return () => {
+      clearTimeout(timer);
+      setOfflineAMinute(false);
+    };
   }, [error, kind]);
+  const settled = kind !== 'offline' || offlineAMinute;
 
   const out = WAY_OUT[kind ?? 'server'];
   const showSync = Boolean(error) && kind !== dismissed && settled;

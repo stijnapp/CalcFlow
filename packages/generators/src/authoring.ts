@@ -94,7 +94,7 @@ export function poly(pairs: Array<[number, number]>, v = 'x'): Latex {
 
 /** Wraps in parentheses unless it is already a single atom. */
 export function paren(x: Latex): Latex {
-  return /^[-]?[0-9a-zA-Z]+$/.test(x) ? x : `\\left(${x}\\right)`;
+  return /^-?[0-9a-zA-Z]+$/.test(x) ? x : `\\left(${x}\\right)`;
 }
 
 /** An integer or a plain fraction — something that can sit against its factor. */

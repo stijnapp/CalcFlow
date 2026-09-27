@@ -81,14 +81,14 @@ function tokenize(src: string): Token[] {
       else out.push({ t: 'cmd', v: name });
       continue;
     }
-    if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] ?? ''))) {
+    if (/\d/.test(c) || (c === '.' && /\d/.test(src[i + 1] ?? ''))) {
       let j = i;
-      while (j < src.length && /[0-9]/.test(src[j]!)) j += 1;
+      while (j < src.length && /\d/.test(src[j]!)) j += 1;
       let decimal = false;
-      if (src[j] === '.' && /[0-9]/.test(src[j + 1] ?? '')) {
+      if (src[j] === '.' && /\d/.test(src[j + 1] ?? '')) {
         decimal = true;
         j += 1;
-        while (j < src.length && /[0-9]/.test(src[j]!)) j += 1;
+        while (j < src.length && /\d/.test(src[j]!)) j += 1;
       }
       out.push({ t: 'num', v: Number(src.slice(i, j)), decimal });
       i = j;

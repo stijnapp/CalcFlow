@@ -582,7 +582,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   next() {
-    const { session, settings } = get();
+    const { session } = get();
     if (!session) return;
 
     // The set is over the moment he moves on from its last answer. Keeping it

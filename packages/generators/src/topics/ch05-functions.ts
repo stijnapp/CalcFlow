@@ -1,5 +1,5 @@
 import { TIERS } from '@calcflow/shared';
-import { answer, aside, frac, fracTex, poly, rootOf, setup, step, sum, term, tidy } from '../authoring.js';
+import { answer, aside, frac, fracTex, poly, rootOf, setup, step, sum, term } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
 /** ` + 3` or ` - 3`, so a sign never lands next to another sign. */

@@ -23,7 +23,7 @@ export const antiderivativePower: Generator = {
   invariant: 'value-preserving',
 
   generate({ tier, rng }): Draft {
-    const count = tier === 'easy' ? 2 : tier === 'medium' ? 3 : 3;
+    const count = tier === 'easy' ? 2 : 3;
     const exponents = new Set<number>();
     while (exponents.size < count) exponents.add(rng.int(tier !== 'easy' ? 1 : 0, 4));
     const pairs = [...exponents]

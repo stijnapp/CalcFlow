@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -138,7 +139,9 @@ export function LatexField({
   // The bar holds on to one object for as long as this field has the caret, so
   // it is stable and reads the latest `value` through the ref at each press.
   const latest = useRef({ insert, step });
-  latest.current = { insert, step };
+  useLayoutEffect(() => {
+    latest.current = { insert, step };
+  });
   const box = useRef<HTMLDivElement>(null);
   const target = useMemo<KeyTarget>(
     () => ({

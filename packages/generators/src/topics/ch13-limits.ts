@@ -1,5 +1,5 @@
 import { TIERS } from '@calcflow/shared';
-import { answer, aside, frac, fracTex, paren, poly, power, rootOf, setup, step, term } from '../authoring.js';
+import { answer, aside, frac, fracTex, paren, poly, rootOf, setup, step, term } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
 /*

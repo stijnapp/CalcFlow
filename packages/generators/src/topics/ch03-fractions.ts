@@ -1,5 +1,5 @@
 import { TIERS } from '@calcflow/shared';
-import { answer, aside, frac, fracTex, gcd, paren, poly, step, tidy } from '../authoring.js';
+import { answer, aside, frac, fracTex, gcd, paren, poly, step, sum, tidy } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
 export const combineNumeric: Generator = {
@@ -17,9 +17,9 @@ export const combineNumeric: Generator = {
     const numerators = denominators.map(() => rng.nonZero(-9, 9));
 
     const parts = numerators.map((n, i) => fracTex(n, denominators[i]!));
-    const prompt = parts.reduce((acc, p) => (p.startsWith('-') ? `${acc} - ${p.slice(1)}` : `${acc} + ${p}`));
+    const prompt = sum(parts);
 
-    const common = denominators.reduce((a, b) => (a * b) / gcd(a, b));
+    const common = denominators.reduce((a, b) => (a * b) / gcd(a, b), 1);
     const total = numerators.reduce((acc, n, i) => acc + (n * common) / denominators[i]!, 0);
 
     return {

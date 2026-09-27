@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Makes overlays answer the device back button. While anything dismissable is
@@ -160,16 +160,16 @@ export function useBackGuard(active: boolean, onBack: () => void): void {
 
 function useEntry(open: boolean, close: () => void, guard: boolean): void {
   const closeRef = useRef(close);
-  closeRef.current = close;
-  // One token per overlay, not per effect run: a ref outlives the unmount
+  useLayoutEffect(() => {
+    closeRef.current = close;
+  });
+  // One token per overlay, not per effect run: state outlives the unmount
   // StrictMode simulates, and so the entry it names is the same one afterwards.
-  const tokenRef = useRef(0);
-  if (tokenRef.current === 0) tokenRef.current = ++seq;
+  const [token] = useState(() => ++seq);
 
   useEffect(() => {
     if (!open) return;
     listen();
-    const token = tokenRef.current;
     stack.push({ token, guard, close: () => closeRef.current() });
     schedule();
 
@@ -178,5 +178,5 @@ function useEntry(open: boolean, close: () => void, guard: boolean): void {
       if (at >= 0) stack.splice(at, 1);
       schedule();
     };
-  }, [open, guard]);
+  }, [open, guard, token]);
 }
