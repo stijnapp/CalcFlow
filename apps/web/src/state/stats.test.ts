@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Attempt } from '@calcflow/shared';
+import { sessionChapters } from './session';
 import { computeStats } from './stats';
 
 const DAY = 86_400_000;
@@ -165,5 +166,26 @@ describe('the read', () => {
     ]);
     expect(stats.read?.id).toBe('rule');
     expect(stats.shakyRules[0]?.n).toBe(4);
+  });
+});
+
+describe('sessionChapters', () => {
+  const stats = computeStats([
+    ...many(4, { chapter: 5, generatorId: 'fn.parity', correct: false, errorClass: 'wrong' }),
+    ...many(4, { chapter: 9, correct: true }),
+  ]);
+
+  it('lets weak spots choose from the whole book, not from the chapters ticked', () => {
+    expect(sessionChapters('weak', [9], stats)).toEqual([5]);
+  });
+
+  it('has nothing to offer before anything is flagged', () => {
+    expect(sessionChapters('weak', [9], computeStats([]))).toEqual([]);
+    expect(sessionChapters('speed', [9], stats)).toEqual([]);
+  });
+
+  it('asks the ticked chapters in the other modes', () => {
+    expect(sessionChapters('set10', [9, 2], stats)).toEqual([9, 2]);
+    expect(sessionChapters('endless', [], stats)).toEqual([]);
   });
 });

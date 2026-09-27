@@ -11,7 +11,7 @@ import { useStore } from '@/state/store';
 interface Props {
   open: boolean;
   onClose(): void;
-  /** Every topic the chapters and tier can ask, before his own say is applied. */
+  /** Every topic the chapters and tier can ask, before their own say is applied. */
   topics: readonly Generator[];
   onSet(id: string, state: TopicState): void;
   onReset(): void;
@@ -27,7 +27,7 @@ const STATES: Array<{ id: TopicState; label: string }> = [
 /**
  * The topics behind "11 topics ask this", each one switchable off or wanted in
  * every set. Grouped by chapter, because with three chapters on the list is
- * long and the chapter is how he finds his way down it.
+ * long and the chapter is how they find their way down it.
  */
 export function TopicsDialog({ open, onClose, topics, onSet, onReset, compact }: Props) {
   useBackDismiss(open, onClose);
@@ -51,7 +51,7 @@ export function TopicsDialog({ open, onClose, topics, onSet, onReset, compact }:
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
           className={cx(
-            'fixed inset-0 z-50 grid place-items-center bg-[rgba(8,7,6,0.66)]',
+            'fixed inset-0 z-50 flex items-center justify-center bg-scrim',
             compact ? 'p-3.5' : 'p-6',
           )}
         >
@@ -70,7 +70,10 @@ export function TopicsDialog({ open, onClose, topics, onSet, onReset, compact }:
               <div className="flex min-w-0 flex-col gap-1">
                 <h2 className={cx('font-semibold', compact ? 'text-[17px]' : 'text-[21px]')}>Topics</h2>
                 <p className="text-[13px] text-faint text-pretty">
-                  Switch a topic off, or ask for it in every set — the others still come too.
+                  <span className="text-muted">Off</span> never comes up.{' '}
+                  <span className="text-accent">Always</span> comes up in every set: together the
+                  always topics get about half the questions, and the rest still come in between.
+                  After each answer, the verdict names the topic it was.
                 </p>
               </div>
               <button

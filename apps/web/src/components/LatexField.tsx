@@ -125,22 +125,14 @@ function useKeyTarget(
     place(start + caretOffset(key));
   }
 
-  function step(by: -1 | 1) {
-    const el = inputRef.current;
-    if (!el) return;
-    const at = el.selectionStart ?? value.length;
-    place(Math.min(value.length, Math.max(0, at + by)));
-  }
-
-  const latest = useRef({ insert, step });
+  const latest = useRef({ insert });
   useLayoutEffect(() => {
-    latest.current = { insert, step };
+    latest.current = { insert };
   });
   const box = useRef<HTMLDivElement>(null);
   const target = useMemo<KeyTarget>(
     () => ({
       insert: (key) => latest.current.insert(key),
-      step: (by) => latest.current.step(by),
       anchor: () => box.current,
     }),
     [],

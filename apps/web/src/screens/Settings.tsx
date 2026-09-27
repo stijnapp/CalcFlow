@@ -160,9 +160,10 @@ function SyncGroup() {
   const patchSettings = useStore((s) => s.patchSettings);
   return (
     <Group title="SYNC">
-      {/* The placeholder is not a suggestion — it is what leaving this blank
-          will actually stamp on every attempt. */}
-      <Row label="Device name" sub="blank = what this browser calls itself">
+      {/* Stamped on every answer, so the synced log can say which device each
+          one came from. The placeholder is not a suggestion — it is what
+          leaving this blank will actually stamp. */}
+      <Row label="Device name" sub="which device an answer came from">
         <TextField
           value={deviceName}
           onChange={(next) => patchSettings({ deviceName: next })}

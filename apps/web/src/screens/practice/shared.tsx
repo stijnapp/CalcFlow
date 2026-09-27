@@ -1,5 +1,6 @@
 import { useMemo, type RefObject } from 'react';
 import { AnimatePresence } from 'motion/react';
+import { generatorById } from '@calcflow/generators';
 import type { PlaneView } from '@/canvas/plane';
 import {
   ScribbleCanvas,
@@ -111,6 +112,7 @@ export function Verdict({ compact }: { compact?: boolean }) {
 
   return (
     <>
+      <TopicTag generatorId={problem.generatorId} always={session.topics?.always} />
       <FeedbackCard
         problem={problem}
         correct={outcome.correct}
@@ -131,6 +133,27 @@ export function Verdict({ compact }: { compact?: boolean }) {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Which topic the problem was, once it is answered — before that, the name is
+ * the first hint. Marked when it is one they asked for in every set, so the
+ * topics switch can be seen doing its job: "(x − 6)³" is the chain rule, even
+ * when it does not look like one yet.
+ */
+function TopicTag({ generatorId, always }: { generatorId: string; always?: readonly string[] }) {
+  const title = generatorById(generatorId)?.title;
+  if (!title) return null;
+  return (
+    <div className="flex items-center gap-2 text-xs text-faint">
+      <span className="min-w-0 truncate">{title}</span>
+      {always?.includes(generatorId) && (
+        <span className="shrink-0 rounded-full border border-accent/50 bg-accent/10 px-2 py-px text-[11px] font-medium text-accent">
+          always
+        </span>
+      )}
+    </div>
   );
 }
 

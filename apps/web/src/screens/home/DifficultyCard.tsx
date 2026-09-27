@@ -11,6 +11,7 @@ import { TopicsDialog } from '@/components/TopicsDialog';
 import { cx } from '@/lib/cx';
 import { resetTopics, tuning, withTopic } from '@/lib/topics';
 import { useStore } from '@/state/store';
+import { useSessionChapters } from '@/state/useSessionChapters';
 
 const list = (joined: string): string[] => (joined === '' ? [] : joined.split(','));
 
@@ -56,7 +57,8 @@ function useSample(chapters: readonly number[], tier: Tier, off: string[], alway
 export function DifficultyCard({ compact }: { compact?: boolean }) {
   const settings = useStore((s) => s.settings);
   const patchSettings = useStore((s) => s.patchSettings);
-  const every = candidates({ chapters: settings.chapters, tier: settings.tier });
+  const chapters = useSessionChapters();
+  const every = candidates({ chapters, tier: settings.tier });
   const [picking, setPicking] = useState(false);
 
   return (
@@ -109,7 +111,7 @@ function TierButton({ tier, active, onPick }: { tier: Tier; active: boolean; onP
 }
 
 function SampleCard({ every, onPickTopics }: { every: Generator[]; onPickTopics(): void }) {
-  const chapters = useStore((s) => s.settings.chapters);
+  const chapters = useSessionChapters();
   const tier = useStore((s) => s.settings.tier);
   const off = useStore((s) => s.settings.topicsOff);
   const always = useStore((s) => s.settings.topicsAlways);

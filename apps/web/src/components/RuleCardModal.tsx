@@ -32,7 +32,7 @@ export function RuleCardModal() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
           className={cx(
-            'absolute inset-0 z-50 grid place-items-center bg-[rgba(8,7,6,0.66)]',
+            'absolute inset-0 z-50 flex items-center justify-center bg-scrim',
             compact ? 'p-3.5' : 'p-6',
           )}
         >
@@ -63,13 +63,18 @@ export function RuleCardModal() {
             {/* The card itself stays put; only the worked example scrolls, so
                 the rule he came to read is never the part that goes off-screen. */}
             <div className="scroll-y flex min-h-0 flex-1 flex-col gap-4">
+              {/* Shrunk to the card rather than centred past its edges: a centred
+                  line wider than its box spills off both sides, and the left
+                  half cannot even be scrolled back to. */}
               <div
                 className={cx(
-                  'grid shrink-0 place-items-center scroll-x rounded-lg border border-border bg-card',
-                  compact ? 'p-3 text-[17px]' : 'p-[26px] text-[26px]',
+                  'shrink-0 rounded-lg border border-border bg-card',
+                  compact ? 'p-3' : 'p-[26px]',
                 )}
               >
-                <Tex>{rule.tex}</Tex>
+                <Fit center className={compact ? 'text-[17px]' : 'text-[26px]'}>
+                  <Tex>{rule.tex}</Tex>
+                </Fit>
               </div>
 
               <Prose

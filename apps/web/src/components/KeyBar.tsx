@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import { useKeyBar } from '@/lib/keyBar';
@@ -12,7 +11,7 @@ import { NotationRow } from './NotationRow';
 const SPRING = { type: 'spring' as const, stiffness: 520, damping: 42 };
 
 /**
- * The notation keys and the caret arrows, floating on top of the on-screen
+ * The notation keys, floating on top of the on-screen
  * keyboard while a LaTeX field has the caret. Nothing on it takes focus — a
  * press that moved the caret out of the field would close the keyboard it is
  * sitting on — so every press lands in the field he was already typing in.
@@ -87,19 +86,6 @@ export function KeyBar() {
           )}
         >
           <NotationRow keys={resolveKeys(ids, custom)} compact onInsert={(key) => into()?.insert(key)} />
-          {(['left', 'right'] as const).map((dir) => (
-            <motion.button
-              key={dir}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: 'spring', stiffness: 700, damping: 30 }}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => into()?.step(dir === 'left' ? -1 : 1)}
-              aria-label={dir === 'left' ? 'Move the caret left' : 'Move the caret right'}
-              className="grid size-9 shrink-0 place-items-center rounded-[9px] border border-edge bg-sunken text-muted hover:border-accent hover:text-ink"
-            >
-              {dir === 'left' ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
-            </motion.button>
-          ))}
         </motion.div>
       )}
     </AnimatePresence>

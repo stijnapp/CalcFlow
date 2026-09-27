@@ -6,8 +6,10 @@ import { HoverLabel } from '@/components/HoverLabel';
 import { Toggle } from '@/components/Toggle';
 import { cx } from '@/lib/cx';
 import { clockTime } from '@/lib/format';
-import type { ChapterStat } from '@/state/stats';
+import { NOTHING_TO_ASK } from '@/state/slices/practice';
+import { slowChapters, weakChapters, type ChapterStat } from '@/state/stats';
 import { useStore } from '@/state/store';
+import { useSessionChapters } from '@/state/useSessionChapters';
 import { DifficultyCard } from './home/DifficultyCard';
 
 /** `n` is the set length for the sized modes, and the flagged count for the rest. */
@@ -15,8 +17,14 @@ const MODES: Array<{ id: SessionMode; label(n: number): string; meta(n: number):
   { id: 'set10', label: (n) => `Set of ${n}`, meta: (n) => `~${Math.round(n * 1.2)} min` },
   { id: 'endless', label: () => 'Endless', meta: () => 'no end' },
   { id: 'weak', label: () => 'Weak spots', meta: (n) => `${n} flagged` },
-  { id: 'speed', label: () => 'Build speed', meta: (n) => `${n} slow topics` },
+  { id: 'speed', label: () => 'Build speed', meta: (n) => `${n} slow` },
 ];
+
+/** The modes that choose their own chapters, and what they choose them by. */
+const CHOSEN_BY: Partial<Record<SessionMode, string>> = {
+  weak: 'Weak spots picks these: under 70% mastery',
+  speed: 'Build speed picks these: right, but slow',
+};
 
 export function Home({ compact }: { compact?: boolean }) {
   const difficulty = <DifficultyCard compact={compact} />;
@@ -127,14 +135,25 @@ function SyncButton() {
 
 function ChapterGrid({ compact }: { compact?: boolean }) {
   const byChapter = useStore((s) => s.stats.byChapter);
-  const picked = useStore((s) => s.settings.chapters);
+  const mode = useStore((s) => s.settings.mode);
   const toggleChapter = useStore((s) => s.toggleChapter);
+  const picked = useSessionChapters();
+  // Weak spots and build speed choose for themselves; the grid shows their
+  // choice rather than offering one that would be ignored.
+  const chosenBy = CHOSEN_BY[mode];
 
   return (
     <section className={cx('flex min-w-0 flex-col gap-3.5', compact ? '' : 'min-h-0 flex-1')}>
-      <div className="flex shrink-0 items-center gap-3">
-        <Eyebrow className="text-xs">CHAPTERS</Eyebrow>
-        <div className="h-px flex-1 bg-line" />
+      <div className="flex shrink-0 flex-col gap-1.5">
+        <div className="flex items-center gap-3">
+          <Eyebrow className="text-xs">CHAPTERS</Eyebrow>
+          <div className="h-px flex-1 bg-line" />
+        </div>
+        {chosenBy && (
+          <p className="text-[13px] text-faint">
+            {picked.length > 0 ? chosenBy : NOTHING_TO_ASK[mode]}
+          </p>
+        )}
       </div>
 
       {/* On the tablet the list runs to the bottom edge of the screen, and its
@@ -152,6 +171,7 @@ function ChapterGrid({ compact }: { compact?: boolean }) {
             title={ch.title}
             stat={byChapter.find((c) => c.chapter === ch.n)!}
             on={picked.includes(ch.n)}
+            locked={chosenBy !== undefined}
             onToggle={() => toggleChapter(ch.n)}
           />
         ))}
@@ -172,23 +192,28 @@ function ChapterButton({
   title,
   stat,
   on,
+  locked,
   onToggle,
 }: {
   n: number;
   title: string;
   stat: ChapterStat;
   on: boolean;
+  /** The mode chose; the button shows its choice and cannot change it. */
+  locked: boolean;
   onToggle(): void;
 }) {
   return (
     <motion.button
-      whileTap={{ scale: 0.97 }}
+      whileTap={locked ? undefined : { scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 600, damping: 30 }}
       onClick={onToggle}
+      disabled={locked}
       aria-pressed={on}
       className={cx(
-        'flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-colors',
-        on ? 'border-accent bg-accent/10' : 'border-border bg-card hover:border-rail',
+        'flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-[border-color,background-color,opacity] disabled:cursor-default',
+        on ? 'border-accent bg-accent/10' : 'border-border bg-card',
+        !on && (locked ? 'opacity-45' : 'hover:border-rail'),
       )}
     >
       <span className="relative size-[34px] shrink-0">
@@ -223,14 +248,14 @@ function ModePanel() {
   const mode = useStore((s) => s.settings.mode);
   const setLength = useStore((s) => s.settings.setLength);
   const adaptive = useStore((s) => s.settings.adaptive);
-  const byChapter = useStore((s) => s.stats.byChapter);
+  const stats = useStore((s) => s.stats);
   const patchSettings = useStore((s) => s.patchSettings);
-  const often = byChapter.filter((c) => c.attempts >= 3);
+  // The same lists the sessions draw from, so "2 flagged" is two chapters.
   const counts: Record<SessionMode, number> = {
     set10: setLength,
     endless: setLength,
-    weak: often.filter((c) => c.mastery < 70).length,
-    speed: often.filter((c) => c.speed === 'slow').length,
+    weak: weakChapters(stats).length,
+    speed: slowChapters(stats).length,
   };
 
   return (
@@ -306,7 +331,7 @@ function ModeButton({
 function StartButton() {
   const mode = useStore((s) => s.settings.mode);
   const setLength = useStore((s) => s.settings.setLength);
-  const none = useStore((s) => s.settings.chapters.length === 0);
+  const none = useSessionChapters().length === 0;
   const startSession = useStore((s) => s.startSession);
   const label = MODES.find((m) => m.id === mode)!.label(setLength).toLowerCase();
 
@@ -321,7 +346,7 @@ function StartButton() {
       )}
     >
       {none ? (
-        'Pick a chapter to start'
+        NOTHING_TO_ASK[mode]
       ) : (
         <>
           Start {label}

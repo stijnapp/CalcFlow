@@ -38,7 +38,7 @@ export function ConfirmDialog({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.16 }}
-      className="absolute inset-0 z-40 grid place-items-center bg-[rgba(8,7,6,0.62)] p-6"
+      className="absolute inset-0 z-40 grid place-items-center bg-scrim p-6"
     >
       <motion.div
         onClick={(e) => e.stopPropagation()}

@@ -6,7 +6,7 @@ import { saveAttempt } from '../db';
 import { SCREEN_PATH, navigate } from '../navigation';
 import {
   attemptOf,
-  chaptersFor,
+  sessionChapters,
   closed,
   fresh,
   gradeFields,
@@ -36,6 +36,14 @@ export interface PracticeSlice {
    */
   practiceSimilar(): void;
 }
+
+/** Why a mode has no chapters to draw from, and what changes that. */
+export const NOTHING_TO_ASK: Record<SessionMode, string> = {
+  set10: 'Pick a chapter to start',
+  endless: 'Pick a chapter to start',
+  weak: 'No weak spots yet — a few more sets first',
+  speed: 'Nothing slow yet — a few more sets first',
+};
 
 type Get = () => Store;
 type Set = (partial: Partial<Store>) => void;
@@ -67,9 +75,9 @@ export const createPracticeSlice: StateCreator<Store, [], [], PracticeSlice> = (
 
   startSession(mode, opts) {
     const { settings, stats } = get();
-    const chapters = opts?.chapters ?? chaptersFor(mode, settings, stats);
+    const chapters = opts?.chapters ?? sessionChapters(mode, settings.chapters, stats);
     if (chapters.length === 0) {
-      get().showToast('Pick at least one chapter first');
+      get().showToast(NOTHING_TO_ASK[mode]);
       return;
     }
     const plan = {

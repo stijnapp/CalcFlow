@@ -7,6 +7,8 @@ interface Props {
   min?: number;
   /** Font size and colour for the content; keep padding on a parent. */
   className?: string;
+  /** Centred in the width it was given while it fits, rather than hung off the left. */
+  center?: boolean;
 }
 
 interface Size {
@@ -26,7 +28,7 @@ interface Size {
  * and know nothing about the content, so the ratio between the two has to be
  * measured. It is one measurement and a transform.
  */
-export function Fit({ children, min = 0.45, className }: Props) {
+export function Fit({ children, min = 0.45, className, center }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const inkRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size | null>(null);
@@ -53,7 +55,11 @@ export function Fit({ children, min = 0.45, className }: Props) {
     );
   }, [min]);
 
-  useLayoutEffect(measure);
+  // Again whenever what it holds changes — not after every render, which
+  // includes the one its own measurement causes. A scrollbar that the new
+  // height brings in (or takes away) changes the room it measures, and the two
+  // sizes took turns until React gave up and blanked the screen.
+  useLayoutEffect(measure, [measure, children]);
 
   useEffect(() => {
     const ro = new ResizeObserver(measure);
@@ -71,7 +77,7 @@ export function Fit({ children, min = 0.45, className }: Props) {
       className={cx('min-w-0', scrolls ? 'scroll-x' : 'overflow-hidden', className)}
       style={{ height: size?.height }}
     >
-      <div style={{ width: size?.width, height: size?.height }}>
+      <div className={cx(center && 'mx-auto')} style={{ width: size?.width, height: size?.height }}>
         <div
           ref={inkRef}
           className="w-max origin-top-left"

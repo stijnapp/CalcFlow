@@ -4,7 +4,6 @@ import type { LatexKey } from './latexKeys';
 /** What the key bar types into: whichever LaTeX field has the caret. */
 export interface KeyTarget {
   insert(key: LatexKey): void;
-  step(by: -1 | 1): void;
   /** The field's box, which the tablet lines the bar up under. */
   anchor(): HTMLElement | null;
 }

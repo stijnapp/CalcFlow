@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { startUpdates } from './lib/appUpdate';
+import { learnDeviceModel } from './lib/deviceName';
 import { watchForInstall } from './lib/install';
 import { useStore } from './state/store';
 import './styles/index.css';
@@ -48,6 +49,8 @@ if (import.meta.env.DEV) {
 
 // Before the render, because Chrome fires the event whether we are ready or not.
 watchForInstall();
+// Asked early: the answer is async, and the first attempt may be only seconds away.
+void learnDeviceModel();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -84,8 +84,8 @@ export interface Session {
   onTrackLine: string;
   /**
    * The fullscreen canvas shows the question at full size rather than as one
-   * thin line. Theirs to open and close; it lasts until the next problem, and
-   * is not saved — reopening the app starts from the thin line again.
+   * thin line. Every problem starts open; shrinking it lasts until the next
+   * problem, and is not saved — reopening the app shows the whole question again.
    */
   questionOpen: boolean;
   /**
@@ -111,7 +111,7 @@ export function fresh(problem: Problem) {
     reveal: 'both',
     onTrack: null,
     onTrackLine: '',
-    questionOpen: false,
+    questionOpen: true,
     canvas: null,
   } satisfies Partial<Session>;
 }
@@ -247,10 +247,16 @@ export function closed(session: Session, outcome: Outcome, attempt: Attempt, ada
   };
 }
 
-export function chaptersFor(mode: SessionMode, settings: Settings, stats: Stats): number[] {
-  const ranked = mode === 'weak' ? weakChapters(stats) : mode === 'speed' ? slowChapters(stats) : [];
-  const chosen = ranked.filter((c) => settings.chapters.includes(c));
-  return chosen.length ? chosen : settings.chapters;
+/**
+ * The chapters a session in this mode draws from. Weak spots and build speed
+ * choose their own, out of the whole book, from the log: the point of them is
+ * that they know where the trouble is, so the chapters ticked on the home
+ * screen are not asked. Nothing flagged yet is an empty list, not a fallback.
+ */
+export function sessionChapters(mode: SessionMode, picked: readonly number[], stats: Stats): number[] {
+  if (mode === 'weak') return weakChapters(stats);
+  if (mode === 'speed') return slowChapters(stats);
+  return [...picked];
 }
 
 /**

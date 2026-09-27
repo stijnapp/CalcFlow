@@ -124,9 +124,15 @@ export function Sheet({ children, closeable, onClose, height, className }: Props
             not the page behind it. */}
         <div className="absolute inset-x-0 top-full h-40 bg-card" aria-hidden />
 
-        {/* The whole top edge is the grab target, not a strip in the middle. */}
+        {/* The whole top edge is the grab target, not a strip in the middle.
+            It never takes the focus, as the confidence buttons do not: putting
+            the sheet down to look at the working and bringing it back up
+            leaves the caret, and the keyboard, where they were. */}
         <button
-          onPointerDown={(e) => controls.start(e)}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            controls.start(e);
+          }}
           onClick={() => (snap === 'down' ? setSnap('open') : goDown())}
           aria-label={snap === 'down' ? 'Bring the sheet up' : 'Put the sheet down'}
           className="flex h-[30px] w-full shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"

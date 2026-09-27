@@ -27,6 +27,8 @@
   --color-sunken: #211d1a;
   --color-well: #0e0d0b;
   --color-canvas: #171512;
+  /* What dims the screen behind a dialog. */
+  --color-scrim: rgba(8, 7, 6, 0.66);
 
   /* Hairlines, weakest to strongest */
   --color-line: #241f1c;
@@ -170,6 +172,10 @@
     /* Explicit: `overflow-y` alone makes the other axis compute to `auto`, and
        the width a vertical scrollbar takes is then a sideways scroll of its own. */
     overflow-x: hidden;
+    /* The room is the same with or without a scrollbar, so what is inside does
+       not reflow — and shrink its maths, and lose the scrollbar again — the
+       moment it needs one. Phones draw theirs over the content anyway. */
+    scrollbar-gutter: stable;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;

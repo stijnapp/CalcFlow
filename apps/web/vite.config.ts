@@ -17,10 +17,18 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // Beside the shell and never precached, so the "new version ready" banner
+    // can ask the server which version is waiting rather than just that one is.
+    {
+      name: 'calcflow-version',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version }) });
+      },
+    },
     VitePWA({
       // The new worker waits until he says so. `autoUpdate` swapped the app out
       // from under him — mid-problem, with no way to tell that anything had
-      // happened; the banner in `UpdateBanner` is the other half of this.
+      // happened; the banner in `Notices` is the other half of this.
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {

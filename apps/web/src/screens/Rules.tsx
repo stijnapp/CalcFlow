@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
 import { RULES } from '@calcflow/generators';
 import { chapterTitle } from '@calcflow/shared';
+import { Fit } from '@/components/Fit';
 import { HoverLabel } from '@/components/HoverLabel';
 import { Prose, plainProse } from '@/components/Prose';
 import { Tex } from '@/components/Tex';
@@ -94,8 +95,10 @@ export function Rules({ compact }: { compact?: boolean }) {
                   </span>
                   <h2 className="text-base font-medium">{rule.name}</h2>
                 </div>
-                <div className="grid place-items-center scroll-x rounded-md border border-edge bg-page px-4 py-5 text-xl">
-                  <Tex>{rule.tex}</Tex>
+                <div className="rounded-md border border-edge bg-page px-4 py-5">
+                  <Fit center className="text-xl">
+                    <Tex>{rule.tex}</Tex>
+                  </Fit>
                 </div>
                 <Prose className="text-[13px] leading-relaxed text-muted text-pretty">
                   {rule.note}

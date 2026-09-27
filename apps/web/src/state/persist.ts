@@ -83,7 +83,7 @@ export function reviveSession(stored: StoredSession): Session | null {
     reveal: 'both',
     onTrack: null,
     onTrackLine: stored.onTrackLine ?? '',
-    questionOpen: false,
+    questionOpen: true,
     canvas: stored.canvas ?? null,
   };
 }
