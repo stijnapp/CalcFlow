@@ -36,7 +36,7 @@ interface Props {
   /** Sits at the end of the raw line — a delete button, a check button. */
   trailing?: ReactNode;
   /** Lets an owner outside the field put the caret in it. */
-  fieldRef?: RefObject<HTMLInputElement | null>;
+  fieldRef?: RefObject<HTMLTextAreaElement | null>;
 }
 
 /**
@@ -72,7 +72,7 @@ export function LatexField({
   trailing,
   fieldRef,
 }: Props) {
-  const ownRef = useRef<HTMLInputElement>(null);
+  const ownRef = useRef<HTMLTextAreaElement>(null);
   const inputRef = fieldRef ?? ownRef;
   // Which box the keyboard is typing into is worth saying out loud: on a screen
   // with a notation row, an answer field and a hint field all in accent, an
@@ -182,8 +182,14 @@ export function LatexField({
       </button>
 
       <div className={cx('flex items-center gap-2', compact ? 'px-3.5 pb-2' : 'px-5 pb-2.5')}>
-        <motion.input
+        {/* A one-row textarea, not an input: Chrome on Android puts its
+            password / card / address bar over the keyboard on every text input
+            once anything is saved, whatever `autocomplete` says, and never on a
+            textarea. */}
+        <motion.textarea
           ref={inputRef}
+          rows={1}
+          wrap="off"
           value={value}
           readOnly={readOnly}
           autoFocus={autoFocus}
@@ -197,20 +203,20 @@ export function LatexField({
             releaseKeyBar(target);
             onBlur?.();
           }}
-          onChange={(e) => onChange(e.target.value)}
+          // Still one line: a pasted break becomes a space, which LaTeX reads
+          // the same way, and Enter answers rather than breaking the line.
+          onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, ' '))}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && onSubmit) {
-              e.preventDefault();
-              onSubmit();
-            }
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            onSubmit?.();
           }}
-          type="text"
           inputMode="text"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
-          /* Everything the platform reads as "this is not a credential", so the
-             keyboard has no reason to offer a password or an address above it. */
+          /* Everything an autofill service reads as "this is not a credential",
+             for a keyboard that asks one rather than Chrome. */
           autoComplete="off"
           name="latex-line"
           aria-autocomplete="none"
@@ -222,7 +228,7 @@ export function LatexField({
           aria-label={ariaLabel}
           animate={{ opacity: active ? 1 : 0.55 }}
           className={cx(
-            'min-w-0 flex-1 border-t border-edge bg-transparent font-mono text-muted outline-none placeholder:text-ghost',
+            'min-w-0 flex-1 resize-none scroll-x overflow-y-hidden border-t border-edge bg-transparent font-mono text-muted outline-none placeholder:text-ghost',
             compact ? 'pt-1.5 text-[12px]' : 'pt-2 text-[13px]',
           )}
         />
