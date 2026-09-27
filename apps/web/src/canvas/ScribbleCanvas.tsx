@@ -886,11 +886,9 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   }
 
   /*
-   * The line he is typing stands clear of the keyboard and the key bar on it.
-   * Left at the foot of the canvas it was under both, and Android fetched it
-   * out by sliding the whole page up a moment after the keyboard arrived —
-   * taking everything on the screen with it. Lifted as the keyboard rises, it
-   * is already in sight by the time the browser looks, and nothing moves.
+   * The line being typed stands clear of the key bar, which floats over the
+   * bottom of the page while the keyboard is up. The page itself already stops
+   * at the keyboard; see the viewport in index.html.
    */
   const [typing, setTyping] = useState(false);
   const covered = useBottomInset();

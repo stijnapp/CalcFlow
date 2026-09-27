@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import { useKeyBar } from '@/lib/keyBar';
 import { resolveKeys } from '@/lib/latexKeys';
-import { useKeyboardTop } from '@/lib/useKeyboardInset';
+import { useKeyboardInset } from '@/lib/useKeyboardInset';
 import { useLayout } from '@/lib/useLayout';
 import { useStore } from '@/state/store';
 import { NotationRow } from './NotationRow';
@@ -22,7 +22,7 @@ export function KeyBar() {
   const on = useStore((s) => s.settings.keyBar);
   const ids = useStore((s) => s.settings.keys);
   const custom = useStore((s) => s.settings.customKeys);
-  const keyboard = useKeyboardTop();
+  const keyboard = useKeyboardInset();
   const ref = useRef<HTMLDivElement>(null);
   const shown = on && target !== null;
   const layout = useLayout();

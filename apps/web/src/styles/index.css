@@ -108,20 +108,6 @@
     -webkit-touch-callout: default;
   }
 
-  /*
-   * Installed, the window is the screen minus Android's own bars. `lvh` is the
-   * height with any retractable chrome away, and it is the one that stays put:
-   * `dvh` follows the on-screen keyboard on some builds, which shoved the whole
-   * layout up and down every time he started typing an answer.
-   */
-  @media (display-mode: fullscreen), (display-mode: standalone) {
-    html,
-    body,
-    #root {
-      height: 100lvh;
-    }
-  }
-
   /* It is a drawing app: a stray drag should never select text. */
   body,
   button {

@@ -3,14 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <!--
-      No `interactive-widget` override: the keyboard is left to overlay the page
-      and scroll it, which is what keeps the canvas its full height. Resizing
-      the content instead squeezed the flex column between the problem card and
-      the answer sheet down to a sliver of paper.
+      The keyboard shrinks the page to what is left above it. Left to overlay
+      the page instead, Android slid everything up a moment after it arrived,
+      by however much it took to reveal the field — which is what sent the key
+      bar and the canvas's line into the middle of the screen, and made the
+      page scroll by amounts nobody could predict.
     -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1, interactive-widget=resizes-content"
     />
     <!-- The colour Android paints the status bar with, so the bars read as part
          of the app rather than as a black band above it. -->

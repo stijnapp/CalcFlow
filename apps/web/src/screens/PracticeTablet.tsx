@@ -40,10 +40,9 @@ export function PracticeTablet() {
   const answered = outcome !== null;
   const scroller = useRef<HTMLDivElement>(null);
   /*
-   * The keyboard covers the bottom of this column, submit button and all, and
-   * the page itself cannot move: the layout is pinned to the screen so that the
-   * canvas keeps its height. Handing the covered strip to the scroller as
-   * padding is what lets him push the column up and see what is under it.
+   * The key bar floats over the bottom of this column while the keyboard is
+   * up. Handing the strip it covers to the scroller as padding is what lets
+   * the submit button scroll up clear of it.
    */
   const keyboard = useBottomInset();
 

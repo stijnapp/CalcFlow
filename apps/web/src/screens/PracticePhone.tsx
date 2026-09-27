@@ -453,13 +453,8 @@ export function PracticePhone() {
         </motion.div>
       ) : (
         <Sheet className="gap-3 px-4 pb-4">
-          {/* The on-screen keyboard covers the card at the top of the screen, so
-              the sheet carries the question with it. */}
-          <div className="shrink-0 rounded-md border border-edge bg-page px-3 py-2 text-[19px]">
-            <Fit>
-              <Tex>{problem.prompt}</Tex>
-            </Fit>
-          </div>
+          {/* No copy of the question in here: the keyboard shrinks the page
+              rather than sliding it up, so the card above stays in sight. */}
           <div className="scroll-y flex min-h-0 flex-1 flex-col gap-3">
             <AnswerField
               specs={problem.answers}
