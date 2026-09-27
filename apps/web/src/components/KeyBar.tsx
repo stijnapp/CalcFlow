@@ -81,7 +81,7 @@ export function KeyBar() {
           style={span ? { bottom: keyboard + 12, left: span.left, width: span.width } : { bottom: keyboard }}
           onPointerDown={(e) => e.preventDefault()}
           className={cx(
-            'fixed z-[60] flex items-stretch gap-1.5 bg-card px-2 py-1.5 shadow-[0_-12px_30px_-16px_rgba(0,0,0,0.7)]',
+            'fixed z-[60] flex items-stretch gap-1.5 bg-card px-2 py-1.5 shadow-[0_-12px_30px_-16px_color-mix(in_srgb,var(--color-shadow)_70%,transparent)]',
             span ? 'rounded-lg border border-border' : 'inset-x-0 border-t border-border',
           )}
         >

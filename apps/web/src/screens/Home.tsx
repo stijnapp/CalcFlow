@@ -204,8 +204,8 @@ function ChapterGrid({ compact }: { compact?: boolean }) {
 /** An untouched chapter is not a failing one — it gets no arc at all. */
 function ringColour(stat: ChapterStat): string {
   if (stat.attempts === 0) return 'transparent';
-  if (stat.mastery >= 65) return '#3fb27f';
-  return stat.mastery >= 35 ? '#f5a524' : '#e5484d';
+  if (stat.mastery >= 65) return 'var(--color-correct)';
+  return stat.mastery >= 35 ? 'var(--color-accent)' : 'var(--color-wrong)';
 }
 
 function ChapterButton({
@@ -239,13 +239,13 @@ function ChapterButton({
     >
       <span className="relative size-[34px] shrink-0">
         <svg viewBox="0 0 34 34" className="block -rotate-90">
-          <circle cx="17" cy="17" r="14" fill="none" stroke="#332e29" strokeWidth="3" />
+          <circle cx="17" cy="17" r="14" fill="none" className="stroke-border" strokeWidth="3" />
           <circle
             cx="17"
             cy="17"
             r="14"
             fill="none"
-            stroke={ringColour(stat)}
+            style={{ stroke: ringColour(stat) }}
             strokeWidth="3"
             strokeLinecap="round"
             strokeDasharray={`${((stat.mastery / 100) * 87.96).toFixed(1)} 87.96`}

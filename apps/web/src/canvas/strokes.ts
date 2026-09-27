@@ -1,4 +1,5 @@
 import type { CanvasSurface } from '@calcflow/shared';
+import { palette } from './palette';
 
 export interface StrokePoint {
   x: number;
@@ -11,7 +12,6 @@ export interface Stroke {
   id: number;
   pts: StrokePoint[];
   width: number;
-  color: string;
   /**
    * When it last landed on the page or left it, on the clock the arrows share,
    * so undo and redo can tell which of the two came last.
@@ -87,10 +87,9 @@ export interface Layers {
   hideInk?: boolean;
 }
 
-const INK = '#efe7db';
 const LINE_HEIGHT = 40;
 const DOT_SPACING = 32;
-/** Grown in chunks as he pans; the surface is effectively unbounded. */
+/** Grown in chunks as they pan; the surface is effectively unbounded. */
 const CHUNK = 2000;
 /** Slack kept past the ink at either end, and the step the bitmap grows by. */
 const PAD = 1000;
@@ -106,11 +105,13 @@ export class Surface {
   live: Stroke | null = null;
 
   private bitmap: HTMLCanvasElement | null = null;
-  /** World y the bitmap starts at. Negative once he has written above the origin. */
+  /** World y the bitmap starts at. Negative once they have written above the origin. */
   private worldTop = 0;
   private worldHeight = CHUNK;
   /** The bitmap is kept at device resolution; this is the ratio it was cut at. */
   private bitmapDpr = 1;
+  /** The ink the bitmap was painted in; a change of theme repaints it. */
+  private bitmapInk = '';
   private dirty = true;
   private nextId = 1;
   private clock = 1;
@@ -139,7 +140,7 @@ export class Surface {
   }
 
   begin(point: StrokePoint, width: number): void {
-    this.live = { id: this.nextId++, pts: [point], width, color: INK, at: 0 };
+    this.live = { id: this.nextId++, pts: [point], width, at: 0 };
   }
 
   extend(points: StrokePoint[]): void {
@@ -290,7 +291,7 @@ export class Surface {
       }
       const at = s.at ?? this.clock;
       this.reserve(at);
-      return { id: this.nextId++, pts, width: s.w, color: INK, at };
+      return { id: this.nextId++, pts, width: s.w, at };
     });
     this.undone = [];
     this.live = null;
@@ -312,16 +313,17 @@ export class Surface {
     // Pan on whole device pixels: half a pixel of offset is enough to make the
     // blit resample, and resampled ink is what reads as "it went soft".
     const pan = Math.round(panY * dpr) / dpr;
+    const colours = palette();
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#171512';
+    ctx.fillStyle = colours.paper;
     ctx.fillRect(0, 0, width, height);
     paintSurface(ctx, width, height, pan, surface);
     layers.underlay?.(ctx, pan);
 
     if (!layers.hideInk) {
       this.ensureBitmap(width, dpr);
-      if (this.dirty) this.repaintBitmap(width);
+      if (this.dirty || this.bitmapInk !== colours.ink) this.repaintBitmap(width, colours.ink);
       if (this.bitmap) {
         ctx.drawImage(this.bitmap, 0, this.worldTop - pan, width, this.worldHeight);
       }
@@ -329,7 +331,7 @@ export class Surface {
       if (this.live) {
         ctx.save();
         ctx.translate(0, -pan);
-        paintStroke(ctx, this.live);
+        paintStroke(ctx, this.live, colours.ink);
         ctx.restore();
       }
     }
@@ -373,7 +375,7 @@ export class Surface {
     }
   }
 
-  private repaintBitmap(width: number): void {
+  private repaintBitmap(width: number, ink: string): void {
     if (!this.bitmap) return;
     const ctx = this.bitmap.getContext('2d');
     if (!ctx) return;
@@ -381,7 +383,8 @@ export class Surface {
     // The offset is in device pixels; the scale below it is not.
     ctx.setTransform(dpr, 0, 0, dpr, 0, Math.round(-this.worldTop * dpr));
     ctx.clearRect(0, this.worldTop, width, this.worldHeight);
-    for (const s of this.strokes) paintStroke(ctx, s);
+    for (const s of this.strokes) paintStroke(ctx, s, ink);
+    this.bitmapInk = ink;
     this.dirty = false;
   }
 }
@@ -431,15 +434,15 @@ function ceilTo(n: number, step: number): number {
   return Math.ceil(n / step) * step;
 }
 
-function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke): void {
-  ctx.strokeStyle = s.color;
+function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke, ink: string): void {
+  ctx.strokeStyle = ink;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
   if (s.pts.length < 2) {
     const p = s.pts[0];
     if (!p) return;
-    ctx.fillStyle = s.color;
+    ctx.fillStyle = ink;
     ctx.beginPath();
     ctx.arc(p.x, p.y, Math.max(1, s.width * p.p) / 2, 0, Math.PI * 2);
     ctx.fill();
@@ -465,8 +468,9 @@ function paintSurface(
   surface: CanvasSurface,
 ): void {
   if (surface === 'blank') return;
+  const colours = palette();
   if (surface === 'ruled') {
-    ctx.strokeStyle = '#211d19';
+    ctx.strokeStyle = colours.rule;
     ctx.lineWidth = 1;
     const start = -(((panY % LINE_HEIGHT) + LINE_HEIGHT) % LINE_HEIGHT);
     for (let y = start; y < height; y += LINE_HEIGHT) {
@@ -477,7 +481,7 @@ function paintSurface(
     }
     return;
   }
-  ctx.fillStyle = '#2a2521';
+  ctx.fillStyle = colours.dot;
   const start = -(((panY % DOT_SPACING) + DOT_SPACING) % DOT_SPACING);
   for (let y = start; y < height; y += DOT_SPACING) {
     for (let x = DOT_SPACING / 2; x < width; x += DOT_SPACING) {

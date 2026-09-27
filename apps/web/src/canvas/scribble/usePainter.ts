@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 import type { CanvasSurface } from '@calcflow/shared';
+import { useShade } from '@/lib/theme';
 import type { PlaneView } from '../plane';
 import { paintScene } from './paint';
 import { pixelRatio, type Scene } from './scene';
@@ -24,6 +25,7 @@ export function usePainter(
   const [viewH, setViewH] = useState(0);
   const [inkTop, setInkTop] = useState(0);
   const [inkBottom, setInkBottom] = useState(0);
+  const shade = useShade();
 
   const paint = useCallback(() => paintScene(sceneRef.current, paper), [sceneRef, paper]);
 
@@ -66,9 +68,11 @@ export function usePainter(
     return () => observer.disconnect();
   }, [sceneRef, resize]);
 
+  // The canvas paints its colours in rather than following the stylesheet, so a
+  // change of theme is one more reason to paint.
   useEffect(() => {
     paint();
-  }, [paint, plane]);
+  }, [paint, plane, shade]);
 
   return { schedulePaint, measureInk, viewH, inkTop, inkBottom };
 }

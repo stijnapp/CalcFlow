@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Database, Download, RefreshCw, Trash2 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { CHAPTERS, SET_LENGTHS, type CanvasSurface } from '@calcflow/shared';
+import { CHAPTERS, SET_LENGTHS, type CanvasSurface, type Theme } from '@calcflow/shared';
 import { GENERATORS } from '@calcflow/generators';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Toggle } from '@/components/Toggle';
@@ -11,10 +11,19 @@ import { isInstalled, promptInstall, useCanInstall } from '@/lib/install';
 import { clockTime } from '@/lib/format';
 import { APP_VERSION } from '@/lib/version';
 import { useStore } from '@/state/store';
-import { Group, Row, Stepper, TextField } from './settings/controls';
+import { Choice, Group, Row, Stepper, TextField } from './settings/controls';
 import { KeyEditor } from './settings/KeyEditor';
 
-const SURFACES: CanvasSurface[] = ['ruled', 'dots', 'blank'];
+const SURFACES = [
+  ['ruled', 'ruled'],
+  ['dots', 'dots'],
+  ['blank', 'blank'],
+] as const satisfies readonly (readonly [CanvasSurface, string])[];
+const THEMES = [
+  ['light', 'light'],
+  ['dark', 'dark'],
+  ['system', 'device'],
+] as const satisfies readonly (readonly [Theme, string])[];
 
 export function Settings() {
   const go = useStore((s) => s.go);
@@ -117,11 +126,15 @@ function PracticeGroup() {
 }
 
 function AppearanceGroup() {
+  const theme = useStore((s) => s.settings.theme);
   const reducedMotion = useStore((s) => s.settings.reducedMotion);
   const canvasSurface = useStore((s) => s.settings.canvasSurface);
   const patchSettings = useStore((s) => s.patchSettings);
   return (
     <Group title="APPEARANCE">
+      <Row label="Theme" sub="or follow the device">
+        <Choice value={theme} options={THEMES} onChange={(next) => patchSettings({ theme: next })} />
+      </Row>
       <Row label="Reduced motion" sub="on top of the system setting">
         <Toggle
           checked={reducedMotion}
@@ -130,22 +143,11 @@ function AppearanceGroup() {
         />
       </Row>
       <Row label="Canvas surface">
-        <div className="flex gap-1.5">
-          {SURFACES.map((s) => (
-            <button
-              key={s}
-              onClick={() => patchSettings({ canvasSurface: s })}
-              className={cx(
-                'rounded-sm border px-2.5 py-1 font-mono text-[11px] uppercase',
-                canvasSurface === s
-                  ? 'border-accent bg-accent/15 text-accent'
-                  : 'border-border bg-raised text-muted',
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        <Choice
+          value={canvasSurface}
+          options={SURFACES}
+          onChange={(next) => patchSettings({ canvasSurface: next })}
+        />
       </Row>
     </Group>
   );

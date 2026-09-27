@@ -57,7 +57,7 @@ export function SelectionBox({ selection, panY, onDrag, onDelete }: {
         onPointerDown={stop}
         onClick={onDelete}
         aria-label="Delete the selection"
-        className="absolute -right-3.5 -top-3.5 grid size-8 place-items-center rounded-full border border-strong bg-overlay text-muted shadow-[0_8px_20px_-6px_#000] hover:text-wrong-ink"
+        className="absolute -right-3.5 -top-3.5 grid size-8 place-items-center rounded-full border border-strong bg-overlay text-muted shadow-[0_8px_20px_-6px_var(--color-shadow)] hover:text-wrong-ink"
       >
         <Trash2 className="size-4" />
       </button>
@@ -90,7 +90,7 @@ export function TexBlockList({ blocks, activeId, panY, movable, onPick, onDelete
               'absolute flex touch-none items-center gap-2 rounded-[10px] border px-3.5 py-2 text-[22px] backdrop-blur-sm',
               movable ? 'cursor-grab' : 'pointer-events-none',
               on
-                ? 'border-accent bg-card/95 shadow-[0_0_0_4px_rgba(245,165,36,0.1)]'
+                ? 'border-accent bg-card/95 shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-accent)_10%,transparent)]'
                 : 'border-border bg-card/90',
             )}
             style={{ left: b.x, top: b.y - panY }}
@@ -143,7 +143,7 @@ export function TexBar({ open, bottom, frosted, active, onChange, onSubmit, onTy
           exit={{ y: 'calc(100% + 12px)' }}
           transition={SPRING}
           style={{ bottom }}
-          className="absolute inset-x-3 rounded-lg shadow-[0_18px_44px_-16px_#000]"
+          className="absolute inset-x-3 rounded-lg shadow-[0_18px_44px_-16px_var(--color-shadow)]"
         >
           <LatexField
             frosted={frosted}

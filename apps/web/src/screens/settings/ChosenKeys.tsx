@@ -228,7 +228,7 @@ function LiftedKey({ at, tex }: { at: Point; tex: string }) {
       style={{ left: at.x, top: at.y }}
       className="pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-1/2"
     >
-      <span className="flex h-10 scale-110 items-center gap-2 rounded-[10px] border border-accent bg-overlay px-3 text-[15px] text-ink shadow-[0_14px_30px_-8px_#000]">
+      <span className="flex h-10 scale-110 items-center gap-2 rounded-[10px] border border-accent bg-overlay px-3 text-[15px] text-ink shadow-[0_14px_30px_-8px_var(--color-shadow)]">
         <Tex copy={false}>{tex}</Tex>
       </span>
     </div>,

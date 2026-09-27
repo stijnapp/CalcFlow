@@ -42,17 +42,17 @@ export function PenWidth({ width, onChange, className }: Props) {
       transition={{ type: 'spring', stiffness: 560, damping: 38 }}
       onPointerDown={(e) => e.stopPropagation()}
       className={cx(
-        'z-30 flex w-[210px] flex-col gap-3 rounded-lg border border-strong bg-overlay p-3.5 shadow-[0_24px_50px_-18px_#000]',
+        'z-30 flex w-[210px] flex-col gap-3 rounded-lg border border-strong bg-overlay p-3.5 shadow-[0_24px_50px_-18px_var(--color-shadow)]',
         className,
       )}
     >
       <div className="grid h-11 place-items-center rounded-md border border-edge bg-canvas px-3">
-        <svg viewBox="0 0 160 28" className="h-7 w-full" aria-hidden>
+        <svg viewBox="0 0 160 28" className="h-7 w-full text-ink" aria-hidden>
           {/* A curve, not a bar: thickness reads differently once it turns. */}
           <path
             d="M6 21 C 40 3, 60 25, 88 14 S 134 6, 154 10"
             fill="none"
-            stroke="#efe7db"
+            stroke="currentColor"
             strokeWidth={width}
             strokeLinecap="round"
           />
@@ -83,7 +83,7 @@ export function PenWidth({ width, onChange, className }: Props) {
           style={{ width: `${ratio * 100}%` }}
         />
         <div
-          className="absolute top-[3px] -ml-[9px] size-[18px] rounded-full bg-accent shadow-[0_2px_8px_rgba(0,0,0,0.55)]"
+          className="absolute top-[3px] -ml-[9px] size-[18px] rounded-full bg-accent shadow-[0_2px_8px_color-mix(in_srgb,var(--color-shadow)_55%,transparent)]"
           style={{ left: `${ratio * 100}%` }}
         />
       </div>

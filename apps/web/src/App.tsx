@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Notices } from '@/components/Notices';
 import { RuleCardModal } from '@/components/RuleCardModal';
 import { Toast } from '@/components/Toast';
+import { setTheme } from '@/lib/theme';
 import { useLayout } from '@/lib/useLayout';
 import { bindNavigate, useStore } from '@/state/store';
 import { Home } from '@/screens/Home';
@@ -19,6 +20,7 @@ import { KeyBar } from '@/components/KeyBar';
 export function App() {
   const ready = useStore((s) => s.ready);
   const reducedMotion = useStore((s) => s.settings.reducedMotion);
+  const theme = useStore((s) => s.settings.theme);
   const init = useStore((s) => s.init);
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +37,12 @@ export function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('reduce-motion', reducedMotion);
   }, [reducedMotion]);
+
+  // Not before the settings have loaded: until then this is the default, and
+  // applying it would flip the page away from the theme it opened in.
+  useEffect(() => {
+    if (ready) setTheme(theme);
+  }, [ready, theme]);
 
   if (!ready) {
     return (

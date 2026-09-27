@@ -6,6 +6,7 @@ import type {
   PlotSpec,
   PlotWindow,
 } from '@calcflow/generators';
+import { palette } from './palette';
 import type { StoredArrow } from './strokes';
 
 /**
@@ -16,15 +17,6 @@ import type { StoredArrow } from './strokes';
  * question is often whether a curve is steeper than a line, and a plane that
  * stretches one axis makes that unanswerable.
  */
-
-const AXIS = '#6f665c';
-const GRID = '#241f1b';
-const GRID_MAJOR = '#2f2823';
-const LABEL = '#8a8178';
-/** The question's own marks — there before he draws anything. */
-const GIVEN = '#7f9f93';
-/** The answer, revealed over the sketch. Same accent as everywhere else. */
-export const ANSWER_INK = '#f5a524';
 
 export interface Plane {
   /** Pixels per unit, the same on both axes. */
@@ -89,7 +81,9 @@ export function paintPlane(
   const last = (hi: number) => Math.floor(hi / step + 1e-9);
   const top = toMaths(plane, 0, panY).y;
   const bottom = toMaths(plane, 0, panY + height).y;
-  const lineColour = (k: number) => (k === 0 ? AXIS : k % 5 === 0 ? GRID_MAJOR : GRID);
+  const colours = palette();
+  const lineColour = (k: number) =>
+    k === 0 ? colours.axis : k % 5 === 0 ? colours.gridMajor : colours.grid;
 
   ctx.save();
   ctx.translate(0, -panY);
@@ -114,7 +108,7 @@ export function paintPlane(
 
   // Numbers on the axes, every other unit so they do not collide on a phone.
   const every = scale * step < 26 ? 2 : 1;
-  ctx.fillStyle = LABEL;
+  ctx.fillStyle = colours.label;
   ctx.font = '11px ui-monospace, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -130,7 +124,7 @@ export function paintPlane(
     if (k === 0 || k % every !== 0) continue;
     ctx.fillText(label(k * step), axisX - 6, toWorld(plane, 0, k * step).y);
   }
-  ctx.fillStyle = AXIS;
+  ctx.fillStyle = colours.axis;
   ctx.textAlign = 'left';
   ctx.fillText('x', width - 12, axisY - 12);
   ctx.textAlign = 'center';
@@ -159,7 +153,8 @@ export function paintItems(
   view: Viewport,
   role: 'given' | 'answer',
 ): void {
-  const colour = role === 'answer' ? ANSWER_INK : GIVEN;
+  // The answer in the accent, the same as everywhere else it is revealed.
+  const colour = role === 'answer' ? palette().accent : palette().given;
   ctx.save();
   ctx.translate(0, -view.top);
   ctx.strokeStyle = colour;
@@ -320,7 +315,7 @@ function paintPoint(
   ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
   if (hollow) {
     ctx.save();
-    ctx.fillStyle = '#171512';
+    ctx.fillStyle = palette().paper;
     ctx.fill();
     ctx.restore();
     ctx.lineWidth = 2;
@@ -384,7 +379,7 @@ export function paintArrows(
   plane: Plane,
   arrows: readonly StoredArrow[],
   panY: number,
-  colour = '#efe7db',
+  colour = palette().ink,
 ): void {
   ctx.save();
   ctx.translate(0, -panY);

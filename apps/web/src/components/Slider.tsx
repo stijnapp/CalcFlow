@@ -88,13 +88,13 @@ export function Slider({ label, hint, value, stops, onChange }: Props) {
                   !dragging && i === value - 1
                     ? 'transparent'
                     : i < value - 1
-                      ? '#8a5f18'
-                      : '#443c36',
+                      ? 'var(--color-accent-dim)'
+                      : 'var(--color-strong)',
               }}
             />
           ))}
           <motion.div
-            className="absolute top-[6px] -ml-[11px] size-[22px] rounded-full bg-accent shadow-[0_3px_10px_rgba(0,0,0,0.55)]"
+            className="absolute top-[6px] -ml-[11px] size-[22px] rounded-full bg-accent shadow-[0_3px_10px_color-mix(in_srgb,var(--color-shadow)_55%,transparent)]"
             animate={{ left: `${pct}%`, scale: dragging ? 1.16 : 1 }}
             transition={glide}
           />

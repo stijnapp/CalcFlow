@@ -118,7 +118,7 @@ export function Sheet({ children, closeable, onClose, height, className }: Props
         dragConstraints={{ top: 0, bottom: downY }}
         dragElastic={{ top: 0.14, bottom: 0.06 }}
         onDragEnd={(_, info) => settle(info.velocity.y)}
-        className="pointer-events-auto relative flex min-h-0 flex-col rounded-t-3xl border-t border-border bg-card shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
+        className="pointer-events-auto relative flex min-h-0 flex-col rounded-t-3xl border-t border-border bg-card shadow-[0_-24px_50px_-20px_color-mix(in_srgb,var(--color-shadow)_70%,transparent)]"
       >
         {/* Whatever the rubber band gives back on an upward pull is more sheet,
             not the page behind it. */}

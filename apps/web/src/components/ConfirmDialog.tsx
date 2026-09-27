@@ -46,7 +46,7 @@ export function ConfirmDialog({
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 10, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 460, damping: 36 }}
-        className="flex w-full max-w-[400px] flex-col gap-3 rounded-2xl border border-strong bg-overlay p-[26px] shadow-[0_30px_70px_-20px_#000]"
+        className="flex w-full max-w-[400px] flex-col gap-3 rounded-2xl border border-strong bg-overlay p-[26px] shadow-[0_30px_70px_-20px_var(--color-shadow)]"
       >
         <h2 className="text-[19px] font-semibold">{title}</h2>
         <p className="text-sm leading-relaxed text-muted text-pretty">{body}</p>

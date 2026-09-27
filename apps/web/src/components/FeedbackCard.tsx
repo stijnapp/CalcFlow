@@ -126,7 +126,7 @@ function CorrectCard({ answer, meta, compact }: {
   return (
     <div className="animate-correct flex flex-col gap-3 rounded-xl border border-correct bg-card p-[22px]">
       <div className="flex items-center gap-2.5">
-        <span className="grid size-[26px] place-items-center rounded-full bg-correct text-[#06241a]">
+        <span className="grid size-[26px] place-items-center rounded-full bg-correct text-on-correct">
           <Check className="size-4" />
         </span>
         <h2 className="text-[19px] font-semibold text-correct">Correct</h2>
@@ -156,7 +156,7 @@ function NearMissCard({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-near bg-card p-[22px]">
       <div className="flex items-center gap-2.5">
-        <span className="grid size-[26px] place-items-center rounded-full bg-near text-[15px] text-[#241905]">
+        <span className="grid size-[26px] place-items-center rounded-full bg-near text-[15px] text-on-near">
           {near.glyph}
         </span>
         <h2 className="text-[19px] font-semibold text-near-ink">{near.title}</h2>
@@ -179,12 +179,15 @@ function WrongCard(props: Props & { reference: string[] }) {
   return (
     <div className="animate-wrong flex flex-col gap-3.5 rounded-xl border border-wrong bg-card p-[22px]">
       <div className="flex items-center gap-2.5">
-        <span className="grid size-[26px] place-items-center rounded-full bg-wrong text-[#2b0708]">
+        <span className="grid size-[26px] place-items-center rounded-full bg-wrong text-on-wrong">
           <X className="size-4" />
         </span>
-        <h2 className="text-[19px] font-semibold text-wrong">Not right</h2>
+        <h2 className="shrink-0 text-[19px] font-semibold text-wrong">Not right</h2>
+        {/* The note gives way on a phone, not the heading: it wrapped to two lines. */}
         {confidence === 'sure' && (
-          <span className="ml-auto text-xs text-wrong-ink">confident · logged as a misconception</span>
+          <span className="ml-auto min-w-0 text-right text-xs text-wrong-ink text-balance">
+            confident · logged as a misconception
+          </span>
         )}
       </div>
 

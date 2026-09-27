@@ -48,7 +48,7 @@ export function Banner({
       exit={{ opacity: 0, y: -20 }}
       transition={{ type: 'spring', stiffness: 520, damping: 38 }}
       className={cx(
-        'pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full border bg-overlay/70 py-1.5 pl-4 pr-1.5 shadow-[0_16px_36px_-10px_rgba(0,0,0,0.6)] backdrop-blur-md',
+        'pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full border bg-overlay/70 py-1.5 pl-4 pr-1.5 shadow-[0_16px_36px_-10px_color-mix(in_srgb,var(--color-shadow)_60%,transparent)] backdrop-blur-md',
         tone === 'wrong' ? 'border-wrong' : 'border-strong',
       )}
     >

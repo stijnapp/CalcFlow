@@ -19,7 +19,7 @@ interface Props {
  */
 export function RevealToggle({ value, onChange }: Props) {
   return (
-    <div className="pointer-events-auto flex gap-0.5 rounded-full border border-strong bg-overlay p-0.5 shadow-[0_8px_20px_-6px_#000]">
+    <div className="pointer-events-auto flex gap-0.5 rounded-full border border-strong bg-overlay p-0.5 shadow-[0_8px_20px_-6px_var(--color-shadow)]">
       {OPTIONS.map((o) => (
         <button
           key={o.id}

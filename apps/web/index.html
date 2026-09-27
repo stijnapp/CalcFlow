@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <!--
@@ -16,6 +16,24 @@
     <!-- The colour Android paints the status bar with, so the bars read as part
          of the app rather than as a black band above it. -->
     <meta name="theme-color" content="#141210" />
+    <!-- The theme, before anything is painted: the settings only arrive once the
+         app has loaded, and a light page would flash dark until then. The same
+         choice as lib/theme.ts makes, from the copy it keeps for this. -->
+    <script>
+      (function () {
+        var theme = 'system';
+        try {
+          theme = localStorage.getItem('calcflow.theme') || theme;
+        } catch (e) {}
+        var light =
+          theme === 'light' ||
+          (theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+        document.documentElement.dataset.theme = light ? 'light' : 'dark';
+        if (light) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f3efe9');
+        }
+      })();
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />

@@ -27,9 +27,6 @@ export interface CanvasInsets {
 export const BLOCK_HEIGHT = 56;
 /** A typed block has no measured width here; this is enough to draw a box round. */
 export const BLOCK_WIDTH = 96;
-/** The accent, as canvas cannot read a CSS variable. */
-export const ACCENT = '#f5a524';
-
 /** Quiet after a mark before the page is written back. */
 const SAVE_MS = 600;
 

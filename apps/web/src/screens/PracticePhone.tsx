@@ -327,7 +327,7 @@ function VerdictSheet() {
       initial={{ y: 40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={SPRING}
-      className="scroll-y absolute inset-x-0 bottom-0 z-30 flex max-h-full flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_rgba(0,0,0,0.7)]"
+      className="scroll-y absolute inset-x-0 bottom-0 z-30 flex max-h-full flex-col gap-3 rounded-t-3xl border-t border-border bg-card p-4 shadow-[0_-24px_50px_-20px_color-mix(in_srgb,var(--color-shadow)_70%,transparent)]"
     >
       <Verdict compact />
       <button

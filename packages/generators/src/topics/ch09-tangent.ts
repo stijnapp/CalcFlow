@@ -3,6 +3,7 @@ import {
   answer,
   aside,
   frac,
+  fracTex,
   poly,
   rootOf,
   setup,
@@ -160,7 +161,8 @@ export const perpendicularTangent: Generator = {
     // 2a(x − shift) + b = wanted, so x = shift + (wanted − b)/(2a).
     const numerator = perpendicular ? -(1 + b * lineSlope) : wanted - b;
     const denominator = perpendicular ? 2 * a * lineSlope : 2 * a;
-    const root = `${shift} + ${frac(String(numerator), String(denominator))}`;
+    // One number in the answer: it read "2 + 4/2" when the fraction came out whole.
+    const root = fracTex(shift * denominator + numerator, denominator);
     const derivative = `${term(2 * a, inside)} ${b < 0 ? '-' : '+'} ${Math.abs(b)}`;
     const equation = `${derivative} = ${perpendicular ? frac('-1', String(lineSlope)) : String(wanted)}`;
 

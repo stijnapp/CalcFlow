@@ -21,7 +21,7 @@ export function Toggle({ checked, onChange, label }: Props) {
       <span
         className={cx(
           'absolute top-[2px] size-[21px] rounded-full transition-[left] duration-150',
-          checked ? 'left-[21px] bg-on-accent' : 'left-[2px] bg-[#8a8177]',
+          checked ? 'left-[21px] bg-on-accent' : 'left-[2px] bg-knob',
         )}
       />
     </button>

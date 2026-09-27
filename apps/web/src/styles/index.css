@@ -13,6 +13,10 @@
  * used only for interactive affordances, and green/red reserved strictly for
  * correct/wrong so they never compete with the accent. A fifth colour — the
  * muted amber `near` — carries the near misses, which are neither.
+ *
+ * These are the dark theme; the light one below swaps the values and keeps the
+ * roles. The canvas cannot read any of them and has its own copy, in
+ * canvas/palette.ts.
  */
 @theme {
   --font-sans: 'Geist Sans', system-ui, sans-serif;
@@ -27,8 +31,11 @@
   --color-sunken: #211d1a;
   --color-well: #0e0d0b;
   --color-canvas: #171512;
-  /* What dims the screen behind a dialog. */
+  /* What dims the screen behind a dialog, and what anything floating casts. */
   --color-scrim: rgba(8, 7, 6, 0.66);
+  --color-shadow: #000;
+  /* A switch's knob while it is off. */
+  --color-knob: #8a8177;
 
   /* Hairlines, weakest to strongest */
   --color-line: #241f1c;
@@ -59,6 +66,10 @@
   --color-wrong-ink: #e5848a;
   --color-near: #b98a3c;
   --color-near-ink: #d9a955;
+  /* The tick, tilde and cross on the verdict's badges. */
+  --color-on-correct: #06241a;
+  --color-on-near: #241905;
+  --color-on-wrong: #2b0708;
 
   --radius-xs: 9px;
   --radius-sm: 11px;
@@ -70,6 +81,61 @@
   --radius-4xl: 24px;
 
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * The same roles on paper. Depth runs the other way round — what floats is
+ * lighter, what is sunk in is darker — and the accent and the verdict colours
+ * are a shade deeper, so they still read as text on a pale ground.
+ *
+ * Unlayered, so it wins over the theme layer Tailwind puts the tokens in.
+ * `data-theme` is set before the first paint, in index.html.
+ */
+:root {
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-void: #e7e1d9;
+  --color-page: #f3efe9;
+  --color-card: #fbf9f6;
+  --color-raised: #efeae3;
+  --color-overlay: #fffefc;
+  --color-sunken: #ebe5dd;
+  --color-well: #f0ebe4;
+  --color-canvas: #fdfbf7;
+  --color-scrim: rgba(38, 30, 22, 0.36);
+  --color-shadow: rgba(58, 42, 26, 0.28);
+  --color-knob: #b0a598;
+
+  --color-line: #ebe5dc;
+  --color-edge: #e4ddd3;
+  --color-border: #ddd5ca;
+  --color-soft: #d2c9bd;
+  --color-strong: #c8bdaf;
+  --color-rail: #b5a999;
+
+  --color-ink: #1e1914;
+  --color-ink2: #3b342d;
+  --color-muted: #665d53;
+  --color-faint: #8b8175;
+  --color-ghost: #c2b8ab;
+
+  --color-accent: #c27803;
+  --color-accent-hi: #d48710;
+  --color-accent-dim: #e6c893;
+  --color-on-accent: #1d1305;
+
+  --color-correct: #1f9460;
+  --color-correct-ink: #1b7a4e;
+  --color-wrong: #d6383e;
+  --color-wrong-ink: #b82f35;
+  --color-near: #a8741c;
+  --color-near-ink: #8c5f14;
+  --color-on-correct: #ffffff;
+  --color-on-near: #ffffff;
+  --color-on-wrong: #ffffff;
 }
 
 @layer base {

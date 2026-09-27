@@ -5,6 +5,7 @@ import { App } from './App';
 import { startUpdates } from './lib/appUpdate';
 import { learnDeviceModel } from './lib/deviceName';
 import { watchForInstall } from './lib/install';
+import { watchTheme } from './lib/theme';
 import { useStore } from './state/store';
 import './styles/index.css';
 
@@ -51,6 +52,7 @@ if (import.meta.env.DEV) {
 watchForInstall();
 // Asked early: the answer is async, and the first attempt may be only seconds away.
 void learnDeviceModel();
+watchTheme();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

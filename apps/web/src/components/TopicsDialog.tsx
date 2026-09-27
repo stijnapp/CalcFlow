@@ -62,7 +62,7 @@ export function TopicsDialog({ open, onClose, topics, onSet, onReset, compact }:
             exit={{ y: 12, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 440, damping: 36 }}
             className={cx(
-              'flex max-h-full w-full flex-col border border-strong bg-overlay shadow-[0_40px_80px_-20px_#000]',
+              'flex max-h-full w-full flex-col border border-strong bg-overlay shadow-[0_40px_80px_-20px_var(--color-shadow)]',
               compact ? 'gap-3 rounded-2xl p-4' : 'max-w-[620px] gap-4 rounded-3xl p-[30px]',
             )}
           >

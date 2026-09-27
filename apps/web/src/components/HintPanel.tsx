@@ -3,6 +3,7 @@ import { Bookmark, BookmarkCheck, ChevronRight, Check, Lock, X } from 'lucide-re
 import { motion } from 'motion/react';
 import { ruleById } from '@calcflow/generators';
 import { cx } from '@/lib/cx';
+import { shadowColour, useShade } from '@/lib/theme';
 import { useBackDismiss } from '@/lib/useBackDismiss';
 import { isSaved } from '@/state/saved';
 import { useStore } from '@/state/store';
@@ -19,8 +20,7 @@ const SPRING = { type: 'spring' as const, stiffness: 400, damping: 40 };
  * after the panel itself has slid out of it. Faded on its own and quicker than
  * the slide, it is gone before the panel is, rather than vanishing after it.
  */
-const SHADOW = '-30px 0 60px -20px rgba(0,0,0,0.6)';
-const NO_SHADOW = '-30px 0 60px -20px rgba(0,0,0,0)';
+const shadow = (colour: string) => `-30px 0 60px -20px ${colour}`;
 
 interface Props {
   /** The phone gets a bottom sheet; the tablet a panel over the control column. */
@@ -30,6 +30,7 @@ interface Props {
 export function HintPanel({ variant }: Props) {
   const session = useStore((s) => s.session);
   const setHintsOpen = useStore((s) => s.setHintsOpen);
+  const shade = useShade();
   useBackDismiss(true, () => setHintsOpen(false));
   if (!session) return null;
 
@@ -47,9 +48,9 @@ export function HintPanel({ variant }: Props) {
     <motion.div
       /* The tablet panel belongs to the right-hand column, so it arrives from
          that edge; the phone sheet still comes up from the thumb. */
-      initial={{ x: '100%', boxShadow: NO_SHADOW }}
-      animate={{ x: 0, boxShadow: SHADOW }}
-      exit={{ x: '100%', boxShadow: NO_SHADOW }}
+      initial={{ x: '100%', boxShadow: shadow(shadowColour(shade, 0)) }}
+      animate={{ x: 0, boxShadow: shadow(shadowColour(shade, 0.6)) }}
+      exit={{ x: '100%', boxShadow: shadow(shadowColour(shade, 0)) }}
       transition={{ ...SPRING, boxShadow: { duration: 0.25, ease: 'easeOut' } }}
       className="absolute inset-y-0 right-0 z-30 flex w-[38%] flex-col border-l border-strong bg-raised"
     >

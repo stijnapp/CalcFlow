@@ -149,7 +149,7 @@ function Label({ at, side, label }: { at: At; side: HoverSide; label: string }) 
         animate={{ opacity: 1, x: 0, y: 0 }}
         exit={{ opacity: 0, x: side === 'right' ? -4 : 0, y: side === 'top' ? 4 : side === 'bottom' ? -4 : 0 }}
         transition={{ duration: 0.12 }}
-        className="block max-w-[60vw] whitespace-nowrap rounded-md border border-strong bg-overlay px-2 py-1 text-[12px] text-ink shadow-[0_8px_20px_-6px_#000]"
+        className="block max-w-[60vw] whitespace-nowrap rounded-md border border-strong bg-overlay px-2 py-1 text-[12px] text-ink shadow-[0_8px_20px_-6px_var(--color-shadow)]"
       >
         {label}
       </motion.span>

@@ -23,7 +23,7 @@ export function ArrowSnap({ snap, onChange, className }: Props) {
       transition={{ type: 'spring', stiffness: 560, damping: 38 }}
       onPointerDown={(e) => e.stopPropagation()}
       className={cx(
-        'z-30 flex w-[230px] items-center gap-3 rounded-lg border border-strong bg-overlay p-3.5 shadow-[0_24px_50px_-18px_#000]',
+        'z-30 flex w-[230px] items-center gap-3 rounded-lg border border-strong bg-overlay p-3.5 shadow-[0_24px_50px_-18px_var(--color-shadow)]',
         className,
       )}
     >

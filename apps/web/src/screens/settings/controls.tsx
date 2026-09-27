@@ -122,3 +122,34 @@ export function TextField({
     />
   );
 }
+
+/** A few named options side by side, the chosen one lit. */
+export function Choice<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: readonly (readonly [T, string])[];
+  onChange(next: T): void;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {options.map(([option, label]) => (
+        <button
+          key={option}
+          onClick={() => onChange(option)}
+          aria-pressed={value === option}
+          className={cx(
+            'rounded-sm border px-2.5 py-1 font-mono text-[11px] uppercase',
+            value === option
+              ? 'border-accent bg-accent/15 text-accent'
+              : 'border-border bg-raised text-muted',
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}

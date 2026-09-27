@@ -49,7 +49,7 @@ function Pill({ message, onDismiss }: { message: string; onDismiss(): void }) {
         onDragEnd={(_, info) => {
           if (Math.abs(info.offset.x) > THROW || Math.abs(info.velocity.x) > 480) onDismiss();
         }}
-        className="pointer-events-auto cursor-grab touch-none rounded-full border border-strong bg-overlay px-5 py-2.5 text-sm shadow-[0_12px_30px_-8px_#000] active:cursor-grabbing"
+        className="pointer-events-auto cursor-grab touch-none rounded-full border border-strong bg-overlay px-5 py-2.5 text-sm shadow-[0_12px_30px_-8px_var(--color-shadow)] active:cursor-grabbing"
       >
         {message}
       </motion.div>

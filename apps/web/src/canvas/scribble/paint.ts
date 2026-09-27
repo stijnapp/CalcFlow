@@ -1,6 +1,7 @@
 import type { CanvasSurface } from '@calcflow/shared';
 import { paintArrows, paintItems, paintPlane, type Plane } from '../plane';
-import { ACCENT, geometryOf, pixelRatio, type Scene } from './scene';
+import { palette } from '../palette';
+import { geometryOf, pixelRatio, type Scene } from './scene';
 import type { Layers, StrokePoint } from '../strokes';
 
 /** One frame of the canvas: the paper or the plane, the ink, and any loop being drawn. */
@@ -38,7 +39,7 @@ function layersFor(scene: Scene, geo: Plane | null): Layers {
       const live = scene.drawingArrow;
       if (showMine) {
         paintArrows(c, geo, scene.arrows, pan);
-        if (live) paintArrows(c, geo, [live], pan, '#a89e92');
+        if (live) paintArrows(c, geo, [live], pan, palette().pending);
       }
       const onScreen = { top: pan, bottom: pan + h };
       if (showAnswer) paintItems(c, geo, view!.spec.answer, onScreen, 'answer');
@@ -54,10 +55,11 @@ function paintLoop(ctx: CanvasRenderingContext2D, loop: StrokePoint[] | null, pa
   ctx.moveTo(loop[0]!.x, loop[0]!.y);
   for (let i = 1; i < loop.length; i += 1) ctx.lineTo(loop[i]!.x, loop[i]!.y);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(245,165,36,0.08)';
+  const colours = palette();
+  ctx.fillStyle = colours.accentWash;
   ctx.fill();
   ctx.setLineDash([6, 5]);
-  ctx.strokeStyle = ACCENT;
+  ctx.strokeStyle = colours.accent;
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.restore();
