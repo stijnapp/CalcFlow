@@ -72,6 +72,21 @@ export interface TexBlock {
   latex: string;
 }
 
+/** The view being painted: its CSS size, how far it has scrolled, and the pixel ratio. */
+export interface Frame {
+  width: number;
+  height: number;
+  panY: number;
+  dpr: number;
+}
+
+/** What a graph question paints under and over the ink. */
+export interface Layers {
+  underlay?: (ctx: CanvasRenderingContext2D, pan: number) => void;
+  overlay?: (ctx: CanvasRenderingContext2D, pan: number) => void;
+  hideInk?: boolean;
+}
+
 const INK = '#efe7db';
 const LINE_HEIGHT = 40;
 const DOT_SPACING = 32;
@@ -208,8 +223,8 @@ export class Surface {
 
   /**
    * Every stroke with at least one point inside the loop. The smallest part
-   * counts, which is what makes lassoing a line of working forgiving: he
-   * circles roughly, and the tails of the letters come along.
+   * counts, which is what makes lassoing a line of working forgiving: they
+   * circle roughly, and the tails of the letters come along.
    */
   selectIn(loop: readonly StrokePoint[]): number[] {
     if (loop.length < 3) return [];
@@ -218,20 +233,7 @@ export class Surface {
 
   /** The box around a set of strokes, in world coordinates. */
   boundsOf(ids: ReadonlySet<number>): Box | null {
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    for (const s of this.strokes) {
-      if (!ids.has(s.id)) continue;
-      for (const p of s.pts) {
-        if (p.x < x0) x0 = p.x;
-        if (p.y < y0) y0 = p.y;
-        if (p.x > x1) x1 = p.x;
-        if (p.y > y1) y1 = p.y;
-      }
-    }
-    return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    return boxAround(this.strokes.filter((s) => ids.has(s.id)).flatMap((s) => s.pts));
   }
 
   /** Takes a selection off the page. Redo brings it back, as the eraser does. */
@@ -302,17 +304,11 @@ export class Surface {
    */
   draw(
     ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    panY: number,
+    frame: Frame,
     surface: CanvasSurface,
-    dpr: number,
-    layers: {
-      underlay?: (ctx: CanvasRenderingContext2D, pan: number) => void;
-      overlay?: (ctx: CanvasRenderingContext2D, pan: number) => void;
-      hideInk?: boolean;
-    } = {},
+    layers: Layers = {},
   ): void {
+    const { width, height, panY, dpr } = frame;
     // Pan on whole device pixels: half a pixel of offset is enough to make the
     // blit resample, and resampled ink is what reads as "it went soft".
     const pan = Math.round(panY * dpr) / dpr;
@@ -405,6 +401,22 @@ function inside(p: { x: number; y: number }, loop: readonly StrokePoint[]): bool
     }
   }
   return hit;
+}
+
+/** The box around some points, or null when there are none. */
+function boxAround(pts: readonly StrokePoint[]): Box | null {
+  if (pts.length === 0) return null;
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const p of pts) {
+    x0 = Math.min(x0, p.x);
+    y0 = Math.min(y0, p.y);
+    x1 = Math.max(x1, p.x);
+    y1 = Math.max(y1, p.y);
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
 function round(n: number): number {

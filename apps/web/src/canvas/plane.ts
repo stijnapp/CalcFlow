@@ -1,5 +1,11 @@
 import { evaluate, tryParse, type Expr } from '@calcflow/engine';
-import type { PlotItem, PlotSpec, PlotWindow } from '@calcflow/generators';
+import type {
+  PlotItem,
+  PlotLine,
+  PlotPoint,
+  PlotSpec,
+  PlotWindow,
+} from '@calcflow/generators';
 import type { StoredArrow } from './strokes';
 
 /**
@@ -139,18 +145,23 @@ function label(value: number): string {
   return String(Math.round(value * 1000) / 1000);
 }
 
+/** What is on screen, in world pixels: from the pan offset down one screen's height. */
+export interface Viewport {
+  top: number;
+  bottom: number;
+}
+
 /** The question's own marks, or the revealed answer. */
 export function paintItems(
   ctx: CanvasRenderingContext2D,
   plane: Plane,
   items: readonly PlotItem[],
-  panY: number,
-  height: number,
+  view: Viewport,
   role: 'given' | 'answer',
 ): void {
   const colour = role === 'answer' ? ANSWER_INK : GIVEN;
   ctx.save();
-  ctx.translate(0, -panY);
+  ctx.translate(0, -view.top);
   ctx.strokeStyle = colour;
   ctx.fillStyle = colour;
   ctx.lineWidth = role === 'answer' ? 2.4 : 1.8;
@@ -168,15 +179,15 @@ export function paintItems(
           ctx,
           plane,
           item.axis === 'vertical' ? { x: item.at } : { y: item.at },
-          { top: panY, bottom: panY + height },
+          view,
           item.label,
         );
         break;
       case 'line':
-        paintLine(ctx, plane, item.slope, item.intercept, item.dashed ?? false, item.label);
+        paintLine(ctx, plane, item);
         break;
       case 'point':
-        paintPoint(ctx, plane, item.at[0], item.at[1], item.label, item.hollow ?? false, colour);
+        paintPoint(ctx, plane, item, colour);
         break;
       case 'vector':
         paintVector(ctx, plane, item.from ?? [0, 0], item.to, item.label);
@@ -191,7 +202,7 @@ export function paintItems(
  * being finite or jumps further than the window is tall. Without the second
  * test a hyperbola's two branches get joined by a vertical line straight
  * through its own asymptote — which is exactly the mistake the question is
- * asking him not to make.
+ * asking them not to make.
  */
 function paintCurve(
   ctx: CanvasRenderingContext2D,
@@ -243,8 +254,8 @@ function paintDashed(
   ctx: CanvasRenderingContext2D,
   plane: Plane,
   at: { x: number } | { y: number },
-  /** What is on screen, in world pixels: a vertical asymptote runs its whole height, like the grid. */
-  view: { top: number; bottom: number },
+  /** A vertical asymptote runs the whole height on screen, like the grid. */
+  view: Viewport,
   label?: string,
 ): void {
   ctx.save();
@@ -277,14 +288,8 @@ function paintDashed(
   ctx.restore();
 }
 
-function paintLine(
-  ctx: CanvasRenderingContext2D,
-  plane: Plane,
-  slope: number,
-  intercept: number,
-  dashed: boolean,
-  label?: string,
-): void {
+function paintLine(ctx: CanvasRenderingContext2D, plane: Plane, line: PlotLine): void {
+  const { slope, intercept, dashed, label } = line;
   const { window: w } = plane;
   const a = toWorld(plane, w.xMin, slope * w.xMin + intercept);
   const b = toWorld(plane, w.xMax, slope * w.xMax + intercept);
@@ -306,13 +311,11 @@ function paintLine(
 function paintPoint(
   ctx: CanvasRenderingContext2D,
   plane: Plane,
-  x: number,
-  y: number,
-  label: string | undefined,
-  hollow: boolean,
+  point: PlotPoint,
   colour: string,
 ): void {
-  const p = toWorld(plane, x, y);
+  const { at, label, hollow } = point;
+  const p = toWorld(plane, at[0], at[1]);
   ctx.beginPath();
   ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
   if (hollow) {
@@ -375,7 +378,7 @@ function paintVector(
   }
 }
 
-/** His own arrows, in the ink colour — the drawn half of a chapter 12 answer. */
+/** Their own arrows, in the ink colour — the drawn half of a chapter 12 answer. */
 export function paintArrows(
   ctx: CanvasRenderingContext2D,
   plane: Plane,
