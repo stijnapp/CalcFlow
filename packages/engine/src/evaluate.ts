@@ -13,12 +13,8 @@ export function evaluate(e: Expr, bindings: Bindings = {}): number {
       return e.value;
     case 'rational':
       return e.p / e.q;
-    case 'sym': {
-      if (e.name === 'e') return Math.E;
-      if (e.name in CONSTANTS) return CONSTANTS[e.name]!;
-      const v = bindings[e.name];
-      return v === undefined ? NaN : v;
-    }
+    case 'sym':
+      return symbolValue(e.name, bindings);
     case 'add': {
       let sum = 0;
       for (const t of e.terms) sum += evaluate(t, bindings);
@@ -29,67 +25,66 @@ export function evaluate(e: Expr, bindings: Bindings = {}): number {
       for (const f of e.factors) product *= evaluate(f, bindings);
       return product;
     }
-    case 'pow': {
-      const b = evaluate(e.base, bindings);
-      const p = evaluate(e.exp, bindings);
-      if (b < 0 && !Number.isInteger(p)) return NaN;
-      if (b === 0 && p < 0) return NaN;
-      return Math.pow(b, p);
-    }
+    case 'pow':
+      return power(evaluate(e.base, bindings), evaluate(e.exp, bindings));
     case 'fn':
       return applyFn(e.name, e.args.map((a) => evaluate(a, bindings)));
   }
 }
 
+function symbolValue(name: string, bindings: Bindings): number {
+  if (name === 'e') return Math.E;
+  if (name in CONSTANTS) return CONSTANTS[name]!;
+  return bindings[name] ?? NaN;
+}
+
+/** A negative base only has real powers that are whole; zero has no negative ones. */
+function power(b: number, p: number): number {
+  if (b < 0 && !Number.isInteger(p)) return NaN;
+  if (b === 0 && p < 0) return NaN;
+  return Math.pow(b, p);
+}
+
+type Unary = (x: number) => number;
+
+/** Outside [−1, 1] an inverse sine or cosine has no real value. */
+const withinUnit = (f: Unary): Unary => (x) => (x < -1 || x > 1 ? NaN : f(x));
+/** Nor does a logarithm of anything that is not positive. */
+const ofPositive = (f: Unary): Unary => (x) => (x <= 0 ? NaN : f(x));
+
+const UNARY = new Map<string, Unary>([
+  ['sqrt', (x) => (x < 0 ? NaN : Math.sqrt(x))],
+  ['abs', Math.abs],
+  ['sin', Math.sin],
+  ['cos', Math.cos],
+  ['tan', Math.tan],
+  ['cot', (x) => 1 / Math.tan(x)],
+  ['sec', (x) => 1 / Math.cos(x)],
+  ['csc', (x) => 1 / Math.sin(x)],
+  ['asin', withinUnit(Math.asin)],
+  ['arcsin', withinUnit(Math.asin)],
+  ['acos', withinUnit(Math.acos)],
+  ['arccos', withinUnit(Math.acos)],
+  ['atan', Math.atan],
+  ['arctan', Math.atan],
+  ['sinh', Math.sinh],
+  ['cosh', Math.cosh],
+  ['tanh', Math.tanh],
+  ['exp', Math.exp],
+  ['ln', ofPositive(Math.log)],
+  ['lg', ofPositive(Math.log10)],
+]);
+
 function applyFn(name: string, args: number[]): number {
-  const x = args[0] ?? NaN;
-  switch (name) {
-    case 'sqrt':
-      return x < 0 ? NaN : Math.sqrt(x);
-    case 'abs':
-      return Math.abs(x);
-    case 'sin':
-      return Math.sin(x);
-    case 'cos':
-      return Math.cos(x);
-    case 'tan':
-      return Math.tan(x);
-    case 'cot':
-      return 1 / Math.tan(x);
-    case 'sec':
-      return 1 / Math.cos(x);
-    case 'csc':
-      return 1 / Math.sin(x);
-    case 'asin':
-    case 'arcsin':
-      return x < -1 || x > 1 ? NaN : Math.asin(x);
-    case 'acos':
-    case 'arccos':
-      return x < -1 || x > 1 ? NaN : Math.acos(x);
-    case 'atan':
-    case 'arctan':
-      return Math.atan(x);
-    case 'sinh':
-      return Math.sinh(x);
-    case 'cosh':
-      return Math.cosh(x);
-    case 'tanh':
-      return Math.tanh(x);
-    case 'exp':
-      return Math.exp(x);
-    case 'ln':
-      return x <= 0 ? NaN : Math.log(x);
-    case 'lg':
-      return x <= 0 ? NaN : Math.log10(x);
-    case 'log': {
-      // One argument is base 10; two is log_base(value).
-      if (args.length === 1) return x <= 0 ? NaN : Math.log10(x);
-      const base = x;
-      const value = args[1] ?? NaN;
-      if (base <= 0 || base === 1 || value <= 0) return NaN;
-      return Math.log(value) / Math.log(base);
-    }
-    default:
-      return NaN;
-  }
+  if (name === 'log') return logarithm(args);
+  const f = UNARY.get(name);
+  return f ? f(args[0] ?? NaN) : NaN;
+}
+
+/** One argument is base 10; two is log_base(value). */
+function logarithm(args: number[]): number {
+  const [base = NaN, value = NaN] = args;
+  if (args.length === 1) return ofPositive(Math.log10)(base);
+  if (base <= 0 || base === 1 || value <= 0) return NaN;
+  return Math.log(value) / Math.log(base);
 }

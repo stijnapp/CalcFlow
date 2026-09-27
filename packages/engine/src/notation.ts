@@ -1,7 +1,7 @@
 import { equivalent } from './equivalent.js';
 import { tryParse } from './parse.js';
 
-/** Which of the four ways of writing a derivative he reached for. */
+/** Which of the four ways of writing a derivative the student reached for. */
 export type DerivativeForm = 'bare' | 'lagrange' | 'leibniz' | 'euler';
 
 export interface DerivativeRead {
@@ -9,7 +9,7 @@ export interface DerivativeRead {
   body: string;
   form: DerivativeForm;
   /**
-   * What is wrong with the label, in his own terms. Null when it reads
+   * What is wrong with the label, in its own terms. Null when it reads
    * correctly — including when there was no label at all.
    */
   complaint: string | null;
@@ -23,7 +23,7 @@ export interface DerivativeContext {
 }
 
 /**
- * Reads an answer to "differentiate this" that he has labelled. The four
+ * Reads an answer to "differentiate this" that the student has labelled. The four
  * notations are all in the book and all say the same thing, so all four are
  * accepted:
  *
@@ -42,72 +42,89 @@ export function readDerivative(raw: string, ctx: DerivativeContext): DerivativeR
 
   const label = clean(raw.slice(0, at));
   const body = raw.slice(at + 1).trim();
+  for (const read of LABELS) {
+    const found = read(label, ctx);
+    if (found) return { body, ...found };
+  }
   const d = ctx.wrt;
-
-  // f'(x) = …, y' = …
-  const lagrange = /^([a-zA-Z])\s*'\s*(?:\(\s*([a-zA-Z])\s*\))?$/.exec(label);
-  if (lagrange) {
-    const arg = lagrange[2];
-    return {
-      body,
-      form: 'lagrange',
-      complaint:
-        arg && arg !== d
-          ? `The prompt differentiates with respect to ${d}, so the prime is on ${lagrange[1]}(${d}).`
-          : null,
-    };
-  }
-
-  // \frac{dy}{dx} = … — a value, and nothing may follow it.
-  const ratio = /^\\frac\{\s*d\s*([a-zA-Z])\s*\}\{\s*d\s*([a-zA-Z])\s*\}$/.exec(label);
-  if (ratio) {
-    return {
-      body,
-      form: 'leibniz',
-      complaint:
-        ratio[2] === d ? null : `The variable underneath should be d${d}, not d${ratio[2]}.`,
-    };
-  }
-
-  // \frac{d}{dx}(…) = … — an operator, and it needs something to act on.
-  const operator = /^\\frac\{\s*d\s*\}\{\s*d\s*([a-zA-Z])\s*\}([\s\S]*)$/.exec(label);
-  if (operator) {
-    if (operator[1] !== d) {
-      return { body, form: 'leibniz', complaint: `The variable underneath should be d${d}.` };
-    }
-    const on = clean(operator[2] ?? '');
-    if (on === '') {
-      return {
-        body,
-        form: 'leibniz',
-        complaint: `d/d${d} on its own is an instruction, not a value. Either apply it to the function — d/d${d}(f(${d})) = … — or write dy/d${d} = … instead.`,
-      };
-    }
-    return { body, form: 'leibniz', complaint: operandComplaint(on, ctx) };
-  }
-
-  // D(…) = …, D_x(…) = …
-  const euler = /^D(?:_\s*\{?\s*([a-zA-Z])\s*\}?)?([\s\S]*)$/.exec(label);
-  if (euler) {
-    if (euler[1] !== undefined && euler[1] !== d) {
-      return { body, form: 'euler', complaint: `D carries the variable it differentiates: D_${d}.` };
-    }
-    const on = clean(euler[2] ?? '');
-    if (on === '') {
-      return {
-        body,
-        form: 'euler',
-        complaint: `D is an operator, so it needs the function after it: D_${d}(f(${d})) = …`,
-      };
-    }
-    return { body, form: 'euler', complaint: operandComplaint(on, ctx) };
-  }
-
   return {
     body,
     form: 'bare',
     complaint: `That is not a name for the derivative. Use f'(${d}) =, dy/d${d} =, d/d${d}(…) = or D_${d}(…) = — or write the expression on its own.`,
   };
+}
+
+type Label = Omit<DerivativeRead, 'body'>;
+
+/** One notation: how it reads the label, or null when the label is not written in it. */
+type LabelReader = (label: string, ctx: DerivativeContext) => Label | null;
+
+/** f'(x) = …, y' = … */
+const lagrange: LabelReader = (label, { wrt: d }) => {
+  const m = /^([a-zA-Z])\s*'\s*(?:\(\s*([a-zA-Z])\s*\))?$/.exec(label);
+  if (!m) return null;
+  const arg = m[2];
+  return {
+    form: 'lagrange',
+    complaint:
+      arg && arg !== d
+        ? `The prompt differentiates with respect to ${d}, so the prime is on ${m[1]}(${d}).`
+        : null,
+  };
+};
+
+/** \frac{dy}{dx} = … — a value, and nothing may follow it. */
+const ratio: LabelReader = (label, { wrt: d }) => {
+  const m = /^\\frac\{\s*d\s*([a-zA-Z])\s*\}\{\s*d\s*([a-zA-Z])\s*\}$/.exec(label);
+  if (!m) return null;
+  return {
+    form: 'leibniz',
+    complaint: m[2] === d ? null : `The variable underneath should be d${d}, not d${m[2]}.`,
+  };
+};
+
+/** \frac{d}{dx}(…) = … — an operator, and it needs something to act on. */
+const operator: LabelReader = (label, ctx) => {
+  const m = /^\\frac\{\s*d\s*\}\{\s*d\s*([a-zA-Z])\s*\}([\s\S]*)$/.exec(label);
+  if (!m) return null;
+  const d = ctx.wrt;
+  const complaint =
+    m[1] !== d
+      ? `The variable underneath should be d${d}.`
+      : appliedComplaint(
+          m[2],
+          ctx,
+          `d/d${d} on its own is an instruction, not a value. Either apply it to the function — d/d${d}(f(${d})) = … — or write dy/d${d} = … instead.`,
+        );
+  return { form: 'leibniz', complaint };
+};
+
+/** D(…) = …, D_x(…) = … */
+const euler: LabelReader = (label, ctx) => {
+  const m = /^D(?:_\s*\{?\s*([a-zA-Z])\s*\}?)?([\s\S]*)$/.exec(label);
+  if (!m) return null;
+  const d = ctx.wrt;
+  const complaint =
+    m[1] !== undefined && m[1] !== d
+      ? `D carries the variable it differentiates: D_${d}.`
+      : appliedComplaint(
+          m[2],
+          ctx,
+          `D is an operator, so it needs the function after it: D_${d}(f(${d})) = …`,
+        );
+  return { form: 'euler', complaint };
+};
+
+const LABELS = [lagrange, ratio, operator, euler];
+
+/** An operator form's operand: missing, or not the function in the prompt, or fine. */
+function appliedComplaint(
+  operand: string | undefined,
+  ctx: DerivativeContext,
+  missing: string,
+): string | null {
+  const on = clean(operand ?? '');
+  return on === '' ? missing : operandComplaint(on, ctx);
 }
 
 /** Whether what the operator was applied to is the function in the prompt. */

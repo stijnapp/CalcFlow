@@ -48,20 +48,27 @@ export function equivalent(a: Expr, b: Expr, opts: EquivalenceOptions = {}): boo
   } = opts;
 
   const vars = Array.from(new Set([...freeVars(a), ...freeVars(b)]));
+  if (vars.length === 0) return close(evaluate(a), evaluate(b), tolerance);
 
-  if (vars.length === 0) {
-    const va = evaluate(a);
-    const vb = evaluate(b);
-    return close(va, vb, tolerance);
-  }
+  const pairs = samplePairs([a, b], vars, domain, samples);
+  if (pairs.length < Math.min(minValid, samples)) return false;
+  if (mode === 'constant-difference') return constantDifference(pairs, tolerance);
+  return pairs.every(([va, vb]) => close(va, vb, tolerance));
+}
 
+/**
+ * Both sides' values at up to `samples` points where both have one. It
+ * over-samples: a point that lands outside a domain is skipped, not counted.
+ */
+function samplePairs(
+  [a, b]: [Expr, Expr],
+  vars: string[],
+  domain: Domain,
+  samples: number,
+): [number, number][] {
   const rng = mulberry32(seedOf(a, b));
-  const diffs: number[] = [];
-  let valid = 0;
-  // Over-sample: points that land outside a domain are skipped, not counted.
-  const attempts = samples * 12;
-
-  for (let i = 0; i < attempts && valid < samples; i += 1) {
+  const pairs: [number, number][] = [];
+  for (let i = 0; i < samples * 12 && pairs.length < samples; i += 1) {
     const bindings: Bindings = {};
     for (const v of vars) {
       const r = domain[v] ?? DEFAULT_RANGE;
@@ -69,24 +76,18 @@ export function equivalent(a: Expr, b: Expr, opts: EquivalenceOptions = {}): boo
     }
     const va = evaluate(a, bindings);
     const vb = evaluate(b, bindings);
-    if (!usable(va) || !usable(vb)) continue;
-    valid += 1;
-    if (mode === 'constant-difference') {
-      diffs.push(va - vb);
-    } else if (!close(va, vb, tolerance)) {
-      return false;
-    }
+    if (usable(va) && usable(vb)) pairs.push([va, vb]);
   }
+  return pairs;
+}
 
-  if (valid < Math.min(minValid, samples)) return false;
-
-  if (mode === 'constant-difference') {
-    const lo = Math.min(...diffs);
-    const hi = Math.max(...diffs);
-    const scale = Math.max(1, Math.abs(lo), Math.abs(hi));
-    return hi - lo <= tolerance * scale * 1e3;
-  }
-  return true;
+/** Right up to +C: the differences spread no wider than rounding would spread them. */
+function constantDifference(pairs: [number, number][], tolerance: number): boolean {
+  const diffs = pairs.map(([va, vb]) => va - vb);
+  const lo = Math.min(...diffs);
+  const hi = Math.max(...diffs);
+  const scale = Math.max(1, Math.abs(lo), Math.abs(hi));
+  return hi - lo <= tolerance * scale * 1e3;
 }
 
 function usable(v: number): boolean {

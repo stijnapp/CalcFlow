@@ -42,107 +42,121 @@ type Token =
 
 export class ParseError extends Error {}
 
+/**
+ * Reads one token at `i` — or skips something that carries no meaning — and
+ * returns where the next one starts. Null when the character is not its kind.
+ */
+type Scanner = (src: string, i: number, out: Token[]) => number | null;
+
+const LETTER = /[a-zA-Z]/;
+const DIGIT = /\d/;
+
+/** Where the run of characters matching `pattern` that starts at `j` ends. */
+function runEnd(src: string, j: number, pattern: RegExp): number {
+  let end = j;
+  while (end < src.length && pattern.test(src[end]!)) end += 1;
+  return end;
+}
+
+const skipSpace: Scanner = (src, i) => (/\s/.test(src[i]!) ? i + 1 : null);
+
+const scanCommand: Scanner = (src, i, out) => {
+  if (src[i] !== '\\') return null;
+  const end = runEnd(src, i + 1, LETTER);
+  // \, \! \; \: \  — spacing escapes
+  if (end === i + 1) return i + 2;
+  const whole = src.slice(i + 1, end);
+  // `\sin x` is usually written with a space, but `\sinx` reaches us from
+  // string-built LaTeX often enough to be worth peeling apart rather than
+  // rejecting: take the known command off the front, leave the rest as
+  // ordinary letters.
+  const name = COMMAND_NAMES.has(whole) ? whole : (longestKnownCommandPrefix(whole) ?? whole);
+  const token = commandToken(name);
+  if (token) out.push(token);
+  return i + 1 + name.length;
+};
+
+const COMMAND_OPS = new Map([
+  ['cdot', '*'],
+  ['times', '*'],
+  ['div', '/'],
+]);
+const FRACTIONS = new Set(['frac', 'dfrac', 'tfrac']);
+
+/** What a backslash command stands for; null when it is only spacing or decoration. */
+function commandToken(name: string): Token | null {
+  if (IGNORED_COMMANDS.has(name)) return null;
+  const op = COMMAND_OPS.get(name);
+  if (op) return { t: 'op', v: op };
+  if (FRACTIONS.has(name)) return { t: 'cmd', v: 'frac' };
+  if (FUNCTIONS.has(name)) return { t: 'fn', v: name };
+  if (CONSTANT_NAMES.has(name)) return { t: 'name', v: name };
+  return { t: 'cmd', v: name };
+}
+
+const scanNumber: Scanner = (src, i, out) => {
+  const starts = DIGIT.test(src[i]!) || (src[i] === '.' && DIGIT.test(src[i + 1] ?? ''));
+  if (!starts) return null;
+  let end = runEnd(src, i, DIGIT);
+  const decimal = src[end] === '.' && DIGIT.test(src[end + 1] ?? '');
+  if (decimal) end = runEnd(src, end + 1, DIGIT);
+  out.push({ t: 'num', v: Number(src.slice(i, end)), decimal });
+  return end;
+};
+
+const scanLetters: Scanner = (src, i, out) => {
+  if (!LETTER.test(src[i]!)) return null;
+  const end = runEnd(src, i, LETTER);
+  // Greedily peel known names off the front; anything left is a run of
+  // single-letter variables, so `xy` is x·y but `sinx` is sin(x).
+  let run = src.slice(i, end);
+  while (run.length) {
+    const hit = longestKnownPrefix(run) ?? run[0]!;
+    out.push(FUNCTIONS.has(hit) ? { t: 'fn', v: hit } : { t: 'name', v: hit });
+    run = run.slice(hit.length);
+  }
+  return end;
+};
+
+const OPERATORS = '+-*/^(){}[]|_,=';
+/** The typographic forms a paste can bring in. */
+const UNICODE_OPS = new Map([
+  ['·', '*'],
+  ['−', '-'],
+]);
+
+const scanOperator: Scanner = (src, i, out) => {
+  const c = src[i]!;
+  const v = OPERATORS.includes(c) ? c : UNICODE_OPS.get(c);
+  if (v === undefined) return null;
+  out.push({ t: 'op', v });
+  return i + 1;
+};
+
+const SCANNERS = [skipSpace, scanCommand, scanNumber, scanLetters, scanOperator];
+
 function tokenize(src: string): Token[] {
   const out: Token[] = [];
   let i = 0;
-  while (i < src.length) {
-    const c = src[i]!;
-    if (/\s/.test(c)) {
-      i += 1;
-      continue;
-    }
-    if (c === '\\') {
-      let j = i + 1;
-      while (j < src.length && /[a-zA-Z]/.test(src[j]!)) j += 1;
-      if (j === i + 1) {
-        // \, \! \; \: \  — spacing escapes
-        i += 2;
-        continue;
-      }
-      let name = src.slice(i + 1, j);
-      i = j;
-      // `\sin x` is usually written with a space, but `\sinx` reaches us from
-      // string-built LaTeX often enough to be worth peeling apart rather than
-      // rejecting: take the known command off the front, leave the rest as
-      // ordinary letters.
-      if (!isKnownCommand(name)) {
-        const head = longestKnownCommandPrefix(name);
-        if (head) {
-          i -= name.length - head.length;
-          name = head;
-        }
-      }
-      if (IGNORED_COMMANDS.has(name)) continue;
-      if (name === 'cdot' || name === 'times') out.push({ t: 'op', v: '*' });
-      else if (name === 'div') out.push({ t: 'op', v: '/' });
-      else if (name === 'frac' || name === 'dfrac' || name === 'tfrac') out.push({ t: 'cmd', v: 'frac' });
-      else if (FUNCTIONS.has(name)) out.push({ t: 'fn', v: name });
-      else if (CONSTANT_NAMES.has(name)) out.push({ t: 'name', v: name });
-      else out.push({ t: 'cmd', v: name });
-      continue;
-    }
-    if (/\d/.test(c) || (c === '.' && /\d/.test(src[i + 1] ?? ''))) {
-      let j = i;
-      while (j < src.length && /\d/.test(src[j]!)) j += 1;
-      let decimal = false;
-      if (src[j] === '.' && /\d/.test(src[j + 1] ?? '')) {
-        decimal = true;
-        j += 1;
-        while (j < src.length && /\d/.test(src[j]!)) j += 1;
-      }
-      out.push({ t: 'num', v: Number(src.slice(i, j)), decimal });
-      i = j;
-      continue;
-    }
-    if (/[a-zA-Z]/.test(c)) {
-      let j = i;
-      while (j < src.length && /[a-zA-Z]/.test(src[j]!)) j += 1;
-      let run = src.slice(i, j);
-      // Greedily peel known names off the front; anything left is a run of
-      // single-letter variables, so `xy` is x·y but `sinx` is sin(x).
-      while (run.length) {
-        const hit = longestKnownPrefix(run);
-        if (hit) {
-          out.push(FUNCTIONS.has(hit) ? { t: 'fn', v: hit } : { t: 'name', v: hit });
-          run = run.slice(hit.length);
-        } else {
-          out.push({ t: 'name', v: run[0]! });
-          run = run.slice(1);
-        }
-      }
-      i = j;
-      continue;
-    }
-    if ('+-*/^(){}[]|_,='.includes(c)) {
-      out.push({ t: 'op', v: c });
-      i += 1;
-      continue;
-    }
-    if (c === '·') {
-      out.push({ t: 'op', v: '*' });
-      i += 1;
-      continue;
-    }
-    if (c === '−') {
-      out.push({ t: 'op', v: '-' });
-      i += 1;
-      continue;
-    }
-    throw new ParseError(`Unexpected character ${JSON.stringify(c)}`);
-  }
+  while (i < src.length) i = scanOne(src, i, out);
   return out;
+}
+
+function scanOne(src: string, i: number, out: Token[]): number {
+  for (const scan of SCANNERS) {
+    const next = scan(src, i, out);
+    if (next !== null) return next;
+  }
+  throw new ParseError(`Unexpected character ${JSON.stringify(src[i])}`);
 }
 
 const COMMAND_NAMES = new Set([
   ...FUNCTIONS,
   ...CONSTANT_NAMES,
   ...IGNORED_COMMANDS,
-  'frac', 'dfrac', 'tfrac', 'cdot', 'times', 'div',
+  ...COMMAND_OPS.keys(),
+  ...FRACTIONS,
 ]);
-
-function isKnownCommand(name: string): boolean {
-  return COMMAND_NAMES.has(name);
-}
 
 function longestKnownCommandPrefix(run: string): string | null {
   for (let len = Math.min(run.length - 1, 12); len >= 2; len -= 1) {
