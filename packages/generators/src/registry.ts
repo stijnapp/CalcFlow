@@ -26,7 +26,8 @@ import {
   sameBaseEquation,
   simplifySurd,
 } from './topics/ch04-roots.js';
-import { compose, domain, inverse, parity, range } from './topics/ch05-functions.js';
+import { compose, domain, inverse, range } from './topics/ch05-functions.js';
+import { parity } from './topics/ch05-parity.js';
 import {
   circle,
   hyperbola,
@@ -70,17 +71,12 @@ import {
   substitutionQuadratic,
   wordProblem,
 } from './topics/ch08-equations.js';
-import {
-  chainRule,
-  fromDefinition,
-  higherDerivatives,
-  nestedChain,
-  perpendicularTangent,
-  powerSum,
-  productQuotient,
-  rootsAndReciprocals,
-  tangentLine,
-} from './topics/ch09-differentiation.js';
+import { chainRule, powerSum, rootsAndReciprocals } from './topics/ch09-differentiation.js';
+import { fromDefinition } from './topics/ch09-definition.js';
+import { higherDerivatives } from './topics/ch09-higher.js';
+import { nestedChain } from './topics/ch09-nested.js';
+import { productQuotient } from './topics/ch09-product.js';
+import { perpendicularTangent, tangentLine } from './topics/ch09-tangent.js';
 import { mixedPartial } from './topics/ch09-partial.js';
 import { logarithmicDifferentiation } from './topics/ch09-logarithmic.js';
 import { stationaryPoint } from './topics/ch09-stationary.js';

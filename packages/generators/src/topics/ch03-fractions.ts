@@ -1,4 +1,4 @@
-import { TIERS } from '@calcflow/shared';
+import { TIERS, type Tier } from '@calcflow/shared';
 import { answer, aside, frac, fracTex, gcd, paren, poly, step, sum, tidy } from '../authoring.js';
 import type { Draft, Generator } from '../types.js';
 
@@ -312,8 +312,93 @@ interface Formula {
   formula: string;
   wanted: string;
   result: string;
+  /** Each move, and the line it leaves. */
   steps: Array<[string, string]>;
 }
+
+const FORMULAS: Record<Tier, Formula[]> = {
+  easy: [
+    {
+      formula: 'A = \\frac{1}{2}bh',
+      wanted: 'h',
+      result: frac('2A', 'b'),
+      steps: [
+        ['Multiply by 2', '2A = bh'],
+        ['Divide by b', `h = ${frac('2A', 'b')}`],
+      ],
+    },
+    {
+      formula: 'C = 2\\pi r',
+      wanted: 'r',
+      result: frac('C', '2\\pi'),
+      steps: [['Divide by 2\\pi', `r = ${frac('C', '2\\pi')}`]],
+    },
+    {
+      formula: 'y = ax + b',
+      wanted: 'x',
+      result: frac('y - b', 'a'),
+      steps: [
+        ['Subtract b', 'y - b = ax'],
+        ['Divide by a', `x = ${frac('y - b', 'a')}`],
+      ],
+    },
+  ],
+  medium: [
+    {
+      formula: 'V = \\pi r^{2}h',
+      wanted: 'h',
+      result: frac('V', '\\pi r^{2}'),
+      steps: [['Divide by everything else', `h = ${frac('V', '\\pi r^{2}')}`]],
+    },
+    {
+      formula: 'C = \\frac{5}{9}\\left(F - 32\\right)',
+      wanted: 'F',
+      result: `${frac('9C', '5')} + 32`,
+      steps: [
+        ['Multiply by 9/5', `${frac('9C', '5')} = F - 32`],
+        ['Add 32', `F = ${frac('9C', '5')} + 32`],
+      ],
+    },
+    {
+      formula: 'y = \\frac{ax + b}{c}',
+      wanted: 'x',
+      result: frac('cy - b', 'a'),
+      steps: [
+        ['Multiply by c', 'cy = ax + b'],
+        ['Subtract b, divide by a', `x = ${frac('cy - b', 'a')}`],
+      ],
+    },
+  ],
+  hard: [
+    {
+      formula: 's = ut + \\frac{1}{2}at^{2}',
+      wanted: 'a',
+      result: frac('2\\left(s - ut\\right)', 't^{2}'),
+      steps: [
+        ['Subtract ut', `s - ut = ${frac('1', '2')}at^{2}`],
+        ['Multiply by 2, divide by t²', `a = ${frac('2\\left(s - ut\\right)', 't^{2}')}`],
+      ],
+    },
+    {
+      formula: `${frac('1', 'R')} = ${frac('1', 'a')} + ${frac('1', 'b')}`,
+      wanted: 'R',
+      result: frac('ab', 'a + b'),
+      steps: [
+        ['One fraction on the right', `${frac('1', 'R')} = ${frac('a + b', 'ab')}`],
+        ['Turn both sides over', `R = ${frac('ab', 'a + b')}`],
+      ],
+    },
+    {
+      formula: 'T = 2\\pi\\sqrt{\\frac{L}{g}}',
+      wanted: 'L',
+      result: frac('gT^{2}', '4\\pi^{2}'),
+      steps: [
+        ['Divide by 2π, then square', `${frac('T^{2}', '4\\pi^{2}')} = ${frac('L', 'g')}`],
+        ['Multiply by g', `L = ${frac('gT^{2}', '4\\pi^{2}')}`],
+      ],
+    },
+  ],
+};
 
 /**
  * Solving for a letter instead of for x. Every applied question arrives as a
@@ -330,98 +415,14 @@ export const rearrangeFormula: Generator = {
   invariant: 'value-preserving',
 
   generate({ tier, rng }): Draft {
-    const easy: Formula[] = [
-      {
-        formula: 'A = \\frac{1}{2}bh',
-        wanted: 'h',
-        result: frac('2A', 'b'),
-        steps: [
-          ['Multiply by 2', '2A = bh'],
-          ['Divide by b', `h = ${frac('2A', 'b')}`],
-        ],
-      },
-      {
-        formula: 'C = 2\\pi r',
-        wanted: 'r',
-        result: frac('C', '2\\pi'),
-        steps: [['Divide by 2\\pi', `r = ${frac('C', '2\\pi')}`]],
-      },
-      {
-        formula: 'y = ax + b',
-        wanted: 'x',
-        result: frac('y - b', 'a'),
-        steps: [
-          ['Subtract b', 'y - b = ax'],
-          ['Divide by a', `x = ${frac('y - b', 'a')}`],
-        ],
-      },
-    ];
-    const medium: Formula[] = [
-      {
-        formula: 'V = \\pi r^{2}h',
-        wanted: 'h',
-        result: frac('V', '\\pi r^{2}'),
-        steps: [['Divide by everything else', `h = ${frac('V', '\\pi r^{2}')}`]],
-      },
-      {
-        formula: 'C = \\frac{5}{9}\\left(F - 32\\right)',
-        wanted: 'F',
-        result: `${frac('9C', '5')} + 32`,
-        steps: [
-          ['Multiply by 9/5', `${frac('9C', '5')} = F - 32`],
-          ['Add 32', `F = ${frac('9C', '5')} + 32`],
-        ],
-      },
-      {
-        formula: 'y = \\frac{ax + b}{c}',
-        wanted: 'x',
-        result: frac('cy - b', 'a'),
-        steps: [
-          ['Multiply by c', 'cy = ax + b'],
-          ['Subtract b, divide by a', `x = ${frac('cy - b', 'a')}`],
-        ],
-      },
-    ];
-    const hard: Formula[] = [
-      {
-        formula: 's = ut + \\frac{1}{2}at^{2}',
-        wanted: 'a',
-        result: frac('2\\left(s - ut\\right)', 't^{2}'),
-        steps: [
-          ['Subtract ut', `s - ut = ${frac('1', '2')}at^{2}`],
-          ['Multiply by 2, divide by t²', `a = ${frac('2\\left(s - ut\\right)', 't^{2}')}`],
-        ],
-      },
-      {
-        formula: `${frac('1', 'R')} = ${frac('1', 'a')} + ${frac('1', 'b')}`,
-        wanted: 'R',
-        result: frac('ab', 'a + b'),
-        steps: [
-          ['One fraction on the right', `${frac('1', 'R')} = ${frac('a + b', 'ab')}`],
-          ['Turn both sides over', `R = ${frac('ab', 'a + b')}`],
-        ],
-      },
-      {
-        formula: 'T = 2\\pi\\sqrt{\\frac{L}{g}}',
-        wanted: 'L',
-        result: frac('gT^{2}', '4\\pi^{2}'),
-        steps: [
-          ['Divide by 2π, then square', `${frac('T^{2}', '4\\pi^{2}')} = ${frac('L', 'g')}`],
-          ['Multiply by g', `L = ${frac('gT^{2}', '4\\pi^{2}')}`],
-        ],
-      },
-    ];
-
-    const f = rng.pick(tier === 'easy' ? easy : tier === 'medium' ? medium : hard);
-
+    const f = rng.pick(FORMULAS[tier]);
     return {
       instruction: `Make ${f.wanted} the subject`,
       prompt: f.formula,
       note: `Give ${f.wanted} in terms of the other letters. Every letter is positive.`,
       answers: [answer(f.result, { keyboard: 'algebra' })],
       solution: [
-        ...f.steps.slice(0, -1).map(([label, expr]) => aside(label, expr)),
-        aside(f.steps[f.steps.length - 1]![0], f.steps[f.steps.length - 1]![1]),
+        ...f.steps.map(([label, expr]) => aside(label, expr)),
         step('rearrange-formula', 'The subject, alone', f.result),
       ],
       ruleIds: ['rearrange-formula'],

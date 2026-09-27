@@ -1,6 +1,6 @@
-import { TIERS } from '@calcflow/shared';
-import { answer, aside, frac, fracTex, poly, rootOf, setup, step, sum, term } from '../authoring.js';
-import type { Draft, Generator } from '../types.js';
+import { TIERS, type Tier } from '@calcflow/shared';
+import { answer, aside, frac, fracTex, poly, rootOf, setup, step, term } from '../authoring.js';
+import type { Draft, Generator, Rng } from '../types.js';
 
 /** ` + 3` or ` - 3`, so a sign never lands next to another sign. */
 const shift = (n: number): string => (n < 0 ? ` - ${-n}` : ` + ${n}`);
@@ -199,185 +199,107 @@ export const range: Generator = {
   },
 };
 
-type Parity = 'even' | 'odd' | 'neither';
+/** ax + b: two arithmetic operations, undone in the opposite order. */
+function linearInverse(rng: Rng): Draft {
+  const a = rng.nonZero(-6, 6);
+  const b = rng.nonZero(-9, 9);
+  const fx = poly([[a, 1], [b, 0]]);
+  const inv = frac(`x${shift(-b)}`, String(a));
+  return {
+    instruction: 'Find the inverse',
+    prompt: `f(x) = ${fx}`,
+    note: 'Give $f^{-1}(x)$.',
+    answers: [answer(inv, { keyboard: 'algebra' })],
+    solution: [
+      setup('inverse', 'Write y for f(x) and swap', `x = ${term(a, 'y')}${shift(b)}`),
+      setup('inverse', 'Solve for y', `${term(a, 'y')} = x${shift(-b)}`),
+      step('inverse', 'And that is the inverse', inv),
+    ],
+    ruleIds: ['inverse'],
+    verify: { kind: 'inverse', of: fx, wrt: 'x' },
+  };
+}
 
-const VERDICT: Record<Parity, string> = {
-  even: 'That is f(x) again, so f is even — its graph is its own mirror image in the y-axis.',
-  odd: 'That is -f(x), so f is odd — its graph is unchanged by a half-turn about the origin.',
-  neither: 'That is neither f(x) nor -f(x), so f is neither even nor odd.',
-};
+/** A root or an exponential: one operation to undo, but not an arithmetic one. */
+function rootOrExpInverse(rng: Rng): Draft {
+  const a = Math.abs(rng.nonZero(-6, 6));
+  const k = Math.abs(rng.nonZero(-9, 9));
+  const useRoot = rng.bool();
+  const fx = useRoot ? rootOf(`x - ${k}`) : `e^{${term(a, 'x')}} - ${k}`;
+  const inv = useRoot ? `x^{2} + ${k}` : frac(`\\ln\\left(x + ${k}\\right)`, String(a));
+  const undo = useRoot
+    ? setup(
+        'inverse',
+        'Square both sides',
+        `x^{2} = y - ${k}`,
+        'Squaring is safe here because both sides are non-negative.',
+      )
+    : setup(
+        'inverse',
+        'Take the logarithm',
+        `${term(a, 'y')} = \\ln\\left(x + ${k}\\right)`,
+        'ln undoes e, which is the only way to get at an exponent.',
+      );
+  return {
+    instruction: 'Find the inverse',
+    prompt: `f(x) = ${fx}`,
+    note: useRoot
+      ? `Give $f^{-1}(x)$. f only takes x from ${k} upwards, so its inverse only produces those.`
+      : 'Give $f^{-1}(x)$.',
+    answers: [answer(inv, { keyboard: useRoot ? 'algebra' : 'logs' })],
+    solution: [
+      setup(
+        'inverse',
+        'Swap x and y',
+        useRoot ? `x = ${rootOf(`y - ${k}`)}` : `x = e^{${term(a, 'y')}} - ${k}`,
+      ),
+      undo,
+      step('inverse', 'Solve for y', inv),
+    ],
+    ruleIds: ['inverse', useRoot ? 'root-equation' : 'exp-log-inverse'],
+    verify: { kind: 'inverse', of: fx, wrt: 'x' },
+  };
+}
 
-/** A quarter turn changes which function it is, and with it the parity. */
-const QUARTER_SHIFTS = [
-  { fn: 'sin', simplified: '\\cos x', parity: 'even', note: '$\\sin\\left(x + \\frac{\\pi}{2}\\right) = \\cos x$, which is even.' },
-  { fn: 'cos', simplified: '\\sin x', parity: 'odd', note: '$\\cos\\left(x + \\frac{\\pi}{2}\\right) = -\\sin x$, which is odd.' },
-  { fn: 'tan', simplified: '\\frac{\\cos x}{\\sin x}', parity: 'odd', note: '$\\tan\\left(x + \\frac{\\pi}{2}\\right) = -\\frac{\\cos x}{\\sin x}$, which is odd.' },
-] as const;
+/** (ax + b)/(x + d): y appears twice, so it has to be collected before dividing. */
+function fractionInverse(rng: Rng): Draft {
+  const a = rng.nonZero(-6, 6);
+  const b = rng.nonZero(-9, 9);
+  let d = rng.nonZero(-6, 6);
+  // a·d = b makes f a constant, which has no inverse at all.
+  while (a * d === b) d = rng.nonZero(-6, 6);
+  const fx = frac(poly([[a, 1], [b, 0]]), poly([[1, 1], [d, 0]]));
+  const inv = frac(`${term(-d, 'x')}${shift(b)}`, `x${shift(-a)}`);
 
-/** Even or odd, straight from the definition: work out f(−x). */
-export const parity: Generator = {
-  id: 'func.parity',
-  chapter: 5,
-  title: 'Even or odd',
-  tags: ['parity', 'functions'],
-  version: 2,
-  supports: TIERS,
-  invariant: 'value-preserving',
+  return {
+    instruction: 'Find the inverse',
+    prompt: `f(x) = ${fx}`,
+    note: `Give $f^{-1}(x)$, fully simplified.`,
+    answers: [answer(inv, { keyboard: 'algebra' })],
+    solution: [
+      setup('inverse', 'Swap x and y', `x = ${frac(poly([[a, 1], [b, 0]], 'y'), `y${shift(d)}`)}`),
+      setup(
+        'inverse',
+        'Clear the fraction',
+        `x\\left(y${shift(d)}\\right) = ${term(a, 'y')}${shift(b)}`,
+      ),
+      setup(
+        'inverse',
+        'Collect the y terms on one side',
+        `y\\left(x${shift(-a)}\\right) = ${term(-d, 'x')}${shift(b)}`,
+        'y is on both sides, so there is nothing to divide by until it is gathered.',
+      ),
+      step('inverse', 'Divide', inv),
+    ],
+    ruleIds: ['inverse', 'rearrange-formula'],
+    verify: { kind: 'inverse', of: fx, wrt: 'x' },
+  };
+}
 
-  generate({ tier, rng }): Draft {
-    interface Shape {
-      fx: string;
-      /** f with every x replaced by (−x), untouched — the line before simplifying. */
-      substituted: string;
-      /** What that tidies to: f(x) for an even function, −f(x) for an odd one. */
-      simplified: string;
-      parity: Parity;
-      note?: string;
-    }
-
-    const shapes: Record<'easy' | 'medium' | 'hard', Array<() => Shape>> = {
-      easy: [
-        () => {
-          const [a, b] = [rng.nonZero(-5, 5), rng.nonZero(-9, 9)];
-          return {
-            fx: poly([[a, 2], [b, 0]]),
-            substituted: `${term(a, '\\left(-x\\right)^{2}')}${shift(b)}`,
-            simplified: poly([[a, 2], [b, 0]]),
-            parity: 'even',
-          };
-        },
-        () => {
-          const [a, b] = [rng.nonZero(-4, 4), rng.nonZero(-6, 6)];
-          return {
-            fx: poly([[a, 3], [b, 1]]),
-            substituted: `${term(a, '\\left(-x\\right)^{3}')} + ${term(b, '\\left(-x\\right)')}`,
-            simplified: poly([[-a, 3], [-b, 1]]),
-            parity: 'odd',
-          };
-        },
-      ],
-      medium: [
-        () => {
-          const a = rng.int(2, 6);
-          return {
-            fx: rootOf(`x^{2} + ${a}`),
-            substituted: rootOf(`\\left(-x\\right)^{2} + ${a}`),
-            simplified: rootOf(`x^{2} + ${a}`),
-            parity: 'even',
-            note: 'A square swallows the sign before the root ever sees it.',
-          };
-        },
-        () => {
-          const a = rng.int(2, 5);
-          return {
-            fx: frac(String(a), poly([[1, 3], [0, 0]])),
-            substituted: frac(String(a), '\\left(-x\\right)^{3}'),
-            simplified: frac(String(-a), 'x^{3}'),
-            parity: 'odd',
-          };
-        },
-        () => ({
-          fx: `x\\cos x`,
-          substituted: `\\left(-x\\right)\\cos\\left(-x\\right)`,
-          simplified: `-x\\cos x`,
-          parity: 'odd',
-          note: 'cos is even and x is odd, so the product is odd.',
-        }),
-        () => {
-          const [a, b] = [rng.nonZero(-4, 4), rng.nonZero(-5, 5)];
-          return {
-            fx: poly([[a, 3], [b, 2]]),
-            substituted: sum([term(a, '\\left(-x\\right)^{3}'), term(b, '\\left(-x\\right)^{2}')]),
-            simplified: poly([[-a, 3], [b, 2]]),
-            parity: 'neither',
-            note: 'An odd power and an even power: one term flips and the other does not.',
-          };
-        },
-        () => {
-          const odd = rng.bool();
-          const sign = odd ? '-' : '+';
-          return {
-            fx: frac(`e^{x} ${sign} e^{-x}`, '2'),
-            substituted: frac(`e^{-x} ${sign} e^{x}`, '2'),
-            simplified: odd ? `-${frac('e^{x} - e^{-x}', '2')}` : frac('e^{x} + e^{-x}', '2'),
-            parity: odd ? 'odd' : 'even',
-            note: 'These are the $f$ and $g$ with $f + g = e^{x}$ and $f - g = e^{-x}$: $e^{x}$ split into an even part and an odd part.',
-          };
-        },
-      ],
-      hard: [
-        () => ({
-          fx: '\\sin\\left(x^{3}\\right)',
-          substituted: '\\sin\\left(\\left(-x\\right)^{3}\\right)',
-          simplified: '-\\sin\\left(x^{3}\\right)',
-          parity: 'odd',
-          note: 'An odd function of an odd one: the sign goes in, and comes straight back out.',
-        }),
-        () => ({
-          fx: '\\sin\\left|x\\right|',
-          substituted: '\\sin\\left|-x\\right|',
-          simplified: '\\sin\\left|x\\right|',
-          parity: 'even',
-          note: 'The inside is even, so sine never sees the sign — even though sine itself is odd.',
-        }),
-        () => {
-          const q = rng.pick(QUARTER_SHIFTS);
-          return {
-            fx: `\\${q.fn}\\left(x + \\frac{\\pi}{2}\\right)`,
-            substituted: `\\${q.fn}\\left(-x + \\frac{\\pi}{2}\\right)`,
-            simplified: q.simplified,
-            parity: q.parity,
-            note: `${q.note} A shift on its own says nothing about parity; rewrite it first.`,
-          };
-        },
-        () => {
-          const a = rng.int(2, 5);
-          return {
-            fx: frac('\\tan x', poly([[1, 3], [a, 1]])),
-            substituted: frac('\\tan\\left(-x\\right)', `\\left(-x\\right)^{3} + ${term(a, '\\left(-x\\right)')}`),
-            simplified: frac('\\tan x', poly([[1, 3], [a, 1]])),
-            parity: 'even',
-            note: 'Odd over odd: the two minus signs cancel and the quotient comes out even.',
-          };
-        },
-        () => ({
-          fx: `\\sin\\left(\\cos x\\right)`,
-          substituted: `\\sin\\left(\\cos\\left(-x\\right)\\right)`,
-          simplified: `\\sin\\left(\\cos x\\right)`,
-          parity: 'even',
-          note: 'The inside is even, so the outside never finds out the sign changed — whatever the outside is.',
-        }),
-        () => ({
-          fx: `\\cos\\left(\\sin x\\right)`,
-          substituted: `\\cos\\left(\\sin\\left(-x\\right)\\right)`,
-          simplified: `\\cos\\left(\\sin x\\right)`,
-          parity: 'even',
-          note: 'An odd inside flips the sign, and then an even outside throws the flip away.',
-        }),
-      ],
-    };
-
-    const s = rng.pick(shapes[tier])();
-
-    return {
-      instruction: 'Work out f(-x), simplified',
-      prompt: `f(x) = ${s.fx}`,
-      promptText: `Use the definition: work out f(-x) and simplify it. If you get f(x) back, f is even; if you get -f(x), it is odd.`,
-      note: s.note,
-      answers: [answer(s.simplified, { keyboard: 'algebra' })],
-      solution: [
-        setup('parity', 'Replace every x with -x', s.substituted),
-        step(
-          'parity',
-          'Simplify',
-          s.simplified,
-          VERDICT[s.parity],
-        ),
-      ],
-      ruleIds: ['parity'],
-      verify: { kind: 'identity', of: s.substituted },
-    };
-  },
+const INVERSES: Record<Tier, (rng: Rng) => Draft> = {
+  easy: linearInverse,
+  medium: rootOrExpInverse,
+  hard: fractionInverse,
 };
 
 /** Undo the function: swap x and y, then solve. */
@@ -390,97 +312,7 @@ export const inverse: Generator = {
   supports: TIERS,
   invariant: 'value-preserving',
 
-  generate({ tier, rng }): Draft {
-    const a = rng.nonZero(-6, 6);
-    const b = rng.nonZero(-9, 9);
-
-    if (tier === 'easy') {
-      const fx = poly([[a, 1], [b, 0]]);
-      const inv = frac(`x${shift(-b)}`, String(a));
-      return {
-        instruction: 'Find the inverse',
-        prompt: `f(x) = ${fx}`,
-        note: 'Give $f^{-1}(x)$.',
-        answers: [answer(inv, { keyboard: 'algebra' })],
-        solution: [
-          setup('inverse', 'Write y for f(x) and swap', `x = ${term(a, 'y')}${shift(b)}`),
-          setup('inverse', 'Solve for y', `${term(a, 'y')} = x${shift(-b)}`),
-          step('inverse', 'And that is the inverse', inv),
-        ],
-        ruleIds: ['inverse'],
-        verify: { kind: 'inverse', of: fx, wrt: 'x' },
-      };
-    }
-
-    if (tier === 'medium') {
-      // A root or an exponential: one operation to undo, but not an arithmetic one.
-      const k = Math.abs(b);
-      const useRoot = rng.bool();
-      const fx = useRoot ? `${rootOf(`x - ${k}`)}` : `e^{${term(Math.abs(a), 'x')}} - ${k}`;
-      const inv = useRoot ? `x^{2} + ${k}` : frac(`\\ln\\left(x + ${k}\\right)`, String(Math.abs(a)));
-      return {
-        instruction: 'Find the inverse',
-        prompt: `f(x) = ${fx}`,
-        note: useRoot
-          ? `Give $f^{-1}(x)$. f only takes x from ${k} upwards, so its inverse only produces those.`
-          : 'Give $f^{-1}(x)$.',
-        answers: [answer(inv, { keyboard: useRoot ? 'algebra' : 'logs' })],
-        solution: [
-          setup(
-            'inverse',
-            'Swap x and y',
-            useRoot ? `x = ${rootOf(`y - ${k}`)}` : `x = e^{${term(Math.abs(a), 'y')}} - ${k}`,
-          ),
-          setup(
-            'inverse',
-            useRoot ? 'Square both sides' : 'Take the logarithm',
-            useRoot ? `x^{2} = y - ${k}` : `${term(Math.abs(a), 'y')} = \\ln\\left(x + ${k}\\right)`,
-            useRoot
-              ? 'Squaring is safe here because both sides are non-negative.'
-              : 'ln undoes e, which is the only way to get at an exponent.',
-          ),
-          step('inverse', 'Solve for y', inv),
-        ],
-        ruleIds: ['inverse', useRoot ? 'root-equation' : 'exp-log-inverse'],
-        verify: { kind: 'inverse', of: fx, wrt: 'x' },
-      };
-    }
-
-    // (ax + b)/(x + d): y appears twice, so it has to be collected before dividing.
-    let d = rng.nonZero(-6, 6);
-    // a·d = b makes f a constant, which has no inverse at all.
-    while (a * d === b) d = rng.nonZero(-6, 6);
-    const fx = frac(poly([[a, 1], [b, 0]]), poly([[1, 1], [d, 0]]));
-    const inv = frac(`${term(-d, 'x')}${shift(b)}`, `x${shift(-a)}`);
-
-    return {
-      instruction: 'Find the inverse',
-      prompt: `f(x) = ${fx}`,
-      note: `Give $f^{-1}(x)$, fully simplified.`,
-      answers: [answer(inv, { keyboard: 'algebra' })],
-      solution: [
-        setup(
-          'inverse',
-          'Swap x and y',
-          `x = ${frac(poly([[a, 1], [b, 0]]).replace(/x/g, 'y'), `y${shift(d)}`)}`,
-        ),
-        setup(
-          'inverse',
-          'Clear the fraction',
-          `x\\left(y${shift(d)}\\right) = ${term(a, 'y')}${shift(b)}`,
-        ),
-        setup(
-          'inverse',
-          'Collect the y terms on one side',
-          `y\\left(x${shift(-a)}\\right) = ${term(-d, 'x')}${shift(b)}`,
-          'y is on both sides, so there is nothing to divide by until it is gathered.',
-        ),
-        step('inverse', 'Divide', inv),
-      ],
-      ruleIds: ['inverse', 'rearrange-formula'],
-      verify: { kind: 'inverse', of: fx, wrt: 'x' },
-    };
-  },
+  generate: ({ tier, rng }) => INVERSES[tier](rng),
 };
 
 /** f(g(x)): substitute the whole of g wherever the x was. */
