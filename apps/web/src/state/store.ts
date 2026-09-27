@@ -737,6 +737,7 @@ function summarise(report: SyncReport): string {
   if (report.sent > 0) parts.push(`sent ${report.sent}`);
   if (report.received > 0) parts.push(`received ${report.received}`);
   if (report.settings === 'received') parts.push('settings updated');
+  if (report.settings === 'sent') parts.push('settings uploaded');
   return parts.length > 0 ? `Synced — ${parts.join(' · ')}` : 'Already up to date';
 }
 
