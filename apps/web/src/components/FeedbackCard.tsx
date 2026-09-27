@@ -23,7 +23,7 @@ interface Props {
   compact?: boolean;
   /**
    * Another one like it, added to the set. Offered with the steps, which is
-   * where he is when he thinks he has it now and wants to find out.
+   * where they are when they think they have it now and want to find out.
    */
   similar?: { onPick(): void; adds: boolean };
 }
@@ -105,69 +105,77 @@ function Step({
   );
 }
 
-export function FeedbackCard({
+export function FeedbackCard(props: Props) {
+  const { problem, correct, errorClass, confidence, durationMs, hintsUsed } = props;
+  const near = errorClass ? NEAR_MISS[errorClass] : undefined;
+  const reference = problem.answers.map((a) => a.tex);
+  if (correct) {
+    const hints = hintsUsed === 0 ? 'no hints' : `${hintsUsed} hint`;
+    const meta = `${confidence} · ${duration(durationMs)} · ${hints}`;
+    return <CorrectCard answer={reference[0]!} meta={meta} compact={props.compact} />;
+  }
+  if (near) return <NearMissCard {...props} near={near} answer={reference[0]!} />;
+  return <WrongCard {...props} reference={reference} />;
+}
+
+function CorrectCard({ answer, meta, compact }: {
+  answer: string;
+  meta: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className="animate-correct flex flex-col gap-3 rounded-xl border border-correct bg-card p-[22px]">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-[26px] place-items-center rounded-full bg-correct text-[#06241a]">
+          <Check className="size-4" />
+        </span>
+        <h2 className="text-[19px] font-semibold text-correct">Correct</h2>
+        <span className="ml-auto text-xs text-faint">{meta}</span>
+      </div>
+      <Fit className={compact ? 'text-xl' : 'text-2xl'}>
+        <Tex>{answer}</Tex>
+      </Fit>
+    </div>
+  );
+}
+
+function NearMissCard({
   problem,
-  correct,
   errorClass,
   answers,
-  confidence,
-  durationMs,
-  hintsUsed,
-  compact,
-  similar,
-}: Props) {
-  const [showSteps, setShowSteps] = useState(false);
-  const showToast = useStore((s) => s.showToast);
-  const setOpenRule = useStore((s) => s.setOpenRule);
-  const near = errorClass ? NEAR_MISS[errorClass] : undefined;
-  // The notation complaint is specific to what he wrote, so it is read back off
-  // the answer rather than kept in the outcome the attempt was logged with.
+  near,
+  answer,
+}: Props & { near: (typeof NEAR_MISS)[string]; answer: string }) {
+  // The notation complaint is specific to what they wrote, so it is read back
+  // off the answer rather than kept in the outcome the attempt was logged with.
   const derivative = problem.verify?.kind === 'derivative' ? problem.verify : undefined;
-  const nearBody =
-    (errorClass === 'notation' && derivative
+  const complaint =
+    errorClass === 'notation' && derivative
       ? readDerivative(answers[0] ?? '', { wrt: derivative.wrt, of: derivative.of }).complaint
-      : null) ?? near?.body;
-  const reference = problem.answers.map((a) => a.tex);
-  const meta = `${confidence} · ${duration(durationMs)} · ${hintsUsed === 0 ? 'no hints' : `${hintsUsed} hint`}`;
-
-  if (correct) {
-    return (
-      <div className="animate-correct flex flex-col gap-3 rounded-xl border border-correct bg-card p-[22px]">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-[26px] place-items-center rounded-full bg-correct text-[#06241a]">
-            <Check className="size-4" />
-          </span>
-          <h2 className="text-[19px] font-semibold text-correct">Correct</h2>
-          <span className="ml-auto text-xs text-faint">{meta}</span>
-        </div>
-        <Fit className={compact ? 'text-xl' : 'text-2xl'}>
-          <Tex>{reference[0]!}</Tex>
-        </Fit>
+      : null;
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-near bg-card p-[22px]">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-[26px] place-items-center rounded-full bg-near text-[15px] text-[#241905]">
+          {near.glyph}
+        </span>
+        <h2 className="text-[19px] font-semibold text-near-ink">{near.title}</h2>
       </div>
-    );
-  }
-
-  if (near) {
-    return (
-      <div className="flex flex-col gap-3 rounded-xl border border-near bg-card p-[22px]">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-[26px] place-items-center rounded-full bg-near text-[15px] text-[#241905]">
-            {near.glyph}
-          </span>
-          <h2 className="text-[19px] font-semibold text-near-ink">{near.title}</h2>
-        </div>
-        <p className="text-sm leading-relaxed text-ink2 text-pretty">{nearBody}</p>
-        <div className="flex flex-wrap items-center gap-3.5 text-[22px]">
-          <span className="text-muted">
-            <Tex>{answers[0] || '\\text{—}'}</Tex>
-          </span>
-          <span className="text-[15px] text-faint">→</span>
-          <Tex>{reference[0]!}</Tex>
-        </div>
+      <p className="text-sm leading-relaxed text-ink2 text-pretty">{complaint ?? near.body}</p>
+      <div className="flex flex-wrap items-center gap-3.5 text-[22px]">
+        <span className="text-muted">
+          <Tex>{answers[0] || '\\text{—}'}</Tex>
+        </span>
+        <span className="text-[15px] text-faint">→</span>
+        <Tex>{answer}</Tex>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
+function WrongCard(props: Props & { reference: string[] }) {
+  const { problem, answers, confidence, similar, reference } = props;
+  const [showSteps, setShowSteps] = useState(false);
   return (
     <div className="animate-wrong flex flex-col gap-3.5 rounded-xl border border-wrong bg-card p-[22px]">
       <div className="flex items-center gap-2.5">
@@ -205,45 +213,51 @@ export function FeedbackCard({
           See the steps
           <ChevronDown className={cx('size-3.5 transition-transform', showSteps && 'rotate-180')} />
         </button>
-
-        {showSteps && (
-          <div className="flex flex-col gap-2">
-            {problem.solution.map((s, i) => (
-              <Step key={i} step={s} index={i} onOpenRule={setOpenRule} />
-            ))}
-
-            {similar && (
-              <button
-                onClick={similar.onPick}
-                className="flex w-full items-center gap-2 rounded-[10px] border border-accent/60 bg-accent/10 px-3.5 py-2.5 text-left text-[13px] font-medium text-accent hover:bg-accent/15"
-              >
-                <Repeat2 className="size-4 shrink-0" />
-                Practice a similar problem
-                {similar.adds && (
-                  <span className="ml-auto shrink-0 font-mono text-[11px] font-normal text-faint">
-                    +1 to the set
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* The steps say what the answer was. When that is not the same as
-                knowing why his own line was wrong, this hands the pair over to
-                whichever chat he wants to carry the lesson on in. The label
-                says what it copies, so it needs nothing hovering over it. */}
-            <button
-              onClick={async () => {
-                const ok = await copyText(askPrompt(problem, answers));
-                showToast(ok ? 'Copied — paste it into a chat' : 'Could not reach the clipboard');
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-border bg-page px-3.5 py-2.5 text-[13px] text-ink2 hover:border-accent hover:text-ink"
-            >
-              <Sparkles className="size-4 shrink-0 text-accent" />
-              Copy question and answer, to ask an AI
-            </button>
-          </div>
-        )}
+        {showSteps && <Steps problem={problem} answers={answers} similar={similar} />}
       </div>
+    </div>
+  );
+}
+
+function Steps({ problem, answers, similar }: Pick<Props, 'problem' | 'answers' | 'similar'>) {
+  const showToast = useStore((s) => s.showToast);
+  const setOpenRule = useStore((s) => s.setOpenRule);
+  const ask = async () => {
+    const ok = await copyText(askPrompt(problem, answers));
+    showToast(ok ? 'Copied — paste it into a chat' : 'Could not reach the clipboard');
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      {problem.solution.map((s, i) => (
+        <Step key={i} step={s} index={i} onOpenRule={setOpenRule} />
+      ))}
+
+      {similar && (
+        <button
+          onClick={similar.onPick}
+          className="flex w-full items-center gap-2 rounded-[10px] border border-accent/60 bg-accent/10 px-3.5 py-2.5 text-left text-[13px] font-medium text-accent hover:bg-accent/15"
+        >
+          <Repeat2 className="size-4 shrink-0" />
+          Practice a similar problem
+          {similar.adds && (
+            <span className="ml-auto shrink-0 font-mono text-[11px] font-normal text-faint">
+              +1 to the set
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* The steps say what the answer was. When that is not the same as
+          knowing why their own line was wrong, this hands the pair over to
+          whichever chat they want to carry the lesson on in. The label says
+          what it copies, so it needs nothing hovering over it. */}
+      <button
+        onClick={ask}
+        className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-border bg-page px-3.5 py-2.5 text-[13px] text-ink2 hover:border-accent hover:text-ink"
+      >
+        <Sparkles className="size-4 shrink-0 text-accent" />
+        Copy question and answer, to ask an AI
+      </button>
     </div>
   );
 }

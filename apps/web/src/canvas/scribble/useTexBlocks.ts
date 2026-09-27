@@ -1,4 +1,9 @@
-import { useCallback, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import {
+  useCallback,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react';
 import { RULE_SPACING, type TexBlock } from '../strokes';
 import { follow, toWorld, type ClientPoint, type Scene } from './scene';
 

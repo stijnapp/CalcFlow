@@ -20,7 +20,7 @@ export function paintScene(scene: Scene, paper: CanvasSurface): void {
   paintLoop(ctx, scene.lasso, Math.round(scene.pan * dpr) / dpr);
 }
 
-/** On a graph question: axes and the question's marks under the ink, arrows and the answer over it. */
+/** On a graph question: axes and the question's marks under the ink; arrows and answer over it. */
 function layersFor(scene: Scene, geo: Plane | null): Layers {
   const view = scene.plane;
   const { w, h } = scene.size;
@@ -31,7 +31,8 @@ function layersFor(scene: Scene, geo: Plane | null): Layers {
     hideInk: !showMine,
     underlay: (c, pan) => {
       paintPlane(c, geo, w, h, pan);
-      if (view?.spec.given) paintItems(c, geo, view.spec.given, { top: pan, bottom: pan + h }, 'given');
+      const onScreen = { top: pan, bottom: pan + h };
+      if (view?.spec.given) paintItems(c, geo, view.spec.given, onScreen, 'given');
     },
     overlay: (c, pan) => {
       const live = scene.drawingArrow;
@@ -39,7 +40,8 @@ function layersFor(scene: Scene, geo: Plane | null): Layers {
         paintArrows(c, geo, scene.arrows, pan);
         if (live) paintArrows(c, geo, [live], pan, '#a89e92');
       }
-      if (showAnswer) paintItems(c, geo, view!.spec.answer, { top: pan, bottom: pan + h }, 'answer');
+      const onScreen = { top: pan, bottom: pan + h };
+      if (showAnswer) paintItems(c, geo, view!.spec.answer, onScreen, 'answer');
     },
   };
 }

@@ -25,7 +25,26 @@ class ConfigError extends Error {}
  * matter and not a reason to skip it.
  */
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const token = env.CALCFLOW_TOKEN?.trim();
+  const token = readToken(env.CALCFLOW_TOKEN);
+  const webRoot = readWebRoot(env.CALCFLOW_WEB);
+  return {
+    host: text(env.HOST) ?? '0.0.0.0',
+    port: port(env.PORT),
+    dbPath: text(env.CALCFLOW_DB) ?? 'calcflow.db',
+    webRoot,
+    token,
+    origins: text(env.CALCFLOW_ORIGINS)?.split(',').map((o) => o.trim()).filter(Boolean) ?? true,
+    logLevel: text(env.LOG_LEVEL) ?? 'info',
+  };
+}
+
+/** A variable's value, or undefined when it is unset or only whitespace. */
+function text(raw: string | undefined): string | undefined {
+  return raw?.trim() || undefined;
+}
+
+function readToken(raw: string | undefined): string {
+  const token = text(raw);
   if (!token) {
     throw new ConfigError(
       'CALCFLOW_TOKEN is not set. Put one in .env and give the same value to ' +
@@ -35,27 +54,21 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (token.length < 16) {
     throw new ConfigError('CALCFLOW_TOKEN is shorter than 16 characters; use a longer one.');
   }
+  return token;
+}
 
-  const webRoot = env.CALCFLOW_WEB?.trim() ? resolve(env.CALCFLOW_WEB.trim()) : null;
-  if (webRoot && !existsSync(webRoot)) {
+function readWebRoot(raw: string | undefined): string | null {
+  const dir = text(raw);
+  if (!dir) return null;
+  const webRoot = resolve(dir);
+  if (!existsSync(webRoot)) {
     throw new ConfigError(`CALCFLOW_WEB points at ${webRoot}, which does not exist.`);
   }
-
-  const origins = env.CALCFLOW_ORIGINS?.trim();
-
-  return {
-    host: env.HOST?.trim() || '0.0.0.0',
-    port: port(env.PORT),
-    dbPath: env.CALCFLOW_DB?.trim() || 'calcflow.db',
-    webRoot,
-    token,
-    origins: origins ? origins.split(',').map((o) => o.trim()).filter(Boolean) : true,
-    logLevel: env.LOG_LEVEL?.trim() || 'info',
-  };
+  return webRoot;
 }
 
 function port(raw: string | undefined): number {
-  if (!raw?.trim()) return 8787;
+  if (!text(raw)) return 8787;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1 || value > 65535) {
     throw new ConfigError(`PORT is ${raw}, which is not a port number.`);

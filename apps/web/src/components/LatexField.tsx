@@ -54,63 +54,59 @@ const BORDER: Record<FieldTone, string> = {
 };
 
 /**
- * One box, two storeys: what it renders to, and the raw LaTeX underneath. The
- * notation he cannot type is on the key bar over the keyboard, which types into
- * whichever box has the caret — so two answer boxes still each type into
- * themselves, without each carrying its own row of keys.
+ * Two fingers step back, three step forward — the same tap they already use on
+ * the canvas, on the one part of the field big enough to land both on. A plain
+ * tap puts the caret in the raw line.
  */
-export function LatexField({
-  value,
-  onChange,
-  onSubmit,
-  onFocus,
-  onBlur,
-  active = true,
-  tone = 'editing',
-  placeholder = 'type LaTeX',
-  ariaLabel = 'Your answer, as LaTeX',
-  compact,
-  readOnly,
-  autoFocus,
-  trailing,
-  fieldRef,
-  frosted,
-}: Props) {
-  const ownRef = useRef<HTMLTextAreaElement>(null);
-  const inputRef = fieldRef ?? ownRef;
-  // Which box the keyboard is typing into is worth saying out loud: on a screen
-  // with a notation row, an answer field and a hint field all in accent, an
-  // edge that is always lit says nothing at all.
-  const [focused, setFocused] = useState(false);
+function useLineTaps(
+  value: string,
+  onChange: (next: string) => void,
+  inputRef: RefObject<HTMLTextAreaElement | null>,
+) {
   const showToast = useStore((s) => s.showToast);
-  const keyBar = useStore((s) => s.settings.keyBar);
-  const patchSettings = useStore((s) => s.patchSettings);
-
-  /**
-   * Two fingers step back, three step forward — the same tap he already uses on
-   * the canvas, on the one part of the field big enough to land both on.
-   */
   const history = useEditHistory(value, onChange);
   const taps = useRef(new TapDetector());
   /** A gesture that fired must not also count as a tap into the field. */
   const gestured = useRef(false);
 
-  function tapDown(e: ReactPointerEvent) {
-    if (e.pointerType !== 'touch') return;
-    if (taps.current.activeCount === 0) gestured.current = false;
-    taps.current.down(e.pointerId, e.clientX, e.clientY);
-  }
+  return {
+    onPointerDown(e: ReactPointerEvent) {
+      if (e.pointerType !== 'touch') return;
+      if (taps.current.activeCount === 0) gestured.current = false;
+      taps.current.down(e.pointerId, e.clientX, e.clientY);
+    },
+    onPointerMove(e: ReactPointerEvent) {
+      if (e.pointerType === 'touch') taps.current.move(e.pointerId, e.clientX, e.clientY);
+    },
+    onPointerUp(e: ReactPointerEvent) {
+      if (e.pointerType !== 'touch') return;
+      const fingers = taps.current.up(e.pointerId);
+      if (fingers < 2) return;
+      gestured.current = true;
+      const moved = fingers >= 3 ? history.redo() : history.undo();
+      if (fingers >= 3) showToast(moved ? 'Redo' : 'Nothing to redo');
+      else showToast(moved ? 'Undo' : 'Nothing to undo');
+    },
+    onPointerCancel(e: ReactPointerEvent) {
+      taps.current.cancel(e.pointerId);
+    },
+    onClick() {
+      if (gestured.current) return;
+      inputRef.current?.focus();
+    },
+  };
+}
 
-  function tapUp(e: ReactPointerEvent) {
-    if (e.pointerType !== 'touch') return;
-    const fingers = taps.current.up(e.pointerId);
-    if (fingers < 2) return;
-    gestured.current = true;
-    const moved = fingers >= 3 ? history.redo() : history.undo();
-    if (fingers >= 3) showToast(moved ? 'Redo' : 'Nothing to redo');
-    else showToast(moved ? 'Undo' : 'Nothing to undo');
-  }
-
+/**
+ * What the key bar types into while this field has the caret. The bar holds on
+ * to one object for as long as the field has it, so that object is stable and
+ * reads the latest `value` through a ref at each press.
+ */
+function useKeyTarget(
+  value: string,
+  onChange: (next: string) => void,
+  inputRef: RefObject<HTMLTextAreaElement | null>,
+) {
   /** Puts the caret back where the key left it, after React has repainted. */
   function place(caret: number) {
     const el = inputRef.current;
@@ -136,8 +132,6 @@ export function LatexField({
     place(Math.min(value.length, Math.max(0, at + by)));
   }
 
-  // The bar holds on to one object for as long as this field has the caret, so
-  // it is stable and reads the latest `value` through the ref at each press.
   const latest = useRef({ insert, step });
   useLayoutEffect(() => {
     latest.current = { insert, step };
@@ -152,6 +146,40 @@ export function LatexField({
     [],
   );
   useEffect(() => () => releaseKeyBar(target), [target]);
+  return { target, box };
+}
+
+/**
+ * One box, two storeys: what it renders to, and the raw LaTeX underneath. The
+ * notation they cannot type is on the key bar over the keyboard, which types
+ * into whichever box has the caret — so two answer boxes still each type into
+ * themselves, without each carrying its own row of keys.
+ */
+export function LatexField({
+  value,
+  onChange,
+  onSubmit,
+  onFocus,
+  onBlur,
+  active = true,
+  tone = 'editing',
+  placeholder = 'type LaTeX',
+  ariaLabel = 'Your answer, as LaTeX',
+  compact,
+  readOnly,
+  autoFocus,
+  trailing,
+  fieldRef,
+  frosted,
+}: Props) {
+  const ownRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = fieldRef ?? ownRef;
+  // Which box the keyboard is typing into is worth saying out loud: on a screen
+  // with a notation row, an answer field and a hint field all in accent, an
+  // edge that is always lit says nothing at all.
+  const [focused, setFocused] = useState(false);
+  const lineTaps = useLineTaps(value, onChange, inputRef);
+  const { target, box } = useKeyTarget(value, onChange, inputRef);
 
   return (
     <div
@@ -168,16 +196,7 @@ export function LatexField({
         type="button"
         tabIndex={-1}
         aria-label="Edit this line"
-        onPointerDown={tapDown}
-        onPointerMove={(e) => {
-          if (e.pointerType === 'touch') taps.current.move(e.pointerId, e.clientX, e.clientY);
-        }}
-        onPointerUp={tapUp}
-        onPointerCancel={(e) => taps.current.cancel(e.pointerId)}
-        onClick={() => {
-          if (gestured.current) return;
-          inputRef.current?.focus();
-        }}
+        {...lineTaps}
         className={cx(
           'flex min-w-0 items-center scroll-x text-left',
           compact ? 'min-h-[34px] px-3.5 pt-2 text-xl' : 'min-h-[44px] px-5 pt-2.5 text-[26px]',
@@ -239,29 +258,42 @@ export function LatexField({
             compact ? 'pt-1.5 text-[12px]' : 'pt-2 text-[13px]',
           )}
         />
-        {!readOnly && (
-          <button
-            type="button"
-            // Pressing it must not take the caret out of the field, or the
-            // keyboard the bar sits on closes as the bar comes up.
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => {
-              patchSettings({ keyBar: !keyBar });
-              if (!keyBar) inputRef.current?.focus({ preventScroll: true });
-            }}
-            aria-pressed={keyBar}
-            aria-label={keyBar ? 'Hide the key bar' : 'Show the key bar'}
-            className={cx(
-              'grid shrink-0 place-items-center rounded-md border transition-colors',
-              compact ? 'size-7' : 'size-8',
-              keyBar ? 'border-accent/60 bg-accent/10 text-accent' : 'border-edge bg-sunken text-faint',
-            )}
-          >
-            <Sigma className="size-3.5" />
-          </button>
-        )}
+        {!readOnly && <KeyBarToggle compact={compact} inputRef={inputRef} />}
         {trailing}
       </div>
     </div>
+  );
+}
+
+/** Shows or hides the row of notation keys over the keyboard, for every field at once. */
+function KeyBarToggle({
+  compact,
+  inputRef,
+}: {
+  compact?: boolean;
+  inputRef: RefObject<HTMLTextAreaElement | null>;
+}) {
+  const keyBar = useStore((s) => s.settings.keyBar);
+  const patchSettings = useStore((s) => s.patchSettings);
+  return (
+    <button
+      type="button"
+      // Pressing it must not take the caret out of the field, or the
+      // keyboard the bar sits on closes as the bar comes up.
+      onPointerDown={(e) => e.preventDefault()}
+      onClick={() => {
+        patchSettings({ keyBar: !keyBar });
+        if (!keyBar) inputRef.current?.focus({ preventScroll: true });
+      }}
+      aria-pressed={keyBar}
+      aria-label={keyBar ? 'Hide the key bar' : 'Show the key bar'}
+      className={cx(
+        'grid shrink-0 place-items-center rounded-md border transition-colors',
+        compact ? 'size-7' : 'size-8',
+        keyBar ? 'border-accent/60 bg-accent/10 text-accent' : 'border-edge bg-sunken text-faint',
+      )}
+    >
+      <Sigma className="size-3.5" />
+    </button>
   );
 }

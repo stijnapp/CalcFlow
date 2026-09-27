@@ -1,4 +1,9 @@
-import { useCallback, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import {
+  useCallback,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react';
 import { loopContains, type Box, type StrokePoint } from '../strokes';
 import {
   BLOCK_HEIGHT,

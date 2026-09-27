@@ -60,33 +60,13 @@ export function HintPanel({ variant }: Props) {
 function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
   const session = useStore((s) => s.session)!;
   const revealRung = useStore((s) => s.revealRung);
-  const checkOnTrack = useStore((s) => s.checkOnTrack);
   const setOpenRule = useStore((s) => s.setOpenRule);
-  const setLine = useStore((s) => s.setOnTrackLine);
-  const line = session.onTrackLine;
 
   const cards = buildHints(session.problem);
   const total = hintCount(cards);
   const shown = Math.min(session.rung, total);
   const next = nextHint(cards, shown);
-
-  // The newest hint is brought into view: on a phone, the one he just asked
-  // for would otherwise open below the fold of the sheet, under the button.
-  const list = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const box = list.current;
-      // Found by attribute: a motion element keeps the ref it mounted with, so
-      // a ref handed from card to card stays on the first one.
-      const el = box?.querySelector('[data-newest]');
-      if (!box || !el) return;
-      // Measured, not `scrollIntoView`: that also scrolls every ancestor that
-      // can be, overflow hidden or not, and the practice screen must not move.
-      const over = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 72;
-      if (over > 0) box.scrollBy({ top: over, behavior: 'smooth' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [shown]);
+  const list = useNewestInView(shown);
 
   return (
     <>
@@ -113,54 +93,18 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
         ref={list}
         className={cx('scroll-y flex min-h-0 flex-1 flex-col gap-3 pt-5', panel ? 'px-6' : 'px-4', !next && 'pb-8')}
       >
-        {cards.map((card, i) => {
-          const seen = Math.max(0, Math.min(card.hints.length, shown - card.from));
-          const open = seen > 0;
-          const latest = open && shown > card.from && shown <= card.from + card.hints.length;
-          return (
-            <motion.div
-              key={card.label}
-              data-newest={latest || undefined}
-              /* Position only: animating the box itself scales its contents,
-                 which is what was squashing the button at the end of the list. */
-              layout="position"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: open ? 1 : 0.55, y: 0 }}
-              transition={{ ...SPRING, delay: i * 0.03 }}
-              className={cx(
-                'flex shrink-0 flex-col gap-2.5 rounded-lg border bg-sunken',
-                panel ? 'px-[18px]' : 'px-3.5',
-                open ? 'border-soft py-4' : 'border-overlay py-3',
-              )}
-            >
-              {/* Where it is, never what it says. */}
-              <div className="flex items-center gap-2.5">
-                <span
-                  className={cx(
-                    'font-mono text-[11px] uppercase tracking-[0.08em]',
-                    open ? 'text-accent' : 'text-faint',
-                  )}
-                >
-                  {card.label}
-                </span>
-                {!open && <Lock className="ml-auto size-3.5 text-faint" aria-label="locked" />}
-              </div>
+        {cards.map((card, i) => (
+          <CardView
+            key={card.label}
+            card={card}
+            index={i}
+            shown={shown}
+            panel={panel}
+            onOpenRule={setOpenRule}
+          />
+        ))}
 
-              {card.hints.slice(0, seen).map((hint, j) => (
-                <motion.div
-                  key={j}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={SPRING}
-                >
-                  <HintBody hint={hint} panel={panel} onOpenRule={setOpenRule} />
-                </motion.div>
-              ))}
-            </motion.div>
-          );
-        })}
-
-        {/* Held at the foot of the list, so the next tap is always under his
+        {/* Held at the foot of the list, so the next tap is always under their
             thumb however far the working has grown. */}
         {next && (
           <div
@@ -180,57 +124,149 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
         )}
       </div>
 
-      <div
-        className={cx(
-          'flex shrink-0 flex-col gap-2.5 border-t border-soft bg-sunken pb-[22px] pt-[18px]',
-          panel ? 'px-6' : 'px-4',
-        )}
-      >
-        <div className="flex items-center gap-2.5">
-          <h3 className="text-sm font-medium">Am I still on track?</h3>
-          <span className="text-xs text-faint">type any line from your working</span>
-        </div>
-        <LatexField
-          value={line}
-          onChange={setLine}
-          onSubmit={() => checkOnTrack(line)}
-          placeholder="\frac{1}{2\sqrt{x}}"
-          ariaLabel="A line from your working"
-          compact={!panel}
-          trailing={
-            <button
-              onClick={() => checkOnTrack(line)}
-              className="h-8 shrink-0 rounded-[9px] border border-strong bg-overlay px-3 text-[13px] hover:border-accent"
-            >
-              Check
-            </button>
-          }
-        />
-
-        {session.onTrack === 'yes' && (
-          <div className="flex items-center gap-2.5 rounded-sm border border-correct/30 bg-correct/10 px-3.5 py-2.5">
-            <Check className="size-4 shrink-0 text-correct" />
-            <span className="text-[13px] text-correct-ink">
-              Equivalent to a valid intermediate line — keep going.
-            </span>
-          </div>
-        )}
-        {session.onTrack === 'no' && (
-          <div className="flex items-center gap-2.5 rounded-sm border border-near/40 bg-near/10 px-3.5 py-2.5">
-            <X className="size-4 shrink-0 text-near-ink" />
-            <span className="text-[13px] text-near-ink">
-              That does not match any line on the way to the answer. Check the step before it.
-            </span>
-          </div>
-        )}
-      </div>
+      <OnTrack panel={panel} />
     </>
   );
 }
 
 /**
+ * The newest hint is brought into view: on a phone, the one they just asked
+ * for would otherwise open below the fold of the sheet, under the button.
+ */
+function useNewestInView(shown: number) {
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const box = list.current;
+      // Found by attribute: a motion element keeps the ref it mounted with, so
+      // a ref handed from card to card stays on the first one.
+      const el = box?.querySelector('[data-newest]');
+      if (!box || !el) return;
+      // Measured, not `scrollIntoView`: that also scrolls every ancestor that
+      // can be, overflow hidden or not, and the practice screen must not move.
+      const over = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 72;
+      if (over > 0) box.scrollBy({ top: over, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [shown]);
+  return list;
+}
+
+function CardView({
+  card,
+  index,
+  shown,
+  panel,
+  onOpenRule,
+}: {
+  card: HintCard;
+  index: number;
+  shown: number;
+  panel: boolean;
+  onOpenRule(id: string): void;
+}) {
+  const seen = Math.max(0, Math.min(card.hints.length, shown - card.from));
+  const open = seen > 0;
+  const latest = open && shown > card.from && shown <= card.from + card.hints.length;
+  return (
+    <motion.div
+      data-newest={latest || undefined}
+      /* Position only: animating the box itself scales its contents,
+         which is what was squashing the button at the end of the list. */
+      layout="position"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: open ? 1 : 0.55, y: 0 }}
+      transition={{ ...SPRING, delay: index * 0.03 }}
+      className={cx(
+        'flex shrink-0 flex-col gap-2.5 rounded-lg border bg-sunken',
+        panel ? 'px-[18px]' : 'px-3.5',
+        open ? 'border-soft py-4' : 'border-overlay py-3',
+      )}
+    >
+      {/* Where it is, never what it says. */}
+      <div className="flex items-center gap-2.5">
+        <span
+          className={cx(
+            'font-mono text-[11px] uppercase tracking-[0.08em]',
+            open ? 'text-accent' : 'text-faint',
+          )}
+        >
+          {card.label}
+        </span>
+        {!open && <Lock className="ml-auto size-3.5 text-faint" aria-label="locked" />}
+      </div>
+
+      {card.hints.slice(0, seen).map((hint, j) => (
+        <motion.div
+          key={j}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={SPRING}
+        >
+          <HintBody hint={hint} panel={panel} onOpenRule={onOpenRule} />
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}
+
+/** A line of their own working, checked against every line on the way to the answer. */
+function OnTrack({ panel }: { panel: boolean }) {
+  const onTrack = useStore((s) => s.session?.onTrack);
+  const line = useStore((s) => s.session?.onTrackLine ?? '');
+  const checkOnTrack = useStore((s) => s.checkOnTrack);
+  const setLine = useStore((s) => s.setOnTrackLine);
+  return (
+    <div
+      className={cx(
+        'flex shrink-0 flex-col gap-2.5 border-t border-soft bg-sunken pb-[22px] pt-[18px]',
+        panel ? 'px-6' : 'px-4',
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <h3 className="text-sm font-medium">Am I still on track?</h3>
+        <span className="text-xs text-faint">type any line from your working</span>
+      </div>
+      <LatexField
+        value={line}
+        onChange={setLine}
+        onSubmit={() => checkOnTrack(line)}
+        placeholder="\frac{1}{2\sqrt{x}}"
+        ariaLabel="A line from your working"
+        compact={!panel}
+        trailing={
+          <button
+            onClick={() => checkOnTrack(line)}
+            className="h-8 shrink-0 rounded-[9px] border border-strong bg-overlay px-3 text-[13px] hover:border-accent"
+          >
+            Check
+          </button>
+        }
+      />
+
+      {onTrack === 'yes' && (
+        <div className="flex items-center gap-2.5 rounded-sm border border-correct/30 bg-correct/10 px-3.5 py-2.5">
+          <Check className="size-4 shrink-0 text-correct" />
+          <span className="text-[13px] text-correct-ink">
+            Equivalent to a valid intermediate line — keep going.
+          </span>
+        </div>
+      )}
+      {onTrack === 'no' && (
+        <div className="flex items-center gap-2.5 rounded-sm border border-near/40 bg-near/10 px-3.5 py-2.5">
+          <X className="size-4 shrink-0 text-near-ink" />
+          <span className="text-[13px] text-near-ink">
+            That does not match any line on the way to the answer. Check the step before it.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * What the next tap is, in words that give none of it away: the step it
- * belongs to, or that it is the answer — which he should get to decide to see.
+ * belongs to, or that it is the answer — which they should get to decide to see.
  */
 function nextHint(cards: readonly HintCard[], shown: number): string | null {
   for (const card of cards) {
