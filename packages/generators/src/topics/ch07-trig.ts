@@ -1,6 +1,6 @@
 import { TIERS, type Tier } from '@calcflow/shared';
 import { answer, aside, frac, paren, setup, step, term } from '../authoring.js';
-import type { Draft, Generator } from '../types.js';
+import type { Draft, Generator, Rng } from '../types.js';
 
 interface Angle {
   deg: number;
@@ -120,7 +120,7 @@ export const degreesRadians: Generator = {
     const deg = rng.pick([15, 30, 45, 60, 75, 90, 120, 135, 150, 210, 225, 240, 270, 300, 330]);
     const result = radTex(deg);
 
-    // Both directions: reading radians back as degrees is the half he will need
+    // Both directions: reading radians back as degrees is the half they will need
     // when an exam states a domain as [0, 2π].
     if (tier !== 'easy' && rng.bool()) {
       return {
@@ -244,6 +244,77 @@ export const doubleAngle: Generator = {
   },
 };
 
+/** One trig function of one angle: `\sin x` for the variable, bracketed otherwise. */
+const call = (fn: string, arg: string): string => (arg === 'x' ? `\\${fn} x` : `\\${fn}${paren(arg)}`);
+
+/** The addition formula opened up: sine keeps the sign between its terms, cosine flips it. */
+function openUp(fn: 'sin' | 'cos', a: string, b: string, plus: boolean): string {
+  const sign = (fn === 'sin') === plus ? '+' : '-';
+  return fn === 'sin'
+    ? `${call('sin', a)}${call('cos', b)} ${sign} ${call('cos', a)}${call('sin', b)}`
+    : `${call('cos', a)}${call('cos', b)} ${sign} ${call('sin', a)}${call('sin', b)}`;
+}
+
+/** 75° = 45° + 30° and 15° = 45° − 30°: an exact value for an angle not on the list. */
+function splitAngle(rng: Rng): Draft {
+  const plus = rng.bool();
+  const deg = plus ? 75 : 15;
+  const fn = rng.pick(['sin', 'cos'] as const);
+  const prompt = `\\${fn}${paren(radTex(deg))}`;
+  // sin 75° and cos 15° are the larger value; sin 15° and cos 75° the smaller.
+  const larger = (fn === 'sin') === plus;
+  const result = `\\frac{1}{4}\\left(\\sqrt{6} ${larger ? '+' : '-'} \\sqrt{2}\\right)`;
+  const split = `${radTex(45)} ${plus ? '+' : '-'} ${radTex(30)}`;
+
+  return {
+    instruction: 'Give the exact value',
+    prompt,
+    note: `${deg}° is not on the list, but it is ${plus ? '45° + 30°' : '45° − 30°'}.`,
+    answers: [answer(result, { keyboard: 'trig', kind: 'number' })],
+    solution: [
+      setup('addition-formulas', 'Split the angle', `\\${fn}${paren(split)}`),
+      setup('addition-formulas', 'Addition formula', openUp(fn, radTex(45), radTex(30), plus)),
+      step('exact-values', 'Put in the standard values', result),
+    ],
+    ruleIds: ['addition-formulas', 'exact-values'],
+    verify: { kind: 'identity', of: prompt },
+  };
+}
+
+/** sin(x ± a) or cos(x ± a) with a standard a: open the bracket, then put in the values. */
+function expandShift(rng: Rng): Draft {
+  const fn = rng.pick(['sin', 'cos'] as const);
+  const plus = rng.bool();
+  const angle = rng.pick(EXACT.filter((a) => [30, 45, 60].includes(a.deg)));
+  const prompt = `\\${fn}${paren(`x ${plus ? '+' : '-'} ${angle.rad}`)}`;
+  const sign = (fn === 'sin') === plus ? '+' : '-';
+  const other = fn === 'sin' ? 'cos' : 'sin';
+  const result = `${angle.cos}${call(fn, 'x')} ${sign} ${angle.sin}${call(other, 'x')}`;
+
+  return {
+    instruction: 'Expand, and put in the exact values',
+    prompt,
+    note: 'No brackets left in the answer.',
+    answers: [answer(result, { keyboard: 'trig' })],
+    solution: [
+      setup(
+        'addition-formulas',
+        'Addition formula',
+        openUp(fn, 'x', angle.rad, plus),
+        'The cosine formula flips the sign; the sine formula keeps it.',
+      ),
+      step(
+        'exact-values',
+        'Put in the standard values',
+        result,
+        `${angle.deg}° is one of the angles worth knowing by heart.`,
+      ),
+    ],
+    ruleIds: ['addition-formulas', 'exact-values'],
+    verify: { kind: 'identity', of: prompt },
+  };
+}
+
 /**
  * The addition formulas, which everything else in the chapter is a special case
  * of. Used forwards they open a bracket; used on 75° they give an exact value
@@ -258,69 +329,7 @@ export const additionFormulas: Generator = {
   supports: ['medium', 'hard'] as const,
   invariant: 'value-preserving',
 
-  generate({ tier, rng }): Draft {
-    if (tier === 'hard' && rng.bool()) {
-      // 75° = 45° + 30°, and 15° = 45° − 30°.
-      const plus = rng.bool();
-      const deg = plus ? 75 : 15;
-      const fn = rng.pick(['sin', 'cos'] as const);
-      const prompt = `\\${fn}${paren(radTex(deg))}`;
-      const result =
-        fn === 'sin'
-          ? plus
-            ? '\\frac{1}{4}\\left(\\sqrt{6} + \\sqrt{2}\\right)'
-            : '\\frac{1}{4}\\left(\\sqrt{6} - \\sqrt{2}\\right)'
-          : plus
-            ? '\\frac{1}{4}\\left(\\sqrt{6} - \\sqrt{2}\\right)'
-            : '\\frac{1}{4}\\left(\\sqrt{6} + \\sqrt{2}\\right)';
-      const expansion =
-        fn === 'sin'
-          ? `\\sin${paren(radTex(45))}\\cos${paren(radTex(30))} ${plus ? '+' : '-'} \\cos${paren(radTex(45))}\\sin${paren(radTex(30))}`
-          : `\\cos${paren(radTex(45))}\\cos${paren(radTex(30))} ${plus ? '-' : '+'} \\sin${paren(radTex(45))}\\sin${paren(radTex(30))}`;
-
-      return {
-        instruction: 'Give the exact value',
-        prompt,
-        note: `${deg}° is not on the list, but it is ${plus ? '45° + 30°' : '45° − 30°'}.`,
-        answers: [answer(result, { keyboard: 'trig', kind: 'number' })],
-        solution: [
-          setup('addition-formulas', 'Split the angle', `\\${fn}${paren(`${radTex(45)} ${plus ? '+' : '-'} ${radTex(30)}`)}`),
-          setup('addition-formulas', 'Addition formula', expansion),
-          step('exact-values', 'Put in the standard values', result),
-        ],
-        ruleIds: ['addition-formulas', 'exact-values'],
-        verify: { kind: 'identity', of: prompt },
-      };
-    }
-
-    const fn = rng.pick(['sin', 'cos'] as const);
-    const plus = rng.bool();
-    const angle = rng.pick(EXACT.filter((a) => [30, 45, 60].includes(a.deg)));
-    const prompt = `\\${fn}${paren(`x ${plus ? '+' : '-'} ${angle.rad}`)}`;
-    const expansion =
-      fn === 'sin'
-        ? `\\sin x\\cos${paren(angle.rad)} ${plus ? '+' : '-'} \\cos x\\sin${paren(angle.rad)}`
-        : `\\cos x\\cos${paren(angle.rad)} ${plus ? '-' : '+'} \\sin x\\sin${paren(angle.rad)}`;
-    const first = angle.cos;
-    const second = angle.sin;
-    const result =
-      fn === 'sin'
-        ? `${first}\\sin x ${plus ? '+' : '-'} ${second}\\cos x`
-        : `${first}\\cos x ${plus ? '-' : '+'} ${second}\\sin x`;
-
-    return {
-      instruction: 'Expand, and put in the exact values',
-      prompt,
-      note: 'No brackets left in the answer.',
-      answers: [answer(result, { keyboard: 'trig' })],
-      solution: [
-        setup('addition-formulas', 'Addition formula', expansion, 'The cosine formula flips the sign; the sine formula keeps it.'),
-        step('exact-values', 'Put in the standard values', result, `${angle.deg}° is one of the angles worth knowing by heart.`),
-      ],
-      ruleIds: ['addition-formulas', 'exact-values'],
-      verify: { kind: 'identity', of: prompt },
-    };
-  },
+  generate: ({ tier, rng }) => (tier === 'hard' && rng.bool() ? splitAngle(rng) : expandShift(rng)),
 };
 
 /**

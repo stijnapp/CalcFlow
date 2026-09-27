@@ -1,11 +1,12 @@
 # Adding a topic
 
-A topic is one file, one line in the registry, and a test run. Nothing else in
+A topic is one generator, one line in the registry, and a test run. Nothing else in
 the app changes: the practice UI, the hint ladder, the stats and the sync log all
 read from the generator contract.
 
 `packages/generators/src/topics/ch09-differentiation.ts` is the reference
-implementation. Copy it.
+implementation. Copy it. The rest of chapter 9 is split over `ch09-*.ts` files
+of their own, which is the shape to follow once a chapter outgrows one file.
 
 ## 1. Write the generator
 
@@ -23,7 +24,7 @@ export const myTopic: Generator = {
 ```
 
 `supports` is the tiers this topic has something to say at, and the session only
-draws from generators that cover the one he picked. Most cover all three. Leave
+draws from generators that cover the one they picked. Most cover all three. Leave
 one out when the topic genuinely has nothing at that setting — a topic that only
 starts being a question once it is nested is not an `easy` topic, and listing it
 anyway fills the easy pool with problems that are not easy.
@@ -46,7 +47,7 @@ spans: [6, 9],              // logs and differentiation, both required
 ```
 
 It is then only offered when every chapter it spans is switched on — asking for
-a log law he has not chosen to practise is not a harder question, it is a
+a log law they have not chosen to practise is not a harder question, it is a
 different one. At the `hard` tier these take about 40% of the draws when any are
 available; `packages/generators/src/topics/mixed.ts` is where they live.
 
@@ -60,13 +61,13 @@ available; `packages/generators/src/topics/mixed.ts` is where they live.
 | `note` | Conditions and the form wanted: "a is a positive constant." |
 | `answers` | One `AnswerSpec` per input field. Build them with `answer(tex)`. |
 | `solution` | The worked steps, each naming the rule it applied. |
-| `ruleIds` | Rule cards this touches, **headline rule first**. Every id needs a card in `rules.ts`. |
+| `ruleIds` | Rule cards this touches, **headline rule first**. Every id needs a card in `rules/`. |
 | `verify` | An independent numeric check. See below. |
 
 ### Write the answer once
 
 `answer('\\frac{1}{2\\sqrt{x}}')` parses the LaTeX to get the AST used for
-grading, so the string he is shown and the value he is graded against cannot
+grading, so the string they are shown and the value they are graded against cannot
 drift apart. The helpers in `authoring.ts` (`frac`, `poly`, `power`, `times`,
 `fracTex`) keep the LaTeX readable — `times` in particular folds away the
 coefficients that would otherwise print as `2\sqrt{x}2\sqrt{…}`.
@@ -74,9 +75,9 @@ coefficients that would otherwise print as `2\sqrt{x}2\sqrt{…}`.
 ### The solution tree is the hint ladder
 
 The hint panel is read straight off `solution`. That is why hints need no
-handwriting recognition: he taps until he reaches a line he did not already
+handwriting recognition: they tap until they reach a line they did not already
 know. Give each step a `note` saying *why*, not just *what* — the note is the
-sentence he reads.
+sentence they read.
 
 Not every line applies a rule. Collecting like terms or tidying a numerator is
 not something anybody looks up, and naming a card for it puts a rule in the
@@ -87,8 +88,8 @@ genuinely being applied.
 ### `ruleIds[0]` is the headline
 
 Hint rung 1 is "which rule", and it names `ruleIds[0]` — so that has to be the
-thing he has to *spot*, not the first mechanical move. `(x²−25)/(x+5)` listed
-cancelling first and duly told him "Cancelling" for a problem whose whole point
+thing they have to *spot*, not the first mechanical move. `(x²−25)/(x+5)` listed
+cancelling first and duly told them "Cancelling" for a problem whose whole point
 is the difference of squares.
 
 The harness checks the list is *complete* — every `ruleId` a solution step
@@ -132,15 +133,16 @@ plot: {
 ```
 
 Keep the typed `answers` too wherever something *is* gradable — the intercepts,
-the components, the length. What the fields cannot see, he marks himself: the
-sketch gets *Got it / Close / Missed* after he submits, and the attempt is not
-written to the log until he does. `close` is recorded as the `sketch` error
+the components, the length. What the fields cannot see, they mark themselves: the
+sketch gets *Got it / Close / Missed* after they submit, and the attempt is not
+written to the log until they do. `close` is recorded as the `sketch` error
 class rather than a flat wrong.
 
 ## 3. Register it
 
 Add the export to `GENERATORS` in `packages/generators/src/registry.ts`, and a
-rule card in `rules.ts` for every id in `ruleIds`.
+rule card for every id in `ruleIds`: chapters 1–8 in `rules/algebra.ts`, the
+rest in `rules/calculus.ts`. `RULES` sorts them into chapter order itself.
 
 If the chapter is new, add it to `CHAPTERS` in `packages/shared/src/chapters.ts`.
 The home screen, the stats dashboard and the chapter filters all read from there.
@@ -168,6 +170,27 @@ asserting that:
 The step-chain invariant is the one that matters most. It catches the class of
 bug where the answer happens to be right but the *hints* lie, which is the worst
 thing this app could do.
+
+## 5. Run the linter
+
+```
+npm run lint
+```
+
+It has to come back clean. Besides the usual smells it caps sizes: 400 lines a
+file, 80 lines a function, complexity 15. A generator that runs into those is
+almost always one `generate` doing every tier's work, and the fix is the same
+each time:
+
+- one function per shape or tier, each returning its own `Draft`, dispatched
+  from a `Record<Tier, (rng: Rng) => Draft>`;
+- tables of shapes hoisted to module level, taking `rng` as a parameter, rather
+  than rebuilt inside `generate` on every call;
+- a chapter that passes 400 lines moves a generator into a `chNN-name.ts` of
+  its own.
+
+Keep the order of the `rng` draws when you split one up, so that every stored
+seed still rebuilds the problem it was.
 
 ## Conventions worth keeping
 

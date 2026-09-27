@@ -69,8 +69,8 @@ import {
   longDivision,
   quadraticEquation,
   substitutionQuadratic,
-  wordProblem,
 } from './topics/ch08-equations.js';
+import { wordProblem } from './topics/ch08-word.js';
 import { chainRule, powerSum, rootsAndReciprocals } from './topics/ch09-differentiation.js';
 import { fromDefinition } from './topics/ch09-definition.js';
 import { higherDerivatives } from './topics/ch09-higher.js';
@@ -105,13 +105,13 @@ import {
   tangentCrossing,
 } from './topics/mixed.js';
 import {
-  asymptotes,
   continuity,
   factorLimit,
   limitAtInfinity,
   squeeze,
   standardLimits,
 } from './topics/ch13-limits.js';
+import { asymptotes } from './topics/ch13-asymptotes.js';
 import { asymptoteCount } from './topics/ch13-asymptote-count.js';
 import { findConstants } from './topics/ch13-constants.js';
 import { absoluteLimit, differenceLimit, exponentialLimit } from './topics/ch13-forms.js';
@@ -120,9 +120,9 @@ import {
   areaBetween,
   areaFindBounds,
   definitePolynomial,
-  definiteStandard,
   totalArea,
 } from './topics/ch11-integration.js';
+import { definiteStandard } from './topics/ch11-standard.js';
 import { improperIntegral } from './topics/ch11-improper.js';
 import { symmetricIntegral } from './topics/ch11-symmetric.js';
 import { areaRegions } from './topics/ch11-regions.js';

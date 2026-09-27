@@ -98,31 +98,51 @@ function xSquaredExp(rng: Rng): Parts {
 /** `c / (j x^k)` as one fraction; j = 1 leaves the bare power. */
 const overPower = (top: Latex, j: number, k: number): Latex => frac(top, term(j, power('x', k)));
 
+/** The pieces of ∫ xⁿ ln x: u·v, the integral left over, and what that integrates to. */
+interface LogShape {
+  integrand: Latex;
+  dv: Latex;
+  uv: Latex;
+  rest: Latex;
+  tail: Latex;
+}
+
+/** One shape per sign of n, with m = n + 1: ln x alone, a power on top, or underneath. */
+function logShape(n: number): LogShape {
+  const m = n + 1;
+  if (n === 0) {
+    return { integrand: '\\ln x', dv: 'dx', uv: 'x\\ln x', rest: '-\\int 1\\,dx', tail: '-x' };
+  }
+  if (n > 0) {
+    return {
+      integrand: `${power('x', n)}\\ln x`,
+      dv: `${power('x', n)}\\,dx`,
+      uv: `${frac(power('x', m), String(m))}\\ln x`,
+      rest: `-\\int ${frac(power('x', n), String(m))}\\,dx`,
+      tail: `-${frac(power('x', m), String(m * m))}`,
+    };
+  }
+  const j = -m;
+  return {
+    integrand: overPower('\\ln x', 1, -n),
+    dv: frac('dx', power('x', -n)),
+    uv: `-${overPower('\\ln x', j, j)}`,
+    rest: `\\int ${overPower('1', j, -n)}\\,dx`,
+    tail: `-${overPower('1', j * j, j)}`,
+  };
+}
+
 /**
  * xⁿ ln x, with n = 0 being ln x on its own and a negative n putting the power
  * underneath. Always u = ln x: ∫ = xᵐ/m · ln x − xᵐ/m², m = n + 1.
  */
 function logPower(rng: Rng, powers: readonly number[]): Parts {
   const n = rng.pick(powers);
-  const m = n + 1;
-  const j = -m;
-  const integrand =
-    n === 0 ? '\\ln x' : n > 0 ? `${power('x', n)}\\ln x` : overPower('\\ln x', 1, -n);
-  const dv = n === 0 ? 'dx' : n > 0 ? `${power('x', n)}\\,dx` : frac('dx', power('x', -n));
-
-  const uv = m === 1 ? 'x\\ln x' : m > 0 ? `${frac(power('x', m), String(m))}\\ln x` : `-${overPower('\\ln x', j, j)}`;
-  const rest =
-    m === 1
-      ? '-\\int 1\\,dx'
-      : m > 0
-        ? `-\\int ${frac(power('x', n), String(m))}\\,dx`
-        : `\\int ${overPower('1', j, -n)}\\,dx`;
-  const tail = m > 0 ? `-${m === 1 ? 'x' : frac(power('x', m), String(m * m))}` : `-${overPower('1', j * j, j)}`;
-
+  const s = logShape(n);
   return {
-    integrand,
-    rounds: [{ u: '\\ln x', dv, after: sum([uv, rest]) }],
-    anti: sum([uv, tail]),
+    integrand: s.integrand,
+    rounds: [{ u: '\\ln x', dv: s.dv, after: sum([s.uv, s.rest]) }],
+    anti: sum([s.uv, s.tail]),
     why:
       n === 0
         ? 'There is no product to split until you treat the whole integrand as $u$ against $dv = dx$.'
