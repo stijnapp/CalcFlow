@@ -13,6 +13,13 @@ import { Tex } from './Tex';
 import { buildHints, hintCount, type Hint, type HintCard } from './hints';
 
 const SPRING = { type: 'spring' as const, stiffness: 400, damping: 40 };
+/**
+ * The panel's shadow falls on the column to its left, so it is still on screen
+ * after the panel itself has slid out of it. Faded on its own and quicker than
+ * the slide, it is gone before the panel is, rather than vanishing after it.
+ */
+const SHADOW = '-30px 0 60px -20px rgba(0,0,0,0.6)';
+const NO_SHADOW = '-30px 0 60px -20px rgba(0,0,0,0)';
 
 interface Props {
   /** The phone gets a bottom sheet; the tablet a panel over the control column. */
@@ -39,11 +46,11 @@ export function HintPanel({ variant }: Props) {
     <motion.div
       /* The tablet panel belongs to the right-hand column, so it arrives from
          that edge; the phone sheet still comes up from the thumb. */
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={SPRING}
-      className="absolute inset-y-0 right-0 z-30 flex w-[38%] flex-col border-l border-strong bg-raised shadow-[-30px_0_60px_-20px_rgba(0,0,0,0.6)]"
+      initial={{ x: '100%', boxShadow: NO_SHADOW }}
+      animate={{ x: 0, boxShadow: SHADOW }}
+      exit={{ x: '100%', boxShadow: NO_SHADOW }}
+      transition={{ ...SPRING, boxShadow: { duration: 0.25, ease: 'easeOut' } }}
+      className="absolute inset-y-0 right-0 z-30 flex w-[38%] flex-col border-l border-strong bg-raised"
     >
       <Body panel onClose={close} />
     </motion.div>
