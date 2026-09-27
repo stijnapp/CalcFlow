@@ -10,6 +10,14 @@ export function clockTime(ts = Date.now()): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+/** "today", "yesterday", "3 d ago" — by calendar day, not by 24-hour stretch. */
+export function daysAgo(ts: number, now = Date.now()): string {
+  const day = (t: number) => Math.floor((t - new Date(t).getTimezoneOffset() * 60_000) / 86_400_000);
+  const days = day(now) - day(ts);
+  if (days <= 0) return 'today';
+  return days === 1 ? 'yesterday' : `${days} d ago`;
+}
+
 export function percent(part: number, whole: number): number {
   return whole === 0 ? 0 : Math.round((part / whole) * 100);
 }

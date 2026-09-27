@@ -10,6 +10,7 @@ import { Home } from '@/screens/Home';
 import { PracticePhone } from '@/screens/PracticePhone';
 import { PracticeTablet } from '@/screens/PracticeTablet';
 import { Rules } from '@/screens/Rules';
+import { Saved } from '@/screens/Saved';
 import { Settings } from '@/screens/Settings';
 import { Stats } from '@/screens/Stats';
 import { Summary } from '@/screens/Summary';
@@ -72,6 +73,7 @@ export function App() {
             <Route path="/stats" element={<Page><Stats compact={compact} /></Page>} />
             <Route path="/settings" element={<Page><Settings /></Page>} />
             <Route path="/rules" element={<Page><Rules compact={compact} /></Page>} />
+            <Route path="/saved" element={<Page><Saved compact={compact} /></Page>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>

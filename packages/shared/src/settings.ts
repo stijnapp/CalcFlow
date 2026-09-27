@@ -2,6 +2,19 @@ import type { Tier } from './tiers.js';
 
 export type SessionMode = 'set10' | 'endless' | 'weak' | 'speed';
 export type CanvasSurface = 'ruled' | 'dots' | 'blank';
+/** Light, dark, or whichever the device is set to. */
+export type Theme = 'system' | 'light' | 'dark';
+
+/**
+ * A problem put aside for later — skipped as too hard, or kept after a wrong
+ * answer. By seed, like everything else: it rebuilds exactly.
+ */
+export interface SavedProblem {
+  generatorId: string;
+  seed: string;
+  tier: Tier;
+  savedAt: number;
+}
 
 /** A notation key he wrote himself: what it shows, and what it types. */
 export interface CustomKey {
@@ -39,6 +52,9 @@ export interface Settings {
   penWidth: number;
   /** A vector drawn on a lattice question starts and ends on whole numbers. */
   arrowSnap: boolean;
+  theme: Theme;
+  /** Put aside for later, newest first. Answering one right takes it off. */
+  saved: SavedProblem[];
   /** Blank means "whatever this browser calls itself" — see `detectDeviceName`. */
   deviceName: string;
   backendUrl: string;
@@ -78,6 +94,8 @@ export const DEFAULT_SETTINGS: Settings = {
   customKeys: [],
   penWidth: 3.6,
   arrowSnap: true,
+  theme: 'system',
+  saved: [],
   deviceName: '',
   backendUrl: '',
   token: '',

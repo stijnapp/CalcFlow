@@ -49,7 +49,8 @@ export function position(session: Session): string {
 export function nextLabel(session: Session, graded: boolean): string {
   if (!graded) return 'Mark your drawing to continue';
   const last = session.target !== null && session.done.length >= session.target;
-  return last ? 'See the summary' : 'Next problem';
+  if (!last) return 'Next problem';
+  return session.fromSaved ? 'Back to saved' : 'See the summary';
 }
 
 // Read and written straight off the store rather than through props: the

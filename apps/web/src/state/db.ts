@@ -27,6 +27,7 @@ export interface StoredSession {
   level: number;
   only?: string[];
   topics?: TopicFilter;
+  fromSaved?: boolean;
   done: Array<
     ProblemRef & {
       correct: boolean;

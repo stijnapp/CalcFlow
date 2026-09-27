@@ -1,13 +1,14 @@
 import { draw, similar } from '@calcflow/generators';
 import type { SelfGrade, SessionMode } from '@calcflow/shared';
 import type { StateCreator } from 'zustand';
-import { levelOf, tierFor } from '../adaptive';
+import { levelOf } from '../adaptive';
 import { saveAttempt } from '../db';
 import { SCREEN_PATH, navigate } from '../navigation';
 import {
   attemptOf,
   sessionChapters,
   closed,
+  drawAfter,
   fresh,
   gradeFields,
   isComplete,
@@ -17,6 +18,7 @@ import {
   type Outcome,
   type Session,
 } from '../session';
+import { isSaved, withoutSaved } from '../saved';
 import { computeStats } from '../stats';
 import type { Store } from '../store';
 
@@ -56,6 +58,10 @@ type Set = (partial: Partial<Store>) => void;
  */
 function record(get: Get, set: Set, session: Session, outcome: Outcome): void {
   const { settings } = get();
+  // Right, at last: it has done its job on the saved list.
+  if (outcome.correct && isSaved(settings.saved, session.problem)) {
+    get().patchSettings({ saved: withoutSaved(settings.saved, session.problem) });
+  }
   const attempt = attemptOf(session, outcome, settings, session.selfGrade);
   const attempts = [...get().attempts, attempt];
   void saveAttempt(attempt).then(() => get().refreshQueued());
@@ -100,6 +106,13 @@ export const createPracticeSlice: StateCreator<Store, [], [], PracticeSlice> = (
 
   endSession() {
     const session = get().session;
+    // One problem off the saved list goes back to the list: a summary of a
+    // single answer says nothing the verdict did not.
+    if (session?.fromSaved) {
+      set({ session: null, canvasFullscreen: false });
+      navigate(SCREEN_PATH.saved, { replace: true });
+      return;
+    }
     const summary = session?.done.length ? { target: session.target, done: session.done } : null;
     set({ session: null, summary: summary ?? get().summary, canvasFullscreen: false });
     navigate(summary ? SCREEN_PATH.summary : SCREEN_PATH.home, { replace: true });
@@ -137,15 +150,7 @@ export const createPracticeSlice: StateCreator<Store, [], [], PracticeSlice> = (
       get().endSession();
       return;
     }
-    const tier = tierFor(session.level);
-    const problem = draw({
-      chapters: session.chapters,
-      tier,
-      only: session.only,
-      topics: session.topics,
-      avoid: session.problem.generatorId,
-      owed: owedTopics(session, tier),
-    });
+    const problem = drawAfter(session);
     if (!problem) {
       get().showToast('No topics match those settings');
       return;

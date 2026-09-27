@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { ChevronRight, Check, Lock, X } from 'lucide-react';
+import { Bookmark, BookmarkCheck, ChevronRight, Check, Lock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ruleById } from '@calcflow/generators';
 import { cx } from '@/lib/cx';
 import { useBackDismiss } from '@/lib/useBackDismiss';
+import { isSaved } from '@/state/saved';
 import { useStore } from '@/state/store';
 import { LatexField } from './LatexField';
 import { Fit } from './Fit';
@@ -80,10 +81,11 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
         <span className="font-mono text-xs text-faint">
           {shown} / {total}
         </span>
+        <SaveForLater />
         <button
           onClick={onClose}
           aria-label="Close hints"
-          className="ml-auto grid size-8 place-items-center rounded-[9px] bg-overlay text-muted hover:text-ink"
+          className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-overlay text-muted hover:text-ink"
         >
           <X className="size-4" />
         </button>
@@ -126,6 +128,31 @@ function Body({ panel, onClose }: { panel: boolean; onClose(): void }) {
 
       <OnTrack panel={panel} />
     </>
+  );
+}
+
+/**
+ * Put the problem aside. Here because the hints are where they are when it is
+ * too hard for now: before an answer it is a skip, and the set moves on to
+ * another; after one it only keeps it, for coming back to.
+ */
+function SaveForLater() {
+  const saveForLater = useStore((s) => s.saveForLater);
+  const answered = useStore((s) => s.session?.outcome != null);
+  const saved = useStore((s) => (s.session ? isSaved(s.settings.saved, s.session.problem) : false));
+  const done = answered && saved;
+  return (
+    <button
+      onClick={saveForLater}
+      disabled={done}
+      className={cx(
+        'ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border px-2.5 text-[12px] font-medium',
+        done ? 'border-accent/40 text-accent' : 'border-border bg-overlay text-ink2 hover:border-accent hover:text-ink',
+      )}
+    >
+      {done ? <BookmarkCheck className="size-3.5" /> : <Bookmark className="size-3.5 text-accent" />}
+      {done ? 'Saved' : answered ? 'Save for later' : 'Skip for later'}
+    </button>
   );
 }
 

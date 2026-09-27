@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'practice' | 'summary' | 'stats' | 'settings' | 'rules';
+export type Screen = 'home' | 'practice' | 'summary' | 'stats' | 'settings' | 'rules' | 'saved';
 
 export const SCREEN_PATH: Record<Screen, string> = {
   home: '/',
@@ -7,6 +7,7 @@ export const SCREEN_PATH: Record<Screen, string> = {
   stats: '/stats',
   settings: '/settings',
   rules: '/rules',
+  saved: '/saved',
 };
 
 type Navigate = (to: string, opts?: { replace?: boolean }) => void;

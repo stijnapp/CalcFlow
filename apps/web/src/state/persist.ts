@@ -11,6 +11,7 @@ export function freezeSession(s: Session): StoredSession {
     level: s.level,
     only: s.only,
     topics: s.topics,
+    fromSaved: s.fromSaved,
     done: s.done.map((d) => ({
       generatorId: d.problem.generatorId,
       seed: d.problem.seed,
@@ -66,6 +67,7 @@ export function reviveSession(stored: StoredSession): Session | null {
     chapters: stored.chapters,
     level: stored.level,
     only: stored.only,
+    fromSaved: stored.fromSaved,
     topics: stored.topics,
     done: reviveDone(stored),
     problem,

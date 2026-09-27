@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, BookOpen, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowRight, BarChart3, BookOpen, Bookmark, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CHAPTERS, type SessionMode } from '@calcflow/shared';
 import { Eyebrow } from '@/components/Eyebrow';
@@ -79,6 +79,7 @@ function TopBar({ compact }: { compact?: boolean }) {
           <BarChart3 className="size-4 text-accent" />
           <span className="text-sm">Stats</span>
         </button>
+        <SavedButton />
         <button
           onClick={() => go('rules')}
           aria-label="Rule reference"
@@ -96,6 +97,26 @@ function TopBar({ compact }: { compact?: boolean }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/** The saved list, with how many are waiting on it. */
+function SavedButton() {
+  const go = useStore((s) => s.go);
+  const count = useStore((s) => s.settings.saved.length);
+  return (
+    <button
+      onClick={() => go('saved')}
+      aria-label={count ? `${count} saved for later` : 'Saved for later'}
+      className="relative grid size-10 place-items-center rounded-md border border-border bg-card text-muted hover:text-ink"
+    >
+      <Bookmark className="size-[17px]" />
+      {count > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 font-mono text-[10px] font-semibold text-on-accent">
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
 

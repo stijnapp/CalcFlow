@@ -6,7 +6,7 @@ import {
   tryParse,
   type GradeResult,
 } from '@calcflow/engine';
-import { alwaysTopics, type Problem, type TopicFilter } from '@calcflow/generators';
+import { alwaysTopics, draw, type Problem, type TopicFilter } from '@calcflow/generators';
 import type {
   Attempt,
   Confidence,
@@ -19,7 +19,7 @@ import type {
 import type { CanvasState } from '@/canvas/strokes';
 import { deviceLabel } from '@/lib/deviceName';
 import { ulid } from '@/lib/ulid';
-import { nextLevel } from './adaptive';
+import { nextLevel, tierFor } from './adaptive';
 import { slowChapters, weakChapters, type Stats } from './stats';
 
 export interface SessionItem {
@@ -60,6 +60,8 @@ export interface Session {
   only?: string[];
   /** The home screen's say over the topics, as it stood when the set began. */
   topics?: TopicFilter;
+  /** One problem off the saved list: it ends back on that list, not on a summary. */
+  fromSaved?: boolean;
   done: SessionItem[];
   problem: Problem;
   startedAt: number;
@@ -272,6 +274,19 @@ export function owedTopics(
   const asked = new Set(s.done.map((d) => d.problem.generatorId));
   const owed = alwaysTopics({ ...s, tier }).filter((id) => !asked.has(id));
   return owed.length > 0 && owed.length >= s.target - s.done.length ? owed : undefined;
+}
+
+/** The problem after this one, drawn under the set's own rules. */
+export function drawAfter(session: Session): Problem | null {
+  const tier = tierFor(session.level);
+  return draw({
+    chapters: session.chapters,
+    tier,
+    only: session.only,
+    topics: session.topics,
+    avoid: session.problem.generatorId,
+    owed: owedTopics(session, tier),
+  });
 }
 
 /** Every question of a fixed-length set has been answered. */
