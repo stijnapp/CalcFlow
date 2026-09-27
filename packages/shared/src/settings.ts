@@ -15,6 +15,10 @@ export interface CustomKey {
 export interface Settings {
   /** Chapter numbers currently selected on the home screen. May be empty. */
   chapters: number[];
+  /** Topics switched off on the home screen, by generator id. Never asked. */
+  topicsOff: string[];
+  /** Topics wanted in every set, by generator id; asked up to every other problem. */
+  topicsAlways: string[];
   /** How hard the problems come out. See `Tier`. */
   tier: Tier;
   mode: SessionMode;
@@ -60,6 +64,8 @@ export const DEFAULT_KEYS = [
 
 export const DEFAULT_SETTINGS: Settings = {
   chapters: [],
+  topicsOff: [],
+  topicsAlways: [],
   tier: 'medium',
   mode: 'set10',
   setLength: 10,

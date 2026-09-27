@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, BarChart3, BookOpen, Dices, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Dices,
+  RefreshCw,
+  Settings as SettingsIcon,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CHAPTERS, TIERS, TIER_BLURB, TIER_LABEL, chapterTitle, type SessionMode } from '@calcflow/shared';
 import { candidates, draw } from '@calcflow/generators';
@@ -9,8 +18,10 @@ import { HoverLabel } from '@/components/HoverLabel';
 import { Prose } from '@/components/Prose';
 import { Tex } from '@/components/Tex';
 import { Toggle } from '@/components/Toggle';
+import { TopicsDialog } from '@/components/TopicsDialog';
 import { cx } from '@/lib/cx';
 import { clockTime } from '@/lib/format';
+import { resetTopics, tuning, withTopic } from '@/lib/topics';
 import { useStore } from '@/state/store';
 
 /** `n` is the set length for the sized modes, and the flagged count for the rest. */
@@ -28,8 +39,15 @@ export function Home({ compact }: { compact?: boolean }) {
   const syncing = useStore((s) => s.syncing);
   const store = useStore();
 
-  const pool = candidates({ chapters: settings.chapters, tier: settings.tier });
+  const filter = { off: settings.topicsOff, always: settings.topicsAlways };
+  const every = candidates({ chapters: settings.chapters, tier: settings.tier });
+  const pool = candidates({ chapters: settings.chapters, tier: settings.tier, topics: filter });
   const none = settings.chapters.length === 0;
+  const [picking, setPicking] = useState(false);
+  const tuned = tuning(settings, every.map((g) => g.id));
+  const tunedLabel = [tuned.off > 0 && `${tuned.off} off`, tuned.always > 0 && `${tuned.always} always`]
+    .filter(Boolean)
+    .join(' · ');
 
   /* Not an illustration of the kind of thing he might get — one of the actual
      things he will get, built by the same `draw` the session uses, so changing
@@ -43,9 +61,17 @@ export function Home({ compact }: { compact?: boolean }) {
   // array with the same chapters in it is the same selection, and redrawing on
   // it would swap the question out on every unrelated render.
   const picked = settings.chapters.join(',');
+  const said = `${settings.topicsOff.join(',')}|${settings.topicsAlways.join(',')}`;
   const sample = useMemo(
-    () => draw({ chapters: picked === '' ? [] : picked.split(',').map(Number), tier: settings.tier }),
-    [picked, settings.tier, reroll],
+    () =>
+      draw({
+        chapters: picked === '' ? [] : picked.split(',').map(Number),
+        tier: settings.tier,
+        topics: filter,
+      }),
+    // `said` stands in for the filter, for the same reason `picked` does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [picked, said, settings.tier, reroll],
   );
   const flagged = stats.byChapter.filter((c) => c.attempts >= 3 && c.mastery < 70).length;
   // The button only says "there is something to send"; hovering it says how
@@ -121,13 +147,43 @@ export function Home({ compact }: { compact?: boolean }) {
           </span>
         )}
 
-        <div className="flex flex-wrap items-baseline gap-x-2.5 text-[13px] text-muted">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
           {sample && <span className="text-faint">{chapterTitle(sample.chapter)}</span>}
-          <span className="ml-auto">
-            {pool.length} {pool.length === 1 ? 'topic asks' : 'topics ask'} this
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {/* Says a choice from last time is still in force, and undoes it. */}
+            {tunedLabel && (
+              <span className="flex items-center rounded-full bg-accent/12 pl-2.5 text-xs text-accent">
+                {tunedLabel}
+                <button
+                  onClick={() => store.patchSettings(resetTopics(settings, every.map((g) => g.id)))}
+                  aria-label="Back to all topics"
+                  className="grid size-6 place-items-center rounded-full hover:text-ink"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={() => setPicking(true)}
+              disabled={every.length === 0}
+              aria-haspopup="dialog"
+              className="-my-1 flex items-center gap-1.5 rounded-md py-1 hover:text-ink disabled:pointer-events-none"
+            >
+              {pool.length} {pool.length === 1 ? 'topic asks' : 'topics ask'} this
+              {every.length > 0 && <SlidersHorizontal className="size-3.5" />}
+            </button>
+          </div>
         </div>
       </div>
+
+      <TopicsDialog
+        open={picking}
+        onClose={() => setPicking(false)}
+        topics={every}
+        onSet={(id, state) => store.patchSettings(withTopic(settings, id, state))}
+        onReset={() => store.patchSettings(resetTopics(settings, every.map((g) => g.id)))}
+        compact={compact}
+      />
     </section>
   );
 

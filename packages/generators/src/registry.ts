@@ -227,11 +227,24 @@ export function generatorById(id: string): Generator | undefined {
   return GENERATORS.find((g) => g.id === id);
 }
 
+/**
+ * His own say over which topics a selection asks, on top of the chapters and
+ * the tier. Ignored when `only` is given: drilling one topic from the stats
+ * screen asks that topic whatever the home screen says.
+ */
+export interface TopicFilter {
+  /** Switched off: never drawn. */
+  off?: readonly string[];
+  /** Wanted in every set: drawn often, up to every other problem. */
+  always?: readonly string[];
+}
+
 export interface Selection {
   chapters: number[];
   tier: Tier;
   /** Restrict to these generator ids — how "drill this topic" is expressed. */
   only?: string[];
+  topics?: TopicFilter;
 }
 
 /** Every chapter a generator needs switched on before it can be drawn. */
@@ -240,13 +253,22 @@ function needs(g: Generator): readonly number[] {
 }
 
 /** Every generator that has something to ask at this tier. */
-export function candidates({ chapters, tier, only }: Selection): Generator[] {
+export function candidates({ chapters, tier, only, topics }: Selection): Generator[] {
   return GENERATORS.filter(
     (g) =>
       needs(g).every((c) => chapters.includes(c)) &&
       g.supports.includes(tier) &&
-      (!only || only.includes(g.id)),
+      (only ? only.includes(g.id) : !topics?.off?.includes(g.id)),
   );
+}
+
+/** The topics he asked to see in every set that this selection can ask. */
+export function alwaysTopics(selection: Selection): string[] {
+  if (selection.only) return [];
+  const wanted = selection.topics?.always ?? [];
+  return candidates(selection)
+    .filter((g) => wanted.includes(g.id))
+    .map((g) => g.id);
 }
 
 /** Builds a problem from a generator plus a seed — the only source of problems. */
@@ -272,6 +294,11 @@ export interface DrawOptions extends Selection {
   random?: () => number;
   /** Avoid repeating the generator that produced the previous problem. */
   avoid?: string;
+  /**
+   * Topics a set still owes him, drawn from before anything else. The session
+   * passes them once the set has no more room to leave one of them to chance.
+   */
+  owed?: readonly string[];
 }
 
 /**
@@ -282,17 +309,38 @@ export interface DrawOptions extends Selection {
  */
 const CROSS_CHAPTER_SHARE = 0.4;
 
-export function draw(opts: DrawOptions): Problem | null {
-  const random = opts.random ?? Math.random;
-  let pool = candidates(opts);
-  if (pool.length === 0) return null;
+/**
+ * How often a topic he wants in every set is the one drawn, when it was not the
+ * one just asked. Half, rather than every time: the point of "always" over
+ * switching the rest off is that the other topics keep coming too.
+ */
+const ALWAYS_SHARE = 0.5;
+
+/** Narrows the pool to what this draw should come from, before the dice. */
+function focus(pool: Generator[], opts: DrawOptions, random: () => number): Generator[] {
+  const owed = pool.filter((g) => opts.owed?.includes(g.id));
+  if (owed.length > 0) return owed;
+
+  // Never the same one twice running, as with any other topic.
+  const always = new Set(alwaysTopics(opts));
+  const wanted = pool.filter((g) => always.has(g.id) && g.id !== opts.avoid);
+  if (wanted.length > 0 && wanted.length < pool.length && random() < ALWAYS_SHARE) return wanted;
 
   // Several chapters switched on and the hard tier asked for: some of the time,
   // draw from the problems that need more than one of them at once.
   if (opts.tier === 'hard') {
     const spanning = pool.filter((g) => needs(g).length > 1);
-    if (spanning.length > 0 && random() < CROSS_CHAPTER_SHARE) pool = spanning;
+    if (spanning.length > 0 && random() < CROSS_CHAPTER_SHARE) return spanning;
   }
+  return pool;
+}
+
+export function draw(opts: DrawOptions): Problem | null {
+  const random = opts.random ?? Math.random;
+  let pool = candidates(opts);
+  if (pool.length === 0) return null;
+
+  pool = focus(pool, opts, random);
   if (opts.avoid && pool.length > 1) {
     const trimmed = pool.filter((g) => g.id !== opts.avoid);
     if (trimmed.length) pool = trimmed;

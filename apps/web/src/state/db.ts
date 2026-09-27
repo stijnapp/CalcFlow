@@ -9,6 +9,7 @@ import {
   type Settings,
   type Tier,
 } from '@calcflow/shared';
+import type { TopicFilter } from '@calcflow/generators';
 import type { CanvasState } from '@/canvas/strokes';
 
 /** A problem referred to by seed rather than stored — it rebuilds exactly. */
@@ -25,6 +26,7 @@ export interface StoredSession {
   /** Where adaptive difficulty had got to; see `Session.level`. */
   level: number;
   only?: string[];
+  topics?: TopicFilter;
   done: Array<
     ProblemRef & {
       correct: boolean;

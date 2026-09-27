@@ -7,7 +7,14 @@ import {
   stripPlusC,
   type GradeResult,
 } from '@calcflow/engine';
-import { draw, rebuild, similar, type Problem } from '@calcflow/generators';
+import {
+  alwaysTopics,
+  draw,
+  rebuild,
+  similar,
+  type Problem,
+  type TopicFilter,
+} from '@calcflow/generators';
 import {
   DEFAULT_SETTINGS,
   type Attempt,
@@ -133,6 +140,8 @@ export interface Session {
    */
   level: number;
   only?: string[];
+  /** The home screen's say over the topics, as it stood when the set began. */
+  topics?: TopicFilter;
   done: SessionItem[];
   problem: Problem;
   startedAt: number;
@@ -413,24 +422,22 @@ export const useStore = create<Store>((set, get) => ({
       get().showToast('Pick at least one chapter first');
       return;
     }
-    const problem = draw({ chapters, tier: settings.tier, only: opts?.only });
+    const plan = {
+      mode,
+      target: mode === 'endless' ? null : Math.max(1, Math.round(settings.setLength)),
+      chapters,
+      level: levelOf(settings.tier),
+      only: opts?.only,
+      topics: opts?.only ? undefined : { off: settings.topicsOff, always: settings.topicsAlways },
+      done: [],
+    };
+    const problem = draw({ ...plan, tier: settings.tier, owed: owedTopics(plan, settings.tier) });
     if (!problem) {
       get().showToast('No topics match those settings');
       return;
     }
 
-    set({
-      canvasFullscreen: false,
-      session: {
-        mode,
-        target: mode === 'endless' ? null : Math.max(1, Math.round(settings.setLength)),
-        chapters,
-        level: levelOf(settings.tier),
-        only: opts?.only,
-        done: [],
-        ...fresh(problem),
-      },
-    });
+    set({ canvasFullscreen: false, session: { ...plan, ...fresh(problem) } });
     navigateFn?.(SCREEN_PATH.practice);
   },
 
@@ -590,7 +597,9 @@ export const useStore = create<Store>((set, get) => ({
       chapters: session.chapters,
       tier,
       only: session.only,
+      topics: session.topics,
       avoid: session.problem.generatorId,
+      owed: owedTopics(session, tier),
     });
     if (!problem) {
       get().showToast('No topics match those settings');
@@ -789,6 +798,7 @@ function freezeSession(s: Session): StoredSession {
     chapters: s.chapters,
     level: s.level,
     only: s.only,
+    topics: s.topics,
     done: s.done.map((d) => ({
       generatorId: d.problem.generatorId,
       seed: d.problem.seed,
@@ -861,6 +871,7 @@ function reviveSession(stored: StoredSession): Session | null {
     chapters: stored.chapters,
     level: stored.level,
     only: stored.only,
+    topics: stored.topics,
     done,
     problem,
     // A problem left open overnight should not read as a five-hour attempt.
@@ -1027,6 +1038,21 @@ function chaptersFor(mode: SessionMode, settings: Settings, stats: Stats): numbe
     return slow.length ? slow : settings.chapters;
   }
   return settings.chapters;
+}
+
+/**
+ * The topics he wants in every set that this one has not asked yet — but only
+ * once the set is down to as many problems as there are of them. Until then
+ * they are left to the draw, which already reaches for them often.
+ */
+function owedTopics(
+  s: Pick<Session, 'target' | 'done' | 'chapters' | 'only' | 'topics'>,
+  tier: Tier,
+): string[] | undefined {
+  if (s.target === null) return undefined;
+  const asked = new Set(s.done.map((d) => d.problem.generatorId));
+  const owed = alwaysTopics({ ...s, tier }).filter((id) => !asked.has(id));
+  return owed.length > 0 && owed.length >= s.target - s.done.length ? owed : undefined;
 }
 
 /** Every question of a fixed-length set has been answered. */
