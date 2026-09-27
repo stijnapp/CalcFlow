@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '@/lib/cx';
 import { duration } from '@/lib/format';
-import type { Stats } from '@/state/stats';
+import { paceOf, type Pace, type Stats } from '@/state/stats';
 import { Eyebrow } from './Eyebrow';
 import { HoverLabel } from './HoverLabel';
 
@@ -239,11 +239,13 @@ function tiers(stats: Stats): Section | null {
 }
 
 function trends(stats: Stats): Section | null {
-  const rows = stats.byChapter.filter((c) => c.trend !== null).sort((a, b) => a.trend! - b.trend!);
+  const rows = stats.byChapter
+    .flatMap((c) => (c.trend ? [{ ...c, trend: c.trend }] : []))
+    .sort((a, b) => a.trend.time - b.trend.time);
   if (rows.length === 0) return null;
   return {
     title: 'GETTING FASTER, GETTING SLOWER',
-    blurb: 'Your last ten in a chapter against the twenty before them. A single median cannot show a direction.',
+    blurb: 'Your last ten in a chapter against the twenty before them, and how many of the ten were right. Faster only counts while the answers hold.',
     body: (
       <div className="flex flex-col gap-1.5">
         {rows.map((c) => (
@@ -251,14 +253,14 @@ function trends(stats: Stats): Section | null {
             <span className="font-mono text-[11px] text-faint">{c.chapter}</span>
             <span className="truncate text-[13px] text-ink2">{c.title}</span>
             <span className="ml-auto font-mono text-[11px] text-faint">{duration(c.medianMs)}</span>
+            <span className="w-[56px] text-right font-mono text-[11px] text-faint">
+              {c.trend.rightNow}% right
+            </span>
             <span
-              className={cx(
-                'w-[48px] text-right font-mono text-[11px]',
-                c.trend! <= -10 ? 'text-correct' : c.trend! >= 10 ? 'text-near' : 'text-muted',
-              )}
+              className={cx('w-[48px] text-right font-mono text-[11px]', PACE_TONE[paceOf(c.trend)])}
             >
-              {c.trend! > 0 ? '+' : ''}
-              {c.trend}%
+              {c.trend.time > 0 ? '+' : ''}
+              {c.trend.time}%
             </span>
           </div>
         ))}
@@ -266,6 +268,14 @@ function trends(stats: Stats): Section | null {
     ),
   };
 }
+
+const PACE_TONE: Record<Pace, string> = {
+  fluent: 'text-correct',
+  faster: 'text-muted',
+  rushing: 'text-wrong-ink',
+  steady: 'text-muted',
+  slower: 'text-near',
+};
 
 /** Days since a topic last came up, as one square each. */
 const FRESH = [

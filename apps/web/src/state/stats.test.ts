@@ -101,7 +101,42 @@ describe('trend', () => {
 
   it('is negative when the recent ten are faster than the twenty before', () => {
     const stats = computeStats(many(30, (i) => ({ durationMs: i < 20 ? 100_000 : 50_000 })));
-    expect(stats.byChapter.find((c) => c.chapter === 9)!.trend).toBe(-50);
+    expect(stats.byChapter.find((c) => c.chapter === 9)!.trend).toEqual({
+      time: -50,
+      rightBefore: 100,
+      rightNow: 100,
+    });
+  });
+});
+
+describe('the read on pace', () => {
+  /** Twenty slow attempts, then ten fast ones, right as often as asked. */
+  const paced = (rightBefore: number, rightNow: number) =>
+    computeStats(
+      many(30, (i) => {
+        const before = i < 20;
+        const right = before ? i < (rightBefore / 100) * 20 : i - 20 < (rightNow / 100) * 10;
+        return {
+          durationMs: before ? 100_000 : 20_000,
+          correct: right,
+          errorClass: right ? null : 'wrong',
+        };
+      }),
+    ).read;
+
+  it('calls a speed-up fluency only while the answers hold', () => {
+    expect(paced(80, 90)?.id).toBe('trend');
+    expect(paced(80, 90)?.text).toContain('still 90% right');
+  });
+
+  it('calls a speed-up with the answers falling off rushing', () => {
+    expect(paced(80, 10)?.id).toBe('rushing');
+    expect(paced(80, 10)?.text).toContain('10% right against 80% before');
+  });
+
+  it('says nothing about pace for a chapter clicked through on guesses', () => {
+    expect(paced(10, 10)?.id).not.toBe('trend');
+    expect(paced(10, 10)?.id).not.toBe('rushing');
   });
 });
 

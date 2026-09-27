@@ -30,15 +30,36 @@ export interface ChapterStat {
   /** Against his own median across every chapter, not an outside benchmark. */
   speed: Speed;
   /**
-   * Percent change in median time against his own earlier attempts in the same
-   * chapter — negative is faster. Null until there is enough history on both
-   * sides to mean anything. A median says where he is; this says which way he
-   * is going, and only the second one can tell practice from plateau.
+   * The recent attempts in the chapter against the earlier ones. Null until
+   * there is enough history on both sides to mean anything. A median says where
+   * the chapter is; this says which way it is going, and only the second one
+   * can tell practice from plateau.
    */
-  trend: number | null;
+  trend: Trend | null;
   /** 0–100 of the window solved without opening the hint panel at all. */
   hintFree: number;
   confidentWrong: number;
+}
+
+export interface Trend {
+  /** Percent change in median time — negative is faster. */
+  time: number;
+  /** 0–100 right, before and now. Faster only counts while these hold. */
+  rightBefore: number;
+  rightNow: number;
+}
+
+/**
+ * What a change of pace amounts to once the answers are next to it. Faster and
+ * still right is fluency; faster and falling off is rushing, and a chapter
+ * clicked through on guesses is only faster.
+ */
+export type Pace = 'fluent' | 'faster' | 'rushing' | 'steady' | 'slower';
+
+export function paceOf(t: Trend): Pace {
+  if (t.time > -10) return t.time >= 10 ? 'slower' : 'steady';
+  if (t.rightNow <= t.rightBefore - 20) return 'rushing';
+  return t.rightNow >= 70 && t.rightNow >= t.rightBefore - 10 ? 'fluent' : 'faster';
 }
 
 export interface Matrix {
@@ -246,14 +267,19 @@ function speedOf(chapterMedian: number, overallMedian: number): Speed {
  * speed-up either. Ten against the twenty before them is the shortest pair of
  * windows whose medians are not just noise.
  */
-function trendOf(all: Attempt[]): number | null {
+function trendOf(all: Attempt[]): Trend | null {
   if (all.length < 15) return null;
   const recent = all.slice(-10);
   const prior = all.slice(-30, -10);
   if (prior.length < 5) return null;
   const before = median(prior.map((a) => a.durationMs));
   if (!before) return null;
-  return Math.round(((median(recent.map((a) => a.durationMs)) - before) / before) * 100);
+  const right = (rows: Attempt[]) => percent(rows.filter((a) => a.correct).length, rows.length);
+  return {
+    time: Math.round(((median(recent.map((a) => a.durationMs)) - before) / before) * 100),
+    rightBefore: right(prior),
+    rightNow: right(recent),
+  };
 }
 
 /**
@@ -447,13 +473,23 @@ function readOf(s: Stats): Insight | null {
     };
   }
 
-  const improving = [...s.byChapter]
-    .filter((c) => c.trend !== null)
-    .sort((a, b) => a.trend! - b.trend!)[0];
-  if (improving && improving.trend! <= -20) {
+  // Only a real speed-up is worth the sentence, and what it means depends on
+  // whether the answers kept up with it.
+  const quicker = s.byChapter
+    .flatMap((c) => (c.trend && c.trend.time <= -20 ? [{ chapter: c.chapter, ...c.trend }] : []))
+    .sort((a, b) => a.time - b.time);
+  const rushed = quicker.find((t) => paceOf(t) === 'rushing');
+  if (rushed) {
+    return {
+      id: 'rushing',
+      text: `Chapter ${rushed.chapter} is ${-rushed.time}% quicker than it was, but ${rushed.rightNow}% right against ${rushed.rightBefore}% before. That is rushing, not fluency.`,
+    };
+  }
+  const fluent = quicker.find((t) => paceOf(t) === 'fluent');
+  if (fluent) {
     return {
       id: 'trend',
-      text: `Chapter ${improving.chapter} is ${Math.abs(improving.trend!)}% faster than it was, at ${improving.rightRate}% right. That one is turning into fluency.`,
+      text: `Chapter ${fluent.chapter} is ${-fluent.time}% faster than it was and still ${fluent.rightNow}% right. That one is turning into fluency.`,
     };
   }
 
