@@ -12,6 +12,11 @@ export interface Stroke {
   pts: StrokePoint[];
   width: number;
   color: string;
+  /**
+   * When it last landed on the page or left it, on the clock the arrows share,
+   * so undo and redo can tell which of the two came last.
+   */
+  at: number;
 }
 
 /**
@@ -23,6 +28,7 @@ export interface Stroke {
 export interface StoredStroke {
   w: number;
   pts: number[];
+  at?: number;
 }
 
 /** A rectangle in world coordinates. */
@@ -43,6 +49,8 @@ export interface StoredArrow {
   y1: number;
   x2: number;
   y2: number;
+  /** On the strokes' clock; see {@link Stroke.at}. */
+  at?: number;
 }
 
 /** Everything on the canvas, small enough to sit inside the stored session. */
@@ -90,13 +98,33 @@ export class Surface {
   private bitmapDpr = 1;
   private dirty = true;
   private nextId = 1;
+  private clock = 1;
 
   get isEmpty(): boolean {
     return this.strokes.length === 0;
   }
 
+  /** The next moment on the clock strokes and arrows share. */
+  tick(): number {
+    return this.clock++;
+  }
+
+  /** Keeps the clock ahead of marks that came back from storage. */
+  reserve(at: number): void {
+    this.clock = Math.max(this.clock, at + 1);
+  }
+
+  /** The newest stroke on the page, and the one redo would bring back. */
+  get newest(): Stroke | undefined {
+    return this.strokes.at(-1);
+  }
+
+  get lastUndone(): Stroke | undefined {
+    return this.undone.at(-1);
+  }
+
   begin(point: StrokePoint, width: number): void {
-    this.live = { id: this.nextId++, pts: [point], width, color: INK };
+    this.live = { id: this.nextId++, pts: [point], width, color: INK, at: 0 };
   }
 
   extend(points: StrokePoint[]): void {
@@ -104,15 +132,17 @@ export class Surface {
     this.live.pts.push(...points);
   }
 
-  commit(): void {
-    if (!this.live) return;
-    if (this.live.pts.length > 0) {
-      this.strokes.push(this.live);
-      // A new mark makes the redo stack meaningless.
-      this.undone = [];
-      this.dirty = true;
-    }
+  /** Whether a mark actually landed. */
+  commit(): boolean {
+    const live = this.live;
     this.live = null;
+    if (!live || live.pts.length === 0) return false;
+    live.at = this.tick();
+    this.strokes.push(live);
+    // A new mark makes the redo stack meaningless.
+    this.undone = [];
+    this.dirty = true;
+    return true;
   }
 
   /** Throws the live stroke away: it turned out to be a gesture, not a mark. */
@@ -126,7 +156,7 @@ export class Surface {
       s.pts.some((q) => Math.abs(q.x - x) < radius && Math.abs(q.y - y) < radius),
     );
     if (hit < 0) return false;
-    this.undone.push(this.strokes.splice(hit, 1)[0]!);
+    this.takeOff(this.strokes.splice(hit, 1));
     this.dirty = true;
     return true;
   }
@@ -134,7 +164,7 @@ export class Surface {
   undo(): boolean {
     const s = this.strokes.pop();
     if (!s) return false;
-    this.undone.push(s);
+    this.takeOff([s]);
     this.dirty = true;
     return true;
   }
@@ -142,6 +172,7 @@ export class Surface {
   redo(): boolean {
     const s = this.undone.pop();
     if (!s) return false;
+    s.at = this.tick();
     this.strokes.push(s);
     this.dirty = true;
     return true;
@@ -208,8 +239,14 @@ export class Surface {
     const gone = this.strokes.filter((s) => ids.has(s.id));
     if (gone.length === 0) return;
     this.strokes = this.strokes.filter((s) => !ids.has(s.id));
-    this.undone.push(...gone);
+    this.takeOff(gone);
     this.dirty = true;
+  }
+
+  /** Onto the redo stack, stamped with when they left. */
+  private takeOff(gone: Stroke[]): void {
+    for (const s of gone) s.at = this.tick();
+    this.undone.push(...gone);
   }
 
   /** Moves a selection bodily. Undo does not follow it — it is not a mark. */
@@ -238,7 +275,7 @@ export class Surface {
     return this.strokes.map((s) => {
       const pts: number[] = [];
       for (const p of s.pts) pts.push(round(p.x), round(p.y), round(p.p));
-      return { w: s.width, pts };
+      return { w: s.width, pts, at: s.at };
     });
   }
 
@@ -249,7 +286,9 @@ export class Surface {
       for (let i = 0; i + 2 < s.pts.length; i += 3) {
         pts.push({ x: s.pts[i]!, y: s.pts[i + 1]!, p: s.pts[i + 2]! });
       }
-      return { id: this.nextId++, pts, width: s.w, color: INK };
+      const at = s.at ?? this.clock;
+      this.reserve(at);
+      return { id: this.nextId++, pts, width: s.w, color: INK, at };
     });
     this.undone = [];
     this.live = null;

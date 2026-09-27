@@ -153,8 +153,6 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
   const arrowsUndone = useRef<StoredArrow[]>([]);
   /** The arrow under the pen. */
   const drawingArrow = useRef<{ start: StoredArrow } | null>(null);
-  /** Whether the newest mark was an arrow, so undo knows which stack to pop. */
-  const lastWasArrow = useRef(false);
   const nextBlockId = useRef(1);
 
   const active = blocks.find((b) => b.id === activeId) ?? null;
@@ -302,11 +300,11 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     // strokes never had this problem because the surface is restored in place.
     blocksRef.current = mine?.blocks ?? [];
     arrowsRef.current = mine?.arrows ?? [];
+    for (const a of arrowsRef.current) surfaceRef.current.reserve(a.at ?? 0);
     setBlocks(blocksRef.current);
     setArrows(arrowsRef.current);
     arrowsUndone.current = [];
     drawingArrow.current = null;
-    lastWasArrow.current = false;
     setSelection(null);
     lassoRef.current = null;
     nextBlockId.current = (mine?.blocks ?? []).reduce((m, b) => Math.max(m, b.id), 0) + 1;
@@ -370,35 +368,60 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
     return { x: e.clientX - rect.left, y: e.clientY - rect.top + panRef.current, p: 1 };
   }, []);
 
+  /** Into the ref at once, so a second undo before the render sees the first. */
+  const putArrows = useCallback((list: StoredArrow[]) => {
+    arrowsRef.current = list;
+    setArrows(list);
+  }, []);
+
+  /** Off the page and onto the redo stack, stamped with when it left. */
+  const takeArrowOff = useCallback(
+    (index: number) => {
+      const gone = arrowsRef.current[index]!;
+      arrowsUndone.current.push({ ...gone, at: surfaceRef.current.tick() });
+      putArrows(arrowsRef.current.filter((_, i) => i !== index));
+    },
+    [putArrows],
+  );
+
+  // Arrows and strokes are two stacks on one clock: undo takes whichever of
+  // the two went down last, redo brings back whichever left last.
   const undo = useCallback(() => {
-    // Arrows and strokes are two stacks; the newest mark decides which is popped.
-    if (lastWasArrow.current && arrowsRef.current.length > 0) {
-      const rest = arrowsRef.current.slice(0, -1);
-      arrowsUndone.current.push(arrowsRef.current.at(-1)!);
-      setArrows(rest);
-      lastWasArrow.current = rest.length > 0;
+    const surface = surfaceRef.current;
+    const arrow = arrowsRef.current.at(-1);
+    if (arrow && (arrow.at ?? 0) > (surface.newest?.at ?? -1)) {
+      takeArrowOff(arrowsRef.current.length - 1);
       onToast('Undo');
       schedulePaint();
       return;
     }
-    onToast(surfaceRef.current.undo() ? 'Undo' : 'Nothing to undo');
+    onToast(surface.undo() ? 'Undo' : 'Nothing to undo');
     schedulePaint();
     markDirty();
-  }, [markDirty, onToast, schedulePaint]);
+  }, [markDirty, onToast, schedulePaint, takeArrowOff]);
 
   const redo = useCallback(() => {
-    const back = arrowsUndone.current.pop();
-    if (back) {
-      setArrows([...arrowsRef.current, back]);
-      lastWasArrow.current = true;
+    const surface = surfaceRef.current;
+    const arrow = arrowsUndone.current.at(-1);
+    if (arrow && (arrow.at ?? 0) > (surface.lastUndone?.at ?? -1)) {
+      arrowsUndone.current.pop();
+      putArrows([...arrowsRef.current, { ...arrow, at: surface.tick() }]);
       onToast('Redo');
       schedulePaint();
       return;
     }
-    onToast(surfaceRef.current.redo() ? 'Redo' : 'Nothing to redo');
+    onToast(surface.redo() ? 'Redo' : 'Nothing to redo');
     schedulePaint();
     markDirty();
-  }, [markDirty, onToast, schedulePaint]);
+  }, [markDirty, onToast, putArrows, schedulePaint]);
+
+  /** A new mark of either kind makes both redo stacks meaningless. */
+  function commitStroke() {
+    if (surfaceRef.current.commit()) arrowsUndone.current = [];
+    drawingRef.current = false;
+    schedulePaint();
+    markDirty();
+  }
 
   useImperativeHandle(
     ref,
@@ -408,9 +431,8 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       clear() {
         surfaceRef.current.clear();
         setBlocks([]);
-        setArrows([]);
+        putArrows([]);
         arrowsUndone.current = [];
-        lastWasArrow.current = false;
         setActiveId(null);
         schedulePaint();
         markDirty();
@@ -418,7 +440,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       isEmpty: () =>
         surfaceRef.current.isEmpty && blocks.length === 0 && arrowsRef.current.length === 0,
     }),
-    [undo, redo, markDirty, schedulePaint, blocks.length],
+    [undo, redo, markDirty, putArrows, schedulePaint, blocks.length],
   );
 
   // ------------------------------------------------------------- pointer input
@@ -443,8 +465,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       (a) => distanceToSegment(at.x, at.y, a) <= radius,
     );
     if (hit < 0) return false;
-    setArrows(arrowsRef.current.filter((_, i) => i !== hit));
-    lastWasArrow.current = false;
+    takeArrowOff(hit);
     return true;
   }
 
@@ -637,9 +658,9 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       const { x1, y1, x2, y2 } = finished.start;
       // A tap is not an arrow; anything shorter than a grid square is a slip.
       if (Math.hypot(x2 - x1, y2 - y1) >= 0.5) {
-        setArrows([...arrowsRef.current, finished.start]);
+        putArrows([...arrowsRef.current, { ...finished.start, at: surfaceRef.current.tick() }]);
         arrowsUndone.current = [];
-        lastWasArrow.current = true;
+        surfaceRef.current.undone = [];
       }
       schedulePaint();
       return;
@@ -652,12 +673,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       erasingRef.current = false;
       return;
     }
-    if (drawingRef.current) {
-      surfaceRef.current.commit();
-      drawingRef.current = false;
-      schedulePaint();
-      markDirty();
-    }
+    if (drawingRef.current) commitStroke();
   }
 
   function onPointerCancel(e: ReactPointerEvent<HTMLCanvasElement>) {
@@ -674,12 +690,7 @@ const ScribbleCanvasImpl = forwardRef<CanvasHandle, Props>(function ScribbleCanv
       lassoRef.current = null;
       schedulePaint();
     }
-    if (drawingRef.current) {
-      surfaceRef.current.commit();
-      drawingRef.current = false;
-      schedulePaint();
-      markDirty();
-    }
+    if (drawingRef.current) commitStroke();
   }
 
   function onWheel(e: React.WheelEvent) {
