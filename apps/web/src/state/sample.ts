@@ -1,16 +1,17 @@
-import { CHAPTERS, TIERS, type Attempt, type Confidence, type ErrorClass } from '@calcflow/shared';
-import { GENERATORS } from '@calcflow/generators';
+import {
+  CHAPTERS,
+  type Attempt,
+  type Confidence,
+  type ErrorClass,
+  type Tier,
+} from '@calcflow/shared';
+import { GENERATORS, type Generator } from '@calcflow/generators';
 
-/**
- * A believable 400-attempt history, so the stats screen can be judged with
- * something in it. Deterministic: the same button always produces the same
- * numbers, which makes "did that change?" answerable.
- */
 interface Profile {
   /** How many attempts over the window. */
   n: number;
   accuracy: number;
-  /** Of the wrong ones, how many he was sure about. */
+  /** Of the wrong ones, how many they were sure about. */
   overconfidence: number;
   medianMs: number;
 }
@@ -31,6 +32,14 @@ const PROFILES: Record<number, Profile> = {
 const WRONG: ErrorClass[] = ['wrong', 'wrong', 'not-simplified', 'not-exact', 'plus-c'];
 const DAY = 86_400_000;
 
+/**
+ * How much a tier moves accuracy and time away from the chapter's profile. A
+ * sample log where all three tiers come out the same makes the by-difficulty
+ * readout look broken when it is only looking at flat data.
+ */
+const STRETCH: Record<Tier, number> = { easy: 1.12, medium: 1, hard: 0.72 };
+const PACE: Record<Tier, number> = { easy: 0.8, medium: 1, hard: 1.35 };
+
 /** mulberry32 — small, seeded, and good enough for fake history. */
 function rng(seed: number): () => number {
   let a = seed;
@@ -42,9 +51,72 @@ function rng(seed: number): () => number {
   };
 }
 
+/** Easy three times in ten; medium and hard split what is left. */
+function drawTier(rand: () => number): Tier {
+  if (rand() < 0.3) return 'easy';
+  return rand() < 0.65 ? 'medium' : 'hard';
+}
+
+/** Right answers lean sure; wrong ones are sure as often as the profile says. */
+function drawConfidence(rand: () => number, correct: boolean, profile: Profile): Confidence {
+  if (rand() < (correct ? 0.62 : profile.overconfidence)) return 'sure';
+  return rand() < (correct ? 0.7 : 0.55) ? 'think' : 'guess';
+}
+
+interface Span {
+  rand: () => number;
+  now: number;
+  days: number;
+}
+
+interface ChapterSample {
+  chapter: number;
+  profile: Profile;
+  topics: Generator[];
+}
+
+function sampleOne({ rand, now, days }: Span, c: ChapterSample, i: number): Attempt {
+  const { chapter, profile, topics } = c;
+  // Recent attempts weigh double in mastery, so the history leans recent.
+  const age = Math.floor(rand() ** 1.6 * days);
+  const ts = now - age * DAY - Math.floor(rand() * 10 * 3_600_000);
+  const topic = topics[Math.floor(rand() * topics.length)]!;
+  // They were worse a fortnight ago than they are now.
+  const drift = 1 + (age / days) * -0.18;
+  // Tier is drawn before correctness, because it feeds into it.
+  const tier = drawTier(rand);
+  const correct = rand() < profile.accuracy * drift * STRETCH[tier];
+  const confidence = drawConfidence(rand, correct, profile);
+  const hintMaxRung = correct ? (rand() < 0.18 ? 1 : 0) : Math.floor(rand() * 4);
+  const id = `sample-${chapter}-${i}`;
+
+  return {
+    id,
+    device: 'sample data',
+    ts,
+    generatorId: topic.id,
+    seed: id,
+    genVersion: topic.version,
+    chapter,
+    tier,
+    correct,
+    confidence,
+    hintsUsed: hintMaxRung,
+    hintMaxRung,
+    durationMs: Math.round(profile.medianMs * (0.55 + rand() * 1.1) * PACE[tier]),
+    answerRaw: correct ? 'x' : 'x+1',
+    errorClass: correct ? null : WRONG[Math.floor(rand() * WRONG.length)]!,
+    selfGrade: null,
+  };
+}
+
+/**
+ * A believable 400-attempt history, so the stats screen can be judged with
+ * something in it. Deterministic: the same button always produces the same
+ * numbers, which makes "did that change?" answerable.
+ */
 export function sampleAttempts(days = 24): Attempt[] {
-  const rand = rng(0x0ca1cf10);
-  const now = Date.now();
+  const span: Span = { rand: rng(0x0ca1cf10), now: Date.now(), days };
   const out: Attempt[] = [];
 
   for (const { n: chapter } of CHAPTERS) {
@@ -57,45 +129,7 @@ export function sampleAttempts(days = 24): Attempt[] {
     if (!profile || topics.length === 0) continue;
 
     for (let i = 0; i < profile.n; i += 1) {
-      // Recent attempts weigh double in mastery, so the history leans recent.
-      const age = Math.floor(rand() ** 1.6 * days);
-      const ts = now - age * DAY - Math.floor(rand() * 10 * 3_600_000);
-      const topic = topics[Math.floor(rand() * topics.length)]!;
-      // He was worse a fortnight ago than he is now.
-      const drift = 1 + (age / days) * -0.18;
-      // Tier is drawn before correctness and feeds into it: a sample log where
-      // all three tiers come out the same accuracy makes the by-difficulty
-      // readout look broken when it is only looking at flat data.
-      const tier = TIERS[rand() < 0.3 ? 0 : rand() < 0.65 ? 1 : 2]!;
-      const stretch = tier === 'easy' ? 1.12 : tier === 'medium' ? 1 : 0.72;
-      const correct = rand() < profile.accuracy * drift * stretch;
-
-      let confidence: Confidence;
-      if (correct) confidence = rand() < 0.62 ? 'sure' : rand() < 0.7 ? 'think' : 'guess';
-      else confidence = rand() < profile.overconfidence ? 'sure' : rand() < 0.55 ? 'think' : 'guess';
-
-      const hintMaxRung = correct ? (rand() < 0.18 ? 1 : 0) : Math.floor(rand() * 4);
-
-      out.push({
-        id: `sample-${chapter}-${i}`,
-        device: 'sample data',
-        ts,
-        generatorId: topic.id,
-        seed: `sample-${chapter}-${i}`,
-        genVersion: topic.version,
-        chapter,
-        tier,
-        correct,
-        confidence,
-        hintsUsed: hintMaxRung,
-        hintMaxRung,
-        durationMs: Math.round(
-          profile.medianMs * (0.55 + rand() * 1.1) * (tier === 'hard' ? 1.35 : tier === 'easy' ? 0.8 : 1),
-        ),
-        answerRaw: correct ? 'x' : 'x+1',
-        errorClass: correct ? null : WRONG[Math.floor(rand() * WRONG.length)]!,
-        selfGrade: null,
-      });
+      out.push(sampleOne(span, { chapter, profile, topics }, i));
     }
   }
 

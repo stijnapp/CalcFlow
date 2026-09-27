@@ -10,6 +10,10 @@ import {
   type Tier,
 } from '@calcflow/shared';
 import { median, percent } from '@/lib/format';
+import { readOf } from './insights';
+import type { Trend } from './pace';
+
+export { paceOf, type Pace, type Trend } from './pace';
 
 export type Speed = 'fast' | 'par' | 'slow';
 
@@ -21,13 +25,13 @@ export interface ChapterStat {
   recent: number;
   correct: number;
   wrong: number;
-  /** 0–100, plainly what share of the window he got right. What the bar shows. */
+  /** 0–100, plainly what share of the window they got right. What the bar shows. */
   rightRate: number;
   /** 0–100. Confident-and-wrong counts against twice, because it is a
    *  misconception rather than a gap. What the recommendations rank on. */
   mastery: number;
   medianMs: number;
-  /** Against his own median across every chapter, not an outside benchmark. */
+  /** Against their own median across every chapter, not an outside benchmark. */
   speed: Speed;
   /**
    * The recent attempts in the chapter against the earlier ones. Null until
@@ -39,27 +43,6 @@ export interface ChapterStat {
   /** 0–100 of the window solved without opening the hint panel at all. */
   hintFree: number;
   confidentWrong: number;
-}
-
-export interface Trend {
-  /** Percent change in median time — negative is faster. */
-  time: number;
-  /** 0–100 right, before and now. Faster only counts while these hold. */
-  rightBefore: number;
-  rightNow: number;
-}
-
-/**
- * What a change of pace amounts to once the answers are next to it. Faster and
- * still right is fluency; faster and falling off is rushing, and a chapter
- * clicked through on guesses is only faster.
- */
-export type Pace = 'fluent' | 'faster' | 'rushing' | 'steady' | 'slower';
-
-export function paceOf(t: Trend): Pace {
-  if (t.time > -10) return t.time >= 10 ? 'slower' : 'steady';
-  if (t.rightNow <= t.rightBefore - 20) return 'rushing';
-  return t.rightNow >= 70 && t.rightNow >= t.rightBefore - 10 ? 'fluent' : 'faster';
 }
 
 export interface Matrix {
@@ -91,7 +74,7 @@ export interface ErrorRow {
 export interface RuleRow {
   ruleId: string;
   title: string;
-  /** How often he was sure and wrong on a problem that uses this rule. */
+  /** How often they were sure and wrong on a problem that uses this rule. */
   n: number;
 }
 
@@ -152,7 +135,7 @@ export interface Stats {
   read: Insight | null;
 }
 
-/** Only the recent past says anything about where he stands now. */
+/** Only the recent past says anything about where they stand now. */
 const WINDOW = 30;
 
 /**
@@ -263,7 +246,7 @@ function speedOf(chapterMedian: number, overallMedian: number): Speed {
 
 /**
  * Counted in attempts rather than in days on purpose: a fortnight off is not a
- * slowdown, and a week where he did forty problems in one chapter is not a
+ * slowdown, and a week where they did forty problems in one chapter is not a
  * speed-up either. Ten against the twenty before them is the shortest pair of
  * windows whose medians are not just noise.
  */
@@ -333,7 +316,7 @@ function shakyRulesOf(window: Attempt[]): RuleRow[] {
       continue;
     }
     // The headline rule only: a chain-rule problem also touches the power rule,
-    // and counting both would bury the one he is actually getting wrong.
+    // and counting both would bury the one they are actually getting wrong.
     const ruleId = problem?.ruleIds[0];
     if (ruleId) counts.set(ruleId, (counts.get(ruleId) ?? 0) + 1);
   }
@@ -344,9 +327,9 @@ function shakyRulesOf(window: Attempt[]): RuleRow[] {
 }
 
 /**
- * Accuracy against how long it had been since he last saw that exact topic.
- * This is the difference between practising what he is worst at and practising
- * what he is about to forget.
+ * Accuracy against how long it had been since they last saw that exact topic.
+ * This is the difference between practising what they are worst at and practising
+ * what they are about to forget.
  */
 function retentionOf(attempts: Attempt[]): RetentionRow[] {
   const buckets: Array<{ label: string; upTo: number; n: number; right: number }> = [
@@ -414,97 +397,6 @@ function streakOf(attempts: Attempt[]): number {
     cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
-}
-
-/**
- * The whole reason the extra readouts do not turn into a wall of numbers: they
- * all compete for one sentence, in a fixed order of how much it would change
- * what he practises next, and each one stays silent until it has enough
- * attempts behind it and something other than "about normal" to say.
- */
-function readOf(s: Stats): Insight | null {
-  const shaky = s.shakyRules[0];
-  if (shaky && shaky.n >= 3) {
-    return {
-      id: 'rule',
-      text: `${shaky.n} of your confident wrong answers were ${shaky.title.toLowerCase()} problems. That is one rule remembered wrong, not a chapter to redo.`,
-    };
-  }
-
-  const sure = s.calibration.find((c) => c.confidence === 'sure');
-  if (sure && sure.n >= 15 && sure.rate < 85) {
-    return {
-      id: 'calibration',
-      text: `When you say you are sure you are right ${sure.rate}% of the time. Treat "sure" as a claim worth checking before you submit.`,
-    };
-  }
-
-  const near = s.errorMix.find((e) => e.nearMiss);
-  if (near && near.n >= 4 && near.share >= 30) {
-    return {
-      id: 'errors',
-      text: `${near.share}% of your recent wrong answers were "${near.label.toLowerCase()}" — the maths was there. Slow down on the last line, not on the working.`,
-    };
-  }
-
-  const fresh = s.retention[0];
-  const stale = s.retention[3];
-  if (fresh && stale && fresh.n >= 8 && stale.n >= 8 && fresh.rate - stale.rate >= 15) {
-    return {
-      id: 'retention',
-      text: `Topics you have not seen for over a week come back at ${stale.rate}% against ${fresh.rate}% the same day. Revisiting beats pushing on.`,
-    };
-  }
-
-  const forgotten = s.topics.filter((t) => t.attempts >= 3 && (t.days ?? 0) >= 21);
-  if (forgotten.length >= 3) {
-    return {
-      id: 'stale',
-      text: `${forgotten.length} topics you had started have not come up in three weeks, including ${forgotten[0]!.title.toLowerCase()}.`,
-    };
-  }
-
-  const hard = s.tiers.find((t) => t.tier === 'hard');
-  const medium = s.tiers.find((t) => t.tier === 'medium');
-  if (hard && medium && hard.n >= 12 && medium.n >= 12 && medium.rate - hard.rate >= 25) {
-    return {
-      id: 'tier',
-      text: `Medium sits at ${medium.rate}% and hard at ${hard.rate}%. The gap is the exam, so it is worth spending sets there even while it stings.`,
-    };
-  }
-
-  // Only a real speed-up is worth the sentence, and what it means depends on
-  // whether the answers kept up with it.
-  const quicker = s.byChapter
-    .flatMap((c) => (c.trend && c.trend.time <= -20 ? [{ chapter: c.chapter, ...c.trend }] : []))
-    .sort((a, b) => a.time - b.time);
-  const rushed = quicker.find((t) => paceOf(t) === 'rushing');
-  if (rushed) {
-    return {
-      id: 'rushing',
-      text: `Chapter ${rushed.chapter} is ${-rushed.time}% quicker than it was, but ${rushed.rightNow}% right against ${rushed.rightBefore}% before. That is rushing, not fluency.`,
-    };
-  }
-  const fluent = quicker.find((t) => paceOf(t) === 'fluent');
-  if (fluent) {
-    return {
-      id: 'trend',
-      text: `Chapter ${fluent.chapter} is ${-fluent.time}% faster than it was and still ${fluent.rightNow}% right. That one is turning into fluency.`,
-    };
-  }
-
-  if (s.hintFreeOf >= 20) {
-    return {
-      id: 'hints',
-      text: `You solved ${s.hintFree}% of your last ${s.hintFreeOf} without opening a hint.`,
-    };
-  }
-
-  if (s.streak >= 3) {
-    return { id: 'streak', text: `${s.streak} days in a row.` };
-  }
-
-  return null;
 }
 
 /** Chapters ranked worst-first, for the "drill weak spots" session. */

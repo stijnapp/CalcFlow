@@ -22,6 +22,51 @@ interface Backend {
   calls: string[];
 }
 
+interface Request {
+  url: URL;
+  body: unknown;
+  pageSize: number;
+}
+
+type Route = (state: Backend, request: Request) => Response;
+
+/** One handler per `METHOD /path`, as the contract lists them. */
+const ROUTES: Record<string, Route> = {
+  'POST /api/sync': (state, { body }) => {
+    const attempts = (body as { attempts: Attempt[] }).attempts;
+    let accepted = 0;
+    for (const attempt of attempts) {
+      if (state.log.some((a) => a.id === attempt.id)) continue;
+      state.log.push(attempt);
+      accepted += 1;
+    }
+    return reply(200, {
+      accepted,
+      duplicates: attempts.length - accepted,
+      cursor: state.log.length,
+    });
+  },
+
+  'GET /api/sync': (state, { url, pageSize }) => {
+    const since = Number(url.searchParams.get('since') ?? 0);
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? pageSize), pageSize);
+    const slice = state.log.slice(since, since + limit);
+    return reply(200, {
+      events: slice.map((attempt, i) => ({ cursor: since + i + 1, attempt })),
+      cursor: since + slice.length,
+      more: since + slice.length < state.log.length,
+    });
+  },
+
+  'GET /api/settings': (state) => reply(200, state.settings ?? { settings: null, updatedAt: 0 }),
+
+  'PUT /api/settings': (state, { body }) => {
+    const put = body as { settings: Record<string, unknown>; updatedAt: number };
+    if (!state.settings || put.updatedAt > state.settings.updatedAt) state.settings = put;
+    return reply(200, state.settings);
+  },
+};
+
 function backend(options: { pageSize?: number; token?: string } = {}): Backend {
   const pageSize = options.pageSize ?? 1000;
   const token = options.token ?? TOKEN;
@@ -31,51 +76,15 @@ function backend(options: { pageSize?: number; token?: string } = {}): Backend {
     calls: [],
     fetch: async (input, init) => {
       const url = new URL(String(input));
-      const method = init?.method ?? 'GET';
-      state.calls.push(`${method} ${url.pathname}`);
+      const call = `${init?.method ?? 'GET'} ${url.pathname}`;
+      state.calls.push(call);
 
       const headers = (init?.headers ?? {}) as Record<string, string>;
       if (headers['x-calcflow-token'] !== token) return reply(401, { error: 'unauthorized' });
 
       const body: unknown = init?.body ? JSON.parse(String(init.body)) : undefined;
-
-      if (url.pathname === '/api/sync' && method === 'POST') {
-        const attempts = (body as { attempts: Attempt[] }).attempts;
-        let accepted = 0;
-        for (const attempt of attempts) {
-          if (state.log.some((a) => a.id === attempt.id)) continue;
-          state.log.push(attempt);
-          accepted += 1;
-        }
-        return reply(200, {
-          accepted,
-          duplicates: attempts.length - accepted,
-          cursor: state.log.length,
-        });
-      }
-
-      if (url.pathname === '/api/sync' && method === 'GET') {
-        const since = Number(url.searchParams.get('since') ?? 0);
-        const limit = Math.min(Number(url.searchParams.get('limit') ?? pageSize), pageSize);
-        const slice = state.log.slice(since, since + limit);
-        return reply(200, {
-          events: slice.map((attempt, i) => ({ cursor: since + i + 1, attempt })),
-          cursor: since + slice.length,
-          more: since + slice.length < state.log.length,
-        });
-      }
-
-      if (url.pathname === '/api/settings' && method === 'GET') {
-        return reply(200, state.settings ?? { settings: null, updatedAt: 0 });
-      }
-
-      if (url.pathname === '/api/settings' && method === 'PUT') {
-        const put = body as { settings: Record<string, unknown>; updatedAt: number };
-        if (!state.settings || put.updatedAt > state.settings.updatedAt) state.settings = put;
-        return reply(200, state.settings);
-      }
-
-      return reply(404, { error: 'not found' });
+      const route = ROUTES[call];
+      return route ? route(state, { url, body, pageSize }) : reply(404, { error: 'not found' });
     },
   };
   return state;
