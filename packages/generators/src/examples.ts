@@ -569,6 +569,30 @@ const EXAMPLES: Record<string, Build> = {
     };
   },
 
+  'improper-integral': (rng) => {
+    const p = rng.int(2, 4);
+    const k = (p - 1) * rng.int(1, 3);
+    return {
+      given: `f(x) = ${k}x^{-${p}},\\quad a = 1`,
+      steps: [
+        `\\int_{1}^{\\infty} \\frac{${k}}{x^{${p}}}\\,dx = \\lim_{b \\to \\infty}\\left[-\\frac{${frac(k, p - 1)}}{${pow('x', p - 1)}}\\right]_{1}^{b}`,
+        `= \\lim_{b \\to \\infty}\\left(${frac(k, p - 1)} - \\frac{${frac(k, p - 1)}}{${pow('b', p - 1)}}\\right) = ${frac(k, p - 1)}`,
+      ],
+    };
+  },
+
+  'symmetric-integral': (rng) => {
+    const a = rng.int(1, 3);
+    const k = rng.int(1, 5);
+    return {
+      given: `f(x) = x^{3}\\cos x + ${k},\\quad a = ${a}`,
+      steps: [
+        `\\int_{-${a}}^{${a}} x^{3}\\cos x\\,dx = 0`,
+        `\\int_{-${a}}^{${a}} ${k}\\,dx = 2\\int_{0}^{${a}} ${k}\\,dx = ${2 * k * a}`,
+      ],
+    };
+  },
+
   'area-between': (rng) => {
     // Built backwards from where they cross, so the bounds are whole numbers and
     // the area comes out exactly: f − g = −(x − r₁)(x − r₂).
@@ -811,6 +835,18 @@ const EXAMPLES: Record<string, Build> = {
     };
   },
 
+  optimisation: (rng) => {
+    const k = 5 * rng.int(1, 6);
+    return {
+      given: `\\text{${4 * k} m of fence, a wall on the fourth side}`,
+      steps: [
+        `\\text{area } A = xy, \\quad 2x + y = ${4 * k} \\;\\Rightarrow\\; A(x) = x\\left(${4 * k} - 2x\\right)`,
+        `A'(x) = ${4 * k} - 4x = 0 \\;\\Rightarrow\\; x = ${k}`,
+        `A''(x) = -4 < 0, \\text{ so the largest area is } ${k}\\cdot ${2 * k} = ${2 * k * k}\\text{ m}^{2}`,
+      ],
+    };
+  },
+
   'stationary-point': (rng) => {
     const half = rng.nonZero(-5, 5);
     const b = 2 * half;
@@ -869,6 +905,19 @@ const EXAMPLES: Record<string, Build> = {
         ],
       },
     ]);
+  },
+
+  substitution: (rng) => {
+    const c = rng.int(1, 4);
+    return {
+      given: `u = x + ${c},\\quad du = dx,\\quad x = u - ${c}`,
+      steps: [
+        `\\int x\\sqrt{x + ${c}}\\,dx = \\int \\left(u - ${c}\\right)\\sqrt{u}\\,du`,
+        `= \\int \\left(u^{\\frac{3}{2}} - ${c}u^{\\frac{1}{2}}\\right)du`,
+        `= \\tfrac{2}{5}u^{\\frac{5}{2}} - ${tfrac(2 * c, 3)}u^{\\frac{3}{2}} + C`,
+        `\\text{then put } u = x + ${c} \\text{ back}`,
+      ],
+    };
   },
 
   'by-parts': (rng) => {
@@ -983,6 +1032,18 @@ const EXAMPLES: Record<string, Build> = {
     };
   },
 
+  'limit-constants': (rng) => {
+    const k = rng.int(2, 5);
+    return {
+      given: `\\lim_{x\\to 0}\\frac{e^{${k}x} - Ax - 1}{x^{2}} = L`,
+      steps: [
+        `\\text{top at } 0: 1 - 0 - 1 = 0 \\ \\text{(it has to be)}`,
+        `\\lim_{x\\to 0}\\frac{${k}e^{${k}x} - A}{2x}: \\ ${k} - A = 0 \\Rightarrow A = ${k}`,
+        `\\lim_{x\\to 0}\\frac{${k * k}e^{${k}x}}{2} = ${frac(k * k, 2)} = L`,
+      ],
+    };
+  },
+
   domain: (rng) => {
     const p = rng.nonZero(-5, 5);
     const q = rng.nonZero(-5, 5);
@@ -1070,6 +1131,45 @@ const EXAMPLES: Record<string, Build> = {
     given: 'f(x) = x^{x}',
     steps: ['\\ln f = x\\ln x', "\\frac{f'}{f} = \\ln x + 1", "f' = x^{x}(\\ln x + 1)"],
   }),
+
+  'arctan-antiderivative': (rng) => {
+    const b = rng.nonZero(-4, 4);
+    const d = rng.int(2, 3);
+    return {
+      given: `\\int \\frac{1}{${terms([[1, 'x^{2}'], [2 * b, 'x'], [b * b + d * d, '']])}}\\,dx`,
+      steps: [
+        `= \\int \\frac{1}{\\left(x${plus(b)}\\right)^{2} + ${d * d}}\\,dx`,
+        `= \\frac{1}{${d}}\\arctan\\left(\\frac{x${plus(b)}}{${d}}\\right) + C`,
+      ],
+    };
+  },
+
+  'inflection-point': (rng) => {
+    const a = rng.nonZero(-4, 4);
+    return {
+      given: `f(x) = x^{3}${plus(-3 * a)}x^{2}`,
+      steps: [
+        `f''(x) = 6x${plus(-6 * a)} = 6\\left(x${plus(-a)}\\right)`,
+        `f'' < 0 \\text{ for } x < ${a}, \\quad f'' > 0 \\text{ for } x > ${a}`,
+        `\\text{concave, then convex: an inflection point at } x = ${a}`,
+      ],
+    };
+  },
+
+  'partial-derivative': (rng) => {
+    const a = rng.int(2, 5);
+    const m = rng.int(2, 3);
+    const n = rng.int(2, 3);
+    const b = rng.int(2, 6);
+    return {
+      given: `f(x, y) = ${a}x^{${m}}y^{${n}} + ${b}x`,
+      steps: [
+        `\\frac{\\partial f}{\\partial x} = ${a * m}${pow('x', m - 1)}y^{${n}} + ${b}`,
+        `\\frac{\\partial^{2} f}{\\partial y\\,\\partial x} = ${a * m * n}${pow('x', m - 1)}${pow('y', n - 1)}`,
+        `${b}x \\to ${b} \\to 0 \\quad \\text{(no } y \\text{ in it)}`,
+      ],
+    };
+  },
 
   squeeze: (rng) => {
     const p = rng.int(2, 3);

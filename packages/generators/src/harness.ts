@@ -182,6 +182,18 @@ function runVerification(v: Verification, problem: Problem): string | null {
         ? null
         : `answer ${answerTex} is not equal to the prompt ${v.of}`;
     }
+    case 'tangent': {
+      const f = tryParse(v.of);
+      const at = tryParse(v.at);
+      if (!f || !at) return `verify does not parse: ${v.of} at ${v.at}`;
+      const line = (b: Record<string, number>) => {
+        const point = { ...b, [v.wrt]: evaluate(at, b) };
+        return evaluate(f, point) + numericDerivative(f, v.wrt, point) * (b[v.wrt]! - point[v.wrt]!);
+      };
+      return matchesNumerically(line, (b) => evaluate(answer, b), varsOf(f, at, answer))
+        ? null
+        : `answer ${answerTex} is not the tangent to ${v.of} at ${v.wrt} = ${v.at}`;
+    }
     case 'derivative': {
       const f = tryParse(v.of);
       if (!f) return `verify.of does not parse: ${v.of}`;
@@ -209,7 +221,8 @@ function runVerification(v: Verification, problem: Problem): string | null {
     case 'definite-integral': {
       const f = tryParse(v.of);
       if (!f) return `verify.of does not parse: ${v.of}`;
-      const numeric = simpson(f, v.wrt, v.from, v.to);
+      const edges = [v.from, ...(v.breaks ?? []), v.to];
+      const numeric = edges.slice(1).reduce((total, to, i) => total + simpson(f, v.wrt, edges[i]!, to), 0);
       const declared = evaluate(answer);
       return Math.abs(numeric - declared) <= 1e-6 * Math.max(1, Math.abs(declared))
         ? null
@@ -218,11 +231,68 @@ function runVerification(v: Verification, problem: Problem): string | null {
     case 'limit': {
       const f = tryParse(v.of);
       if (!f) return `verify.of does not parse: ${v.of}`;
-      const declared = evaluate(answer);
-      if (!Number.isFinite(declared)) return `answer ${answerTex} is not a finite value`;
+      const targetTex = v.equals ?? answerTex;
+      const target = tryParse(targetTex);
+      if (!target) return `verify.equals does not parse: ${targetTex}`;
+      const declared = evaluate(target);
+      if (!Number.isFinite(declared)) return `${targetTex} is not a finite value`;
       return approaches(f, v, declared)
         ? null
-        : `${v.of} does not approach ${answerTex} (${declared}) as ${v.wrt} → ${v.at}`;
+        : `${v.of} does not approach ${targetTex} (${declared}) as ${v.wrt} → ${v.at}`;
+    }
+    case 'inflection': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      const g = (x: number) => evaluate(f, { [v.wrt]: x });
+      const bend = (x: number) => (g(x + 1e-3) - 2 * g(x) + g(x - 1e-3)) / 1e-6;
+      for (const spec of problem.answers) {
+        const at = evaluate(parse(spec.tex));
+        const [left, mid, right] = [bend(at - 1e-2), bend(at), bend(at + 1e-2)];
+        const flips = left * right < 0 && Math.abs(mid) <= 1e-2 * Math.max(Math.abs(left), Math.abs(right));
+        if (!flips) return `${v.of} does not change how it bends at ${spec.tex}`;
+      }
+      return null;
+    }
+    case 'mixed-partial': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      return matchesNumerically(
+        (b) => numericMixedPartial(f, v.wrt, b),
+        (b) => evaluate(answer, b),
+        varsOf(f, answer),
+      )
+        ? null
+        : `answer ${answerTex} is not the mixed partial of ${v.of} in ${v.wrt.join(' and ')}`;
+    }
+    case 'improper-integral': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      const g = (x: number) => evaluate(f, { [v.wrt]: x });
+      const numeric = improper(g, v.from, v.to);
+      const declared = evaluate(answer);
+      if (!Number.isFinite(numeric)) return `the integral of ${v.of} does not settle numerically`;
+      return Math.abs(numeric - declared) <= 1e-6 * Math.max(1, Math.abs(declared))
+        ? null
+        : `answer ${answerTex} (${declared}) does not match the integral of ${v.of} (${numeric})`;
+    }
+    case 'extremum': {
+      const f = tryParse(v.of);
+      if (!f) return `verify.of does not parse: ${v.of}`;
+      const g = (x: number) => evaluate(f, { [v.wrt]: x });
+      const best = search(v.find === 'max' ? g : (x) => -g(x), v.from, v.to);
+      const claims = [
+        ['at', v.at, best.at],
+        ['value', v.value, g(best.at)],
+      ] as const;
+      for (const [field, tex, found] of claims) {
+        const e = tryParse(tex);
+        if (!e) return `verify.${field} does not parse: ${tex}`;
+        const declared = evaluate(e);
+        if (!(Math.abs(found - declared) <= 1e-5 * Math.max(1, Math.abs(declared)))) {
+          return `verify.${field} ${tex} (${declared}) is not what a search for the ${v.find} of ${v.of} finds (${found})`;
+        }
+      }
+      return null;
     }
     case 'inverse': {
       const f = tryParse(v.of);
@@ -326,6 +396,87 @@ function numericDerivative(f: Expr, wrt: string, bindings: Record<string, number
   return (4 * d2 - d1) / 3;
 }
 
+/**
+ * ∂²f/∂a∂b from the four corners of a square around the point, with the
+ * leading error extrapolated away the same way as the one-variable case, and
+ * NaN where the two widths disagree.
+ */
+function numericMixedPartial(
+  f: Expr,
+  [u, v]: readonly [string, string],
+  bindings: Record<string, number>,
+): number {
+  const x = bindings[u]!;
+  const y = bindings[v]!;
+  const at = (dx: number, dy: number) => evaluate(f, { ...bindings, [u]: x + dx, [v]: y + dy });
+  const corners = (h: number) => (at(h, h) - at(h, -h) - at(-h, h) + at(-h, -h)) / (4 * h * h);
+  const h = 1e-3 * Math.max(1, Math.abs(x), Math.abs(y));
+  const d1 = corners(h);
+  const d2 = corners(h / 2);
+  if (Math.abs(d1 - d2) > 1e-2 * Math.max(1, Math.abs(d2))) return NaN;
+  return (4 * d2 - d1) / 3;
+}
+
+/**
+ * Double-exponential quadrature: tanh-sinh on a finite interval, exp-sinh on a
+ * half-line. Both crowd their points towards the ends fast enough that an
+ * integrable blow-up there, or a tail out to infinity, costs nothing — which is
+ * exactly what Simpson cannot do. Two step sizes have to agree, or the answer
+ * is NaN rather than a confident wrong number.
+ */
+function improper(g: (x: number) => number, a: number, b: number | 'inf'): number {
+  const run = (h: number): number => {
+    let total = 0;
+    for (let k = -Math.ceil(4 / h); k <= Math.ceil(4 / h); k += 1) {
+      const t = k * h;
+      const u = (Math.PI / 2) * Math.sinh(t);
+      let x: number;
+      let w: number;
+      if (b === 'inf') {
+        x = a + Math.exp(u);
+        w = Math.exp(u) * (Math.PI / 2) * Math.cosh(t);
+      } else {
+        const half = (b - a) / 2;
+        // How far from the nearer end, worked out without the cancellation
+        // that would put the point exactly on the end it is approaching.
+        const gap = (2 * half) / (Math.exp(2 * Math.abs(u)) + 1);
+        x = u >= 0 ? b - gap : a + gap;
+        w = (half * (Math.PI / 2) * Math.cosh(t)) / Math.cosh(u) ** 2;
+      }
+      if (w === 0 || x === a || x === b) continue;
+      const fx = g(x);
+      if (Number.isFinite(fx)) total += w * fx;
+    }
+    return total * h;
+  };
+  const coarse = run(1 / 16);
+  const fine = run(1 / 32);
+  return Math.abs(coarse - fine) <= 1e-8 * Math.max(1, Math.abs(fine)) ? fine : NaN;
+}
+
+/** Where g is largest on [a, b]: a grid to find the hill, then golden sections to its top. */
+function search(g: (x: number) => number, a: number, b: number): { at: number } {
+  const n = 4000;
+  let best = a;
+  let top = -Infinity;
+  for (let i = 0; i <= n; i += 1) {
+    const x = a + ((b - a) * i) / n;
+    const y = g(x);
+    if (Number.isFinite(y) && y > top) [best, top] = [x, y];
+  }
+  const step = (b - a) / n;
+  let lo = Math.max(a, best - step);
+  let hi = Math.min(b, best + step);
+  const phi = (Math.sqrt(5) - 1) / 2;
+  for (let i = 0; i < 80; i += 1) {
+    const m1 = hi - phi * (hi - lo);
+    const m2 = lo + phi * (hi - lo);
+    if (g(m1) >= g(m2)) hi = m2;
+    else lo = m1;
+  }
+  return { at: (lo + hi) / 2 };
+}
+
 function simpson(f: Expr, wrt: string, a: number, b: number, n = 2000): number {
   const h = (b - a) / n;
   let total = evaluate(f, { [wrt]: a }) + evaluate(f, { [wrt]: b });
@@ -349,7 +500,9 @@ function matchesNumerically(
   let seen = 0;
   for (let i = 0; i < 40 && agreed < 12; i += 1) {
     const bindings: Record<string, number> = {};
-    for (const v of vars) bindings[v] = 0.3 + ((i * 0.37) % 2.2);
+    // Each variable walks its own way, or every function of x − y would only
+    // ever be sampled where it is ln 0.
+    for (const [j, v] of vars.entries()) bindings[v] = 0.3 + ((i * 0.37 + j * 0.71) % 2.2);
     const l = left(bindings);
     const r = right(bindings);
     if (!Number.isFinite(l) || !Number.isFinite(r)) continue;
@@ -364,7 +517,7 @@ function finiteSomewhere(e: Expr): boolean {
   const vars = freeVars(e);
   for (let i = 0; i < 32; i += 1) {
     const bindings: Record<string, number> = {};
-    for (const v of vars) bindings[v] = 0.3 + i * 0.11;
+    for (const [j, v] of vars.entries()) bindings[v] = 0.3 + ((i * 0.11 + j * 0.9) % 3);
     if (Number.isFinite(evaluate(e, bindings))) return true;
   }
   return false;

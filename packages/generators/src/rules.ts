@@ -339,6 +339,17 @@ export const RULES: readonly RuleCard[] = [
     note: 'A maximum or a minimum has a horizontal tangent, so solving $f\'(x)=0$ finds the candidates. Which kind each one is comes from the sign of $f\'$ around it.',
   },
   {
+    id: 'optimisation',
+    chapter: 9,
+    name: 'Optimising a quantity',
+    tex: lines([
+      'Q(x, y),\\ \\text{constraint} &\\;\\Rightarrow\\; Q(x)',
+      "Q'(x) &= 0",
+      "Q''(x) < 0 &\\;\\Rightarrow\\; \\text{a maximum}",
+    ]),
+    note: 'Write down the quantity, use the constraint to get rid of every variable but one, and only then differentiate. Keep to the values the problem allows — a side is never negative — and check the candidate is the kind of extreme you were asked for.',
+  },
+  {
     id: 'antiderivative-power',
     chapter: 10,
     name: 'Antiderivative of a power',
@@ -385,6 +396,16 @@ export const RULES: readonly RuleCard[] = [
     note: 'Look for the inside function and its derivative sitting in the same integrand. Spotting it is the whole exercise — there is nothing to compute once you have.',
   },
   {
+    id: 'substitution',
+    chapter: 10,
+    name: 'Substitution',
+    tex: lines([
+      'u = g(x),\\quad du &= g\'(x)\\,dx',
+      '\\int_{a}^{b} f(g(x))\\,g\'(x)\\,dx &= \\int_{g(a)}^{g(b)} f(u)\\,du',
+    ]),
+    note: 'Every $x$ has to go, not just the inside: solve $u = g(x)$ for $x$ and write what is left over in $u$. On a definite integral the bounds move with it, and there is no need to come back to $x$.',
+  },
+  {
     id: 'by-parts',
     chapter: 10,
     name: 'Integration by parts',
@@ -397,6 +418,13 @@ export const RULES: readonly RuleCard[] = [
     name: 'Splitting a fraction',
     tex: '\\frac{1}{(x-p)(x-q)} = \\frac{1}{p-q}\\left(\\frac{1}{x-p} - \\frac{1}{x-q}\\right)',
     note: 'Nothing integrates a product of two brackets in a denominator; a sum of two simple ones integrates term by term. Factorise first, then find the numerators by comparing coefficients.',
+  },
+  {
+    id: 'arctan-antiderivative',
+    chapter: 10,
+    name: 'The arctangent integral',
+    tex: '\\int \\frac{1}{x^{2} + a^{2}}\\,dx = \\frac{1}{a}\\arctan\\frac{x}{a} + C',
+    note: 'A quadratic on the bottom with no real roots ends here. Complete the square, pull the number out so it reads $u^{2} + 1$, and the rest is a linear substitution — $\\arctan(x)$ has derivative $\\frac{1}{1 + x^{2}}$.',
   },
   {
     id: 'polynomial-division',
@@ -434,6 +462,27 @@ export const RULES: readonly RuleCard[] = [
     note: 'A region held between a curve and the y-axis is measured in horizontal strips, so everything — the function and the bounds — has to be written in $y$.',
   },
   {
+    id: 'improper-integral',
+    chapter: 11,
+    name: 'Improper integrals',
+    tex: lines([
+      '\\int_{a}^{\\infty} f(x)\\,dx &= \\lim_{b \\to \\infty} \\int_{a}^{b} f(x)\\,dx',
+      '\\int_{1}^{\\infty} \\frac{dx}{x^{p}} &\\text{ converges exactly when } p > 1',
+      '\\int_{0}^{1} \\frac{dx}{x^{p}} &\\text{ converges exactly when } p < 1',
+    ]),
+    note: 'An infinite bound and a bound where the integrand blows up are handled the same way: integrate up to a letter, then let the letter go. If that limit is not a finite number, the integral diverges.',
+  },
+  {
+    id: 'symmetric-integral',
+    chapter: 11,
+    name: 'Symmetric bounds',
+    tex: lines([
+      '\\text{odd } f &: \\int_{-a}^{a} f(x)\\,dx = 0',
+      '\\text{even } f &: \\int_{-a}^{a} f(x)\\,dx = 2\\int_{0}^{a} f(x)\\,dx',
+    ]),
+    note: 'Look at the bounds before anything else. An odd integrand over bounds symmetric about 0 gives 0 without an antiderivative — which is the whole point when there is none to find.',
+  },
+  {
     id: 'limit-factor',
     chapter: 13,
     name: 'A limit that looks like 0/0',
@@ -453,6 +502,13 @@ export const RULES: readonly RuleCard[] = [
     name: "L'Hôpital's rule",
     tex: '\\lim_{x\\to a}\\frac{f(x)}{g(x)} = \\lim_{x\\to a}\\frac{f\'(x)}{g\'(x)}',
     note: 'Only for 0/0 and ∞/∞, and it is the derivatives separately — never the quotient rule. Check the form before using it, every time.',
+  },
+  {
+    id: 'limit-constants',
+    chapter: 13,
+    name: 'Making a limit come out',
+    tex: "\\lim_{x\\to a}\\frac{N(x)}{(x-a)^{2}} = L \\;\\Rightarrow\\; N(a) = 0,\\ N'(a) = 0,\\ L = \\tfrac{1}{2}N''(a)",
+    note: "A bottom that goes to $0$ needs a top that goes to $0$ as well, or the fraction blows up. Each round of l'Hôpital gives one equation for the missing numbers, and the last round gives the value.",
   },
   {
     id: 'continuity',
@@ -533,6 +589,20 @@ export const RULES: readonly RuleCard[] = [
     note: 'For an x in the exponent and an x in the base at once, where neither the power rule nor the exponential rule applies. Take ln, differentiate, multiply back by f.',
   },
   {
+    id: 'inflection-point',
+    chapter: 9,
+    name: 'Convex, concave, inflection',
+    tex: "\\begin{aligned} f''(x) > 0 &\\Rightarrow \\text{convex} \\\\ f''(x) < 0 &\\Rightarrow \\text{concave} \\\\ f'' \\text{ changes sign} &\\Rightarrow \\text{inflection point} \\end{aligned}",
+    note: "Convex bends up like a cup, concave bends down like a cap. An inflection point is where it switches, and that needs $f''$ to change sign — being zero is not enough.",
+  },
+  {
+    id: 'partial-derivative',
+    chapter: 9,
+    name: 'Partial derivatives',
+    tex: '\\frac{\\partial^{2} f}{\\partial x\\,\\partial y} = \\frac{\\partial}{\\partial x}\\left(\\frac{\\partial f}{\\partial y}\\right) = \\frac{\\partial}{\\partial y}\\left(\\frac{\\partial f}{\\partial x}\\right)',
+    note: 'Differentiate in one letter and treat the other as a number. For the mixed one do it twice, once in each; the order does not change the answer, so start with whichever makes the first step shorter.',
+  },
+  {
     id: 'squeeze',
     chapter: 13,
     name: 'Squeeze theorem',
@@ -543,8 +613,11 @@ export const RULES: readonly RuleCard[] = [
     id: 'limit-exponential',
     chapter: 13,
     name: 'The 1 to the infinity form',
-    tex: '\\lim_{x\\to\\infty}\\left(1+\\frac{a}{x}\\right)^{x} = e^{a}',
-    note: 'A base creeping to 1 with an exponent running to infinity is not 1 — the two race, and e is the result. Force the expression into this shape rather than guessing.',
+    tex: lines([
+      '\\lim_{x\\to\\infty}\\left(1+\\frac{a}{x}\\right)^{x} &= e^{a}',
+      '\\lim f(x)^{g(x)} &= e^{\\lim g(x)\\ln f(x)}',
+    ]),
+    note: 'A base creeping to 1 with an exponent running to infinity is not 1 — the two race, and e is the result. Either force it into the first shape, or take the logarithm: the exponent comes down as a factor, and what is left is a 0/0 or ∞/∞ for l\'Hôpital.',
   },
   {
     id: 'slope',

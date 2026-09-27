@@ -50,6 +50,7 @@ import {
   otherBases,
   quadraticInExp,
 } from './topics/ch06-logs.js';
+import { logDomain } from './topics/ch06-domain.js';
 import {
   additionFormulas,
   degreesRadians,
@@ -73,25 +74,30 @@ import {
   chainRule,
   fromDefinition,
   higherDerivatives,
-  logarithmicDifferentiation,
   nestedChain,
   perpendicularTangent,
   powerSum,
   productQuotient,
   rootsAndReciprocals,
-  stationaryPoint,
   tangentLine,
 } from './topics/ch09-differentiation.js';
+import { mixedPartial } from './topics/ch09-partial.js';
+import { logarithmicDifferentiation } from './topics/ch09-logarithmic.js';
+import { stationaryPoint } from './topics/ch09-stationary.js';
+import { tangentAxes } from './topics/ch09-tangent-axes.js';
+import { concavity } from './topics/ch09-shape.js';
+import { optimise } from './topics/ch09-optimise.js';
 import {
   antiderivativePower,
   antiderivativeRoot,
-  byParts,
   divideFirst,
   linearInner,
-  partialFractions,
   recogniseDerivative,
   reciprocal,
 } from './topics/ch10-antiderivatives.js';
+import { arctanIntegral, partialFractions } from './topics/ch10-fractions.js';
+import { byParts } from './topics/ch10-parts.js';
+import { substitution } from './topics/ch10-substitution.js';
 import {
   differentiateThenIdentity,
   identityThenIntegrate,
@@ -105,12 +111,14 @@ import {
 import {
   asymptotes,
   continuity,
-  exponentialLimit,
   factorLimit,
   limitAtInfinity,
   squeeze,
   standardLimits,
 } from './topics/ch13-limits.js';
+import { asymptoteCount } from './topics/ch13-asymptote-count.js';
+import { findConstants } from './topics/ch13-constants.js';
+import { absoluteLimit, differenceLimit, exponentialLimit } from './topics/ch13-forms.js';
 import {
   areaAboutY,
   areaBetween,
@@ -119,6 +127,9 @@ import {
   definiteStandard,
   totalArea,
 } from './topics/ch11-integration.js';
+import { improperIntegral } from './topics/ch11-improper.js';
+import { symmetricIntegral } from './topics/ch11-symmetric.js';
+import { areaRegions } from './topics/ch11-regions.js';
 
 export const GENERATORS: readonly Generator[] = [
   signedArithmetic,
@@ -162,6 +173,7 @@ export const GENERATORS: readonly Generator[] = [
   logCombine,
   quadraticInExp,
   growthDecay,
+  logDomain,
   exactValues,
   degreesRadians,
   doubleAngle,
@@ -183,18 +195,24 @@ export const GENERATORS: readonly Generator[] = [
   rootsAndReciprocals,
   nestedChain,
   tangentLine,
+  tangentAxes,
   stationaryPoint,
   fromDefinition,
   higherDerivatives,
   logarithmicDifferentiation,
   perpendicularTangent,
+  mixedPartial,
+  concavity,
+  optimise,
   antiderivativePower,
   linearInner,
   reciprocal,
   antiderivativeRoot,
   recogniseDerivative,
+  substitution,
   byParts,
   partialFractions,
+  arctanIntegral,
   divideFirst,
   definitePolynomial,
   definiteStandard,
@@ -202,6 +220,9 @@ export const GENERATORS: readonly Generator[] = [
   totalArea,
   areaFindBounds,
   areaAboutY,
+  improperIntegral,
+  symmetricIntegral,
+  areaRegions,
   linearCombination,
   dotProduct,
   perpendicular,
@@ -211,8 +232,12 @@ export const GENERATORS: readonly Generator[] = [
   standardLimits,
   squeeze,
   exponentialLimit,
+  differenceLimit,
+  absoluteLimit,
   continuity,
   asymptotes,
+  asymptoteCount,
+  findConstants,
   logThenDifferentiate,
   differentiateThenIdentity,
   identityThenIntegrate,

@@ -53,20 +53,72 @@ export interface AnswerSpec {
 export type Verification =
   | { kind: 'derivative'; of: Latex; wrt: string }
   | { kind: 'antiderivative'; of: Latex; wrt: string }
-  | { kind: 'definite-integral'; of: Latex; wrt: string; from: number; to: number }
+  /**
+   * `breaks` are corners inside the interval — where an area's |f − g| turns —
+   * that the numeric integration has to split at to stay exact.
+   */
+  | { kind: 'definite-integral'; of: Latex; wrt: string; from: number; to: number; breaks?: number[] }
   | { kind: 'root'; equation: Latex; wrt: string }
   /**
    * The declared answer is what `of` approaches. The engine has no limit
    * notation, so the prompt carries it and this checks it the only way there
    * is: by walking in.
    */
-  | { kind: 'limit'; of: Latex; wrt: string; at: number | 'inf' | '-inf'; side?: 'left' | 'right' }
+  | {
+      kind: 'limit';
+      of: Latex;
+      wrt: string;
+      at: number | 'inf' | '-inf';
+      side?: 'left' | 'right';
+      /**
+       * The value it approaches, when that is not the first answer — a problem
+       * that asks for the constants making a limit come out states the value
+       * and has the constants as its answers.
+       */
+      equals?: Latex;
+    }
+  /**
+   * Every declared answer is where `of` switches between convex and concave:
+   * the second difference is zero there and has opposite signs either side.
+   * Worked out from f itself, not from the f'' the generator wrote down.
+   */
+  | { kind: 'inflection'; of: Latex; wrt: string }
+  /** The declared answer is ∂²f/∂a∂b, compared against a finite difference in both. */
+  | { kind: 'mixed-partial'; of: Latex; wrt: readonly [string, string] }
+  /**
+   * An integral with an infinite bound, or an integrand that blows up at an
+   * end. Worked out by a quadrature that is built for both, not by the
+   * generator's antiderivative.
+   */
+  | { kind: 'improper-integral'; of: Latex; wrt: string; from: number; to: number | 'inf' }
+  /**
+   * `of` is largest (or smallest) on the interval at `at`, where it is `value`.
+   * Both are checked by searching, which is the one claim about an optimum that
+   * does not lean on the derivative it came from. They are stated here rather
+   * than read off the first answer: a word problem asks for both, and more.
+   */
+  | {
+      kind: 'extremum';
+      of: Latex;
+      wrt: string;
+      from: number;
+      to: number;
+      find: 'max' | 'min';
+      at: Latex;
+      value: Latex;
+    }
   /**
    * The declared answer is the inverse of `of`: feeding it back in gives the
    * input untouched. Checked as f(g(x)) = x, which is what an inverse means and
    * is the only claim about g that does not just restate how it was built.
    */
   | { kind: 'inverse'; of: Latex; wrt: string }
+  /**
+   * The declared answer is the tangent to `of` where `wrt` is `at`: rebuilt
+   * as f(p) + f'(p)(x − p) from a numeric derivative, so a slope or height
+   * worked out wrong by hand shows up. `at` may depend on a parameter.
+   */
+  | { kind: 'tangent'; of: Latex; wrt: string; at: Latex }
   | { kind: 'identity'; of: Latex };
 
 export interface Problem {
