@@ -6,7 +6,20 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/dev-dist/**', '**/node_modules/**', '.claude/**', 'docs/**', '**/*.d.ts'],
+    // What .gitignore already leaves out, which ESLint does not read: build
+    // output, Vite's pre-bundled copies of the dependencies, and the worktrees
+    // coding tools keep inside the checkout.
+    ignores: [
+      '**/dist/**',
+      '**/dev-dist/**',
+      '**/node_modules/**',
+      '**/.vite/**',
+      '.claude/**',
+      '.kilo/**',
+      '.playwright-mcp/**',
+      'docs/**',
+      '**/*.d.ts',
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommended,
