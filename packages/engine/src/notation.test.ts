@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readDerivative } from './notation.js';
+import { parse } from './parse.js';
+import { readDerivative, readNamed } from './notation.js';
 
 const CTX = { wrt: 'x', of: '6x^3' };
 
@@ -52,5 +53,37 @@ describe('readDerivative', () => {
 
   it('does not split on an = inside a group', () => {
     expect(readDerivative('\\frac{1}{2}x^{2}', CTX).body).toBe('\\frac{1}{2}x^{2}');
+  });
+});
+
+describe('readNamed', () => {
+  const asked = (label: string, value = '4') => ({ said: [label, 'Find a'], reference: parse(value) });
+
+  it.each([
+    ['a = 4', '4'],
+    ['a=4', '4'],
+    ['a = \\frac{3}{2}', '\\frac{3}{2}'],
+  ])('takes the name off %s when the question asks for a', (raw, body) => {
+    expect(readNamed(raw, asked('a'))).toBe(body);
+  });
+
+  it('leaves an answer without a name alone', () => {
+    expect(readNamed('4', asked('a'))).toBe('4');
+  });
+
+  it('finds the name inside a longer label', () => {
+    expect(readNamed('x = -2', { said: ['smaller x', 'Solve'], reference: parse('-2') })).toBe('-2');
+  });
+
+  it('keeps a name the question never asked for', () => {
+    expect(readNamed('b = 4', asked('a'))).toBe('b = 4');
+  });
+
+  it('keeps a name that is more than one letter', () => {
+    expect(readNamed('ab = 4', asked('a'))).toBe('ab = 4');
+  });
+
+  it('keeps an equation that still has the unknown on both sides', () => {
+    expect(readNamed('x = 2x + 1', { said: ['x'], reference: parse('2x + 1') })).toBe('x = 2x + 1');
   });
 });

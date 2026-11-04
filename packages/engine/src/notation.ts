@@ -1,4 +1,5 @@
 import { equivalent } from './equivalent.js';
+import { freeVars, type Expr } from './expr.js';
 import { tryParse } from './parse.js';
 
 /** Which of the four ways of writing a derivative the student reached for. */
@@ -52,6 +53,33 @@ export function readDerivative(raw: string, ctx: DerivativeContext): DerivativeR
     form: 'bare',
     complaint: `That is not a name for the derivative. Use f'(${d}) =, dy/d${d} =, d/d${d}(…) = or D_${d}(…) = — or write the expression on its own.`,
   };
+}
+
+export interface NamedContext {
+  /** What says which unknown is being asked for: the field's label, the instruction. */
+  said: readonly (string | undefined)[];
+  /** The value asked for. A name that still appears in it is not a label. */
+  reference: Expr;
+}
+
+/**
+ * Takes the name off an answer written `a = 4`. The field already says what it
+ * is the value of, but writing the unknown in front of its value is how the book
+ * writes an answer down, and marking the right number wrong for it is the
+ * grader being strict about something that is not maths.
+ *
+ * Only a single letter, only one the question itself names, and only when the
+ * value does not contain it — `x = 2x + 1` is an equation still to be solved.
+ */
+export function readNamed(raw: string, { said, reference }: NamedContext): string {
+  const at = splitAt(raw);
+  if (at < 0) return raw;
+  const name = clean(raw.slice(0, at));
+  if (!/^[a-zA-Z]$/.test(name) || freeVars(reference).includes(name)) return raw;
+  const standalone = new RegExp(`(^|[^a-zA-Z\\\\])${name}([^a-zA-Z]|$)`);
+  return said.some((text) => text !== undefined && standalone.test(text))
+    ? raw.slice(at + 1).trim()
+    : raw;
 }
 
 type Label = Omit<DerivativeRead, 'body'>;

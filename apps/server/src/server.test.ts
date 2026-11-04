@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -279,6 +279,19 @@ describe('configuration', () => {
     expect(() => readConfig({ CALCFLOW_TOKEN: TOKEN, CALCFLOW_WEB: '/no/such/place' })).toThrow(
       /does not exist/,
     );
+  });
+
+  it('will not start with a database folder it cannot write to', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'calcflow-readonly-'));
+    chmodSync(dir, 0o555);
+    try {
+      expect(() =>
+        readConfig({ CALCFLOW_TOKEN: TOKEN, CALCFLOW_DB: join(dir, 'calcflow.db') }),
+      ).toThrow(/is not writable.*chown -R 1000:1000 data/s);
+    } finally {
+      chmodSync(dir, 0o755);
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('reads the defaults otherwise', () => {

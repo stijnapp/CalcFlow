@@ -47,11 +47,18 @@ export function Summary({ compact }: { compact?: boolean }) {
   const items = session.done;
 
   return (
-    <div className={cx('scroll-y h-full', compact ? 'px-5 pb-16 pt-5' : 'grid place-items-center p-10')}>
+    <div
+      className={cx(
+        'scroll-y h-full',
+        compact ? 'flex flex-col px-5 py-10' : 'grid place-items-center p-10',
+      )}
+    >
+      {/* `my-auto` rather than centring the column: it centres the card while
+          it fits, and lets it scroll from its top edge once it does not. */}
       <div
         className={cx(
           'flex w-full flex-col gap-8 rounded-4xl border border-border bg-card',
-          compact ? 'gap-6 px-5 py-6' : 'max-w-[900px] px-11 py-10',
+          compact ? 'my-auto gap-6 px-5 py-6' : 'max-w-[900px] px-11 py-10',
         )}
       >
         <Headline target={session.target} items={items} compact={compact} />
@@ -156,30 +163,28 @@ function Actions({ misses, compact }: { misses: Done; compact?: boolean }) {
   return (
     <div className={cx('flex gap-3', compact && 'flex-col')}>
       <button
-        disabled={none}
-        onClick={practiseMisses}
+        onClick={() => go('home')}
         className={cx(
           // Not `flex-1` in the phone's column: a zero basis there is what
           // squeezed this to the height of its own label.
-          'grid h-[60px] place-items-center rounded-lg text-[17px] font-semibold',
+          'grid h-[60px] place-items-center rounded-lg bg-accent text-[17px] font-semibold text-on-accent hover:bg-accent-hi',
           compact ? 'shrink-0' : 'flex-1',
-          none
-            ? 'cursor-not-allowed bg-raised text-faint'
-            : 'bg-accent text-on-accent hover:bg-accent-hi',
+        )}
+      >
+        Back to home
+      </button>
+      <button
+        disabled={none}
+        onClick={practiseMisses}
+        className={cx(
+          'grid h-[60px] place-items-center rounded-lg border border-border px-6 text-base',
+          compact && 'shrink-0',
+          none ? 'cursor-not-allowed text-faint' : 'bg-card text-ink2 hover:border-accent',
         )}
       >
         {none
           ? 'Nothing missed'
           : `Practice the ${misses.length} ${misses.length === 1 ? 'miss' : 'misses'}`}
-      </button>
-      <button
-        onClick={() => go('home')}
-        className={cx(
-          'grid h-[60px] place-items-center rounded-lg border border-border bg-card text-base text-ink2',
-          compact ? 'shrink-0' : 'w-[200px]',
-        )}
-      >
-        Done for now
       </button>
     </div>
   );

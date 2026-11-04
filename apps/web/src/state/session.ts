@@ -2,6 +2,7 @@ import {
   equivalent,
   grade,
   readDerivative,
+  readNamed,
   stripPlusC,
   tryParse,
   type GradeResult,
@@ -16,6 +17,7 @@ import type {
   Settings,
   Tier,
 } from '@calcflow/shared';
+import { isPaused } from '@calcflow/shared';
 import type { CanvasState } from '@/canvas/strokes';
 import { deviceLabel } from '@/lib/deviceName';
 import { ulid } from '@/lib/ulid';
@@ -123,6 +125,7 @@ export function fresh(problem: Problem) {
  * label in front of it — `f'(x) =`, `\frac{dy}{dx} =`, `D_x(6x^3) =` — is read
  * off before the expression is graded. A label that does not say what they
  * meant it to say is a near miss, not a wrong answer: the maths behind it is right.
+ * Anything else may carry the name of the unknown it is the value of: `a = 4`.
  */
 export function gradeFields(problem: Problem, answers: string[]): GradeResult[] {
   const derivative = problem.verify?.kind === 'derivative' ? problem.verify : undefined;
@@ -132,7 +135,7 @@ export function gradeFields(problem: Problem, answers: string[]): GradeResult[] 
       ? readDerivative(raw, { wrt: derivative.wrt, of: derivative.of })
       : undefined;
     const result = grade({
-      raw: read?.body ?? raw,
+      raw: read?.body ?? readNamed(raw, { said: [spec.label, problem.instruction], reference: spec.value }),
       reference: spec.value,
       domain: spec.domain,
       requires: spec.requires,
@@ -254,11 +257,16 @@ export function closed(session: Session, outcome: Outcome, attempt: Attempt, ada
  * choose their own, out of the whole book, from the log: the point of them is
  * that they know where the trouble is, so the chapters ticked on the home
  * screen are not asked. Nothing flagged yet is an empty list, not a fallback.
+ * A paused chapter is never among them, however weak the log says it is.
  */
 export function sessionChapters(mode: SessionMode, picked: readonly number[], stats: Stats): number[] {
+  return chosenChapters(mode, picked, stats).filter((n) => !isPaused(n));
+}
+
+function chosenChapters(mode: SessionMode, picked: readonly number[], stats: Stats): readonly number[] {
   if (mode === 'weak') return weakChapters(stats);
   if (mode === 'speed') return slowChapters(stats);
-  return [...picked];
+  return picked;
 }
 
 /**

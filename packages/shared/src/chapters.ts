@@ -26,6 +26,18 @@ export const CHAPTERS: readonly Chapter[] = [
 
 export const CHAPTER_NUMBERS: readonly number[] = CHAPTERS.map((c) => c.n);
 
+/**
+ * Chapters answered by drawing on the canvas rather than by typing: the graphs
+ * of chapter 5 and the vectors of chapter 12. Off until those questions are
+ * worth practising from — the home screen shows them greyed out, and nothing
+ * draws from them.
+ */
+export const PAUSED_CHAPTERS: readonly number[] = [5, 12];
+
+export function isPaused(n: number): boolean {
+  return PAUSED_CHAPTERS.includes(n);
+}
+
 export function chapterTitle(n: number): string {
   return CHAPTERS.find((c) => c.n === n)?.title ?? `Chapter ${n}`;
 }

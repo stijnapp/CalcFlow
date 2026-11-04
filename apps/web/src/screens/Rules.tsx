@@ -3,7 +3,6 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { RULES } from '@calcflow/generators';
 import { chapterTitle } from '@calcflow/shared';
 import { Fit } from '@/components/Fit';
-import { HoverLabel } from '@/components/HoverLabel';
 import { Prose, plainProse } from '@/components/Prose';
 import { Tex } from '@/components/Tex';
 import { cx } from '@/lib/cx';
@@ -58,17 +57,13 @@ export function Rules({ compact }: { compact?: boolean }) {
           </label>
           {/* On the phone the chips are one lane he swipes, not four rows of chrome. */}
           <div className={cx('flex gap-1.5', compact ? 'scroll-x -mx-5 px-5 pb-0.5' : 'flex-wrap')}>
-            <HoverLabel label="Every chapter">
-              <Chip active={picked.length === 0} onClick={() => setPicked([])}>
-                All
-              </Chip>
-            </HoverLabel>
+            <Chip active={picked.length === 0} onClick={() => setPicked([])}>
+              All
+            </Chip>
             {chapters.map((n) => (
-              <HoverLabel key={n} label={chapterTitle(n)}>
-                <Chip active={picked.includes(n)} onClick={() => toggle(n)}>
-                  Ch {n}
-                </Chip>
-              </HoverLabel>
+              <Chip key={n} active={picked.includes(n)} onClick={() => toggle(n)}>
+                {n}. {chapterTitle(n)}
+              </Chip>
             ))}
           </div>
         </div>

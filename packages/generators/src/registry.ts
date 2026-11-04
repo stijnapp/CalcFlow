@@ -1,4 +1,4 @@
-import type { Tier } from '@calcflow/shared';
+import { isPaused, type Tier } from '@calcflow/shared';
 import { makeRng, newSeed } from './rng.js';
 import type { Generator, Problem } from './types.js';
 
@@ -273,11 +273,15 @@ function needs(g: Generator): readonly number[] {
   return g.spans ?? [g.chapter];
 }
 
-/** Every generator that has something to ask at this tier. */
+/**
+ * Every generator that has something to ask at this tier. A paused chapter is
+ * never in the pool, whatever the selection says — so a stored selection, a
+ * weak-spots pick or a drill from the stats screen cannot reach it either.
+ */
 export function candidates({ chapters, tier, only, topics }: Selection): Generator[] {
   return GENERATORS.filter(
     (g) =>
-      needs(g).every((c) => chapters.includes(c)) &&
+      needs(g).every((c) => chapters.includes(c) && !isPaused(c)) &&
       g.supports.includes(tier) &&
       (only ? only.includes(g.id) : !topics?.off?.includes(g.id)),
   );

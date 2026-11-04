@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fuzz } from './harness.js';
 import { GENERATORS, alwaysTopics, build, candidates, draw, rebuild, similar } from './registry.js';
 import { RULES } from './rules.js';
-import { CHAPTER_NUMBERS, TIERS } from '@calcflow/shared';
+import { CHAPTER_NUMBERS, PAUSED_CHAPTERS, TIERS, isPaused } from '@calcflow/shared';
 
 describe('registry', () => {
   it('gives every v1 chapter at least one generator', () => {
@@ -24,11 +24,21 @@ describe('registry', () => {
   });
 
   it('gives every chapter something to ask at every tier', () => {
-    for (const n of CHAPTER_NUMBERS) {
+    for (const n of CHAPTER_NUMBERS.filter((c) => !isPaused(c))) {
       for (const tier of TIERS) {
         const pool = candidates({ chapters: [n], tier });
         expect(pool.length, `chapter ${n} at ${tier}`).toBeGreaterThan(0);
       }
+    }
+  });
+
+  // Their generators are still fuzzed below; they are only kept out of a session.
+  it('never offers a paused chapter, even when it is selected', () => {
+    for (const tier of TIERS) {
+      const pool = candidates({ chapters: [...CHAPTER_NUMBERS], tier });
+      expect(pool.filter((g) => (g.spans ?? [g.chapter]).some(isPaused))).toEqual([]);
+      expect(candidates({ chapters: [...PAUSED_CHAPTERS], tier })).toEqual([]);
+      expect(draw({ chapters: [...PAUSED_CHAPTERS], tier })).toBeNull();
     }
   });
 

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { accessSync, constants, existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 export interface Config {
   host: string;
@@ -30,7 +30,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     host: text(env.HOST) ?? '0.0.0.0',
     port: port(env.PORT),
-    dbPath: text(env.CALCFLOW_DB) ?? 'calcflow.db',
+    dbPath: readDbPath(env.CALCFLOW_DB),
     webRoot,
     token,
     origins: text(env.CALCFLOW_ORIGINS)?.split(',').map((o) => o.trim()).filter(Boolean) ?? true,
@@ -55,6 +55,35 @@ function readToken(raw: string | undefined): string {
     throw new ConfigError('CALCFLOW_TOKEN is shorter than 16 characters; use a longer one.');
   }
   return token;
+}
+
+/**
+ * Checked here because SQLite's own complaint is `unable to open database
+ * file`, in a restart loop. The usual cause is the Docker bind mount: the
+ * container writes `./data` as uid 1000, and on a host where the checkout
+ * belongs to someone else that folder is not its to write.
+ */
+function readDbPath(raw: string | undefined): string {
+  const path = text(raw) ?? 'calcflow.db';
+  if (path === ':memory:') return path;
+  const dir = nearestExisting(dirname(resolve(path)));
+  try {
+    accessSync(dir, constants.W_OK);
+  } catch {
+    throw new ConfigError(
+      `${dir} is not writable by uid ${process.getuid?.() ?? '?'}, so the database cannot go there. ` +
+        'Under Docker that folder is ./data on the host; hand it to the container with ' +
+        '`sudo chown -R 1000:1000 data`.',
+    );
+  }
+  return path;
+}
+
+/** The store creates its own folder, so what has to be writable is the first one that exists. */
+function nearestExisting(dir: string): string {
+  let at = dir;
+  while (!existsSync(at) && dirname(at) !== at) at = dirname(at);
+  return at;
 }
 
 function readWebRoot(raw: string | undefined): string | null {

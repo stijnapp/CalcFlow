@@ -171,12 +171,20 @@ describe('the read', () => {
 
 describe('sessionChapters', () => {
   const stats = computeStats([
-    ...many(4, { chapter: 5, generatorId: 'fn.parity', correct: false, errorClass: 'wrong' }),
+    ...many(4, { chapter: 6, generatorId: 'logs.domain', correct: false, errorClass: 'wrong' }),
     ...many(4, { chapter: 9, correct: true }),
   ]);
 
   it('lets weak spots choose from the whole book, not from the chapters ticked', () => {
-    expect(sessionChapters('weak', [9], stats)).toEqual([5]);
+    expect(sessionChapters('weak', [9], stats)).toEqual([6]);
+  });
+
+  it('never chooses a paused chapter, however weak', () => {
+    const paused = computeStats([
+      ...many(4, { chapter: 5, generatorId: 'fn.parity', correct: false, errorClass: 'wrong' }),
+    ]);
+    expect(sessionChapters('weak', [9], paused)).toEqual([]);
+    expect(sessionChapters('set10', [5, 9, 12], stats)).toEqual([9]);
   });
 
   it('has nothing to offer before anything is flagged', () => {

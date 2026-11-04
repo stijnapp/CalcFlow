@@ -1,6 +1,6 @@
 import { ArrowRight, BarChart3, BookOpen, Bookmark, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CHAPTERS, type SessionMode } from '@calcflow/shared';
+import { CHAPTERS, isPaused, type SessionMode } from '@calcflow/shared';
 import { Eyebrow } from '@/components/Eyebrow';
 import { HoverLabel } from '@/components/HoverLabel';
 import { Toggle } from '@/components/Toggle';
@@ -72,12 +72,18 @@ function TopBar({ compact }: { compact?: boolean }) {
       </h1>
 
       <div className="ml-auto flex items-center gap-2.5">
+        {/* Icon only on the phone: with the word, the row no longer fits
+            beside the heading and wraps onto a line of its own. */}
         <button
           onClick={() => go('stats')}
-          className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-ink2 hover:border-accent"
+          aria-label="Stats"
+          className={cx(
+            'flex items-center border border-border bg-card text-ink2 hover:border-accent',
+            compact ? 'size-10 justify-center rounded-md' : 'gap-2 rounded-full px-4 py-2',
+          )}
         >
           <BarChart3 className="size-4 text-accent" />
-          <span className="text-sm">Stats</span>
+          {!compact && <span className="text-sm">Stats</span>}
         </button>
         <SavedButton />
         <button
@@ -193,6 +199,7 @@ function ChapterGrid({ compact }: { compact?: boolean }) {
             stat={byChapter.find((c) => c.chapter === ch.n)!}
             on={picked.includes(ch.n)}
             locked={chosenBy !== undefined}
+            paused={isPaused(ch.n)}
             onToggle={() => toggleChapter(ch.n)}
           />
         ))}
@@ -208,12 +215,18 @@ function ringColour(stat: ChapterStat): string {
   return stat.mastery >= 35 ? 'var(--color-accent)' : 'var(--color-wrong)';
 }
 
+function progressLine(stat: ChapterStat, paused: boolean): string {
+  if (paused) return 'off for now';
+  return stat.attempts === 0 ? 'not started' : `${stat.mastery}% mastery`;
+}
+
 function ChapterButton({
   n,
   title,
   stat,
   on,
   locked,
+  paused,
   onToggle,
 }: {
   n: number;
@@ -222,19 +235,22 @@ function ChapterButton({
   on: boolean;
   /** The mode chose; the button shows its choice and cannot change it. */
   locked: boolean;
+  /** Its questions are drawn, and drawing is off for now. */
+  paused: boolean;
   onToggle(): void;
 }) {
+  const fixed = locked || paused;
   return (
     <motion.button
-      whileTap={locked ? undefined : { scale: 0.97 }}
+      whileTap={fixed ? undefined : { scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 600, damping: 30 }}
       onClick={onToggle}
-      disabled={locked}
+      disabled={fixed}
       aria-pressed={on}
       className={cx(
         'flex items-center gap-3 rounded-lg border px-4 py-3.5 text-left transition-[border-color,background-color,opacity] disabled:cursor-default',
         on ? 'border-accent bg-accent/10' : 'border-border bg-card',
-        !on && (locked ? 'opacity-45' : 'hover:border-rail'),
+        !on && (fixed ? 'opacity-45' : 'hover:border-rail'),
       )}
     >
       <span className="relative size-[34px] shrink-0">
@@ -257,9 +273,7 @@ function ChapterButton({
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-sm font-medium">{title}</span>
-        <span className="text-xs text-faint">
-          {stat.attempts === 0 ? 'not started' : `${stat.mastery}% mastery`}
-        </span>
+        <span className="text-xs text-faint">{progressLine(stat, paused)}</span>
       </span>
     </motion.button>
   );

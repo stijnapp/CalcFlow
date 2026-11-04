@@ -1,156 +1,164 @@
 # CalcFlow
 
-Practice app for the prerequisite maths of the RU HBO-minor *Mathematics Practice
-Book*. The book has ~130 fixed exercises; this generates unlimited problems from
-the same topics, works offline, and tracks which topics are actually weak —
-weighted by confidence, because *confident and wrong* is a misconception while
-*unsure and wrong* is just a gap.
+A practice app for the prerequisite maths of Radboud University's HBO minor,
+built around its *Mathematics Practice Book*. The book has about 130 fixed
+exercises. CalcFlow generates as many new ones as you want from the same topics,
+grades any correct form of an answer, walks you through the solution one step at
+a time when you are stuck, and keeps track of which topics are actually weak.
 
-100 generators across 13 chapters, at three difficulty tiers, with the hard tier
-aimed at the shape the IBC049 practice exams ask in.
+It is a progressive web app: install it on a phone or tablet and it works
+offline, with a canvas for scratch work that takes S Pen pressure. A small
+server keeps the practice history of every device in sync.
 
-`docs/claudes_plan/plan.md` is the working plan; `additional_notes.md` beside it
-covers what came after the first design pass.
+- **114 topic generators across 13 chapters**, from fractions and powers to
+  integration and limits, each at up to three tiers. *Easy* is one rule with
+  friendly numbers, *medium* is the book's own exercises, and *hard* is the shape
+  the IBC049 practice exams ask in, including problems that combine chapters.
+- **Hints are the real solution.** Each problem carries its own worked
+  solution, and the hint panel reveals it a step at a time, with the rule each
+  step applies. Every rule links to a reference card with a worked example.
+- **Confidence counts.** Every answer is marked *sure*, *think so* or *guessed*.
+  Being confidently wrong points to a misconception, while being unsure and
+  wrong is just a gap, and the stats screen tells the two apart.
+- **Sessions that adapt.** Sets of a fixed length, endless practice, *weak spots*
+  (chapters under 70% mastery), and *build speed* (right answers that are still
+  slow). Topics can be switched off, or asked for in every set.
+- **Light and dark themes**, following the device by default.
 
-## Layout
-
-```
-packages/
-  engine/       AST, parser, evaluator, sampling equivalence, form checks. Zero deps.
-  generators/   One file per topic, the registry, and the fuzz harness.
-  shared/       Types shared by web and server: Attempt, SyncEvent, Settings, Tier.
-apps/
-  web/          React + Vite PWA.
-  server/       Fastify + SQLite: the attempt log, sync, and the built PWA.
-deploy/         The server's pull-and-restart script and its systemd timer.
-docs/
-  adding-a-topic.md
-```
-
-`packages/shared` is the one package that ships compiled JavaScript. The others
-are only ever read by Vite, which is happy with TypeScript source; the server is
-plain Node, which is not.
+Chapters 5 (graphs) and 12 (vectors) are switched off for now: their answers are
+drawn on a coordinate plane rather than typed, and that interaction is being
+reworked.
 
 ## Running it
 
-```
-npm install
-npm run dev          # http://localhost:5173, listening on the LAN too
-npm run dev:server   # http://localhost:8787, needs CALCFLOW_TOKEN set
-npm test             # engine property tests, generator fuzz harness, server
-npm run typecheck
-npm run build        # the PWA;  npm run build:server  for the other half
-```
+All you need is Docker with Compose. The image builds both halves, the web app
+and the API, and serves them from one port.
 
-`npm run dev` binds to all interfaces, so the tablet and phone can reach it over
-Tailscale while developing. The service worker is off in dev on purpose — an
-install that can only precache the dev shell is an install that cannot work
-offline. For that: `npm run build && npm run preview`.
-
-## Running it on the server
-
-Both halves live in one image, so the app and the API answer on one origin —
-which is what an installed PWA needs, and what keeps a stale shell from ever
-being served to it.
-
-```
-cp .env.example .env       # and put a token in it
+```bash
+git clone <this repo> calcflow && cd calcflow
+cp .env.example .env
+# Put a sync token in .env. Any random string of 16+ characters works:
+#   openssl rand -base64 24
 docker compose up -d --build
+```
+
+The first build takes a minute or two. Then open <http://localhost:8787>.
+
+- **Logs:** `docker compose logs -f`
+- **Stop:** `docker compose down`
+- **Update:** `git pull && docker compose up -d --build`
+
+Practice history is stored in `./data/calcflow.db`, a plain SQLite file in the
+checkout. To back it up, copy the file while the container is stopped, or use
+`sqlite3 data/calcflow.db ".backup backup.db"` while it runs.
+
+### On a phone or tablet
+
+The container only listens on `localhost`. To reach it from other devices, put
+it behind HTTPS: browsers will not install a web app or run it offline from a
+plain-HTTP address. With [Tailscale](https://tailscale.com) that is one command:
+
+```bash
 tailscale serve --bg --https=443 http://localhost:8787
 ```
 
-The container listens on loopback only; `tailscale serve` is what puts it on the
-tailnet with a certificate, and Chrome wants that certificate before it will
-offer to install the app. The same `CALCFLOW_TOKEN` goes on each device under
-Settings → Sync; the backend field can stay blank there, because the app served
-by the container talks to the container.
+Open the `https://<machine>.<tailnet>.ts.net` address on the device and install
+it from the browser menu. To sync, enter the token from `.env` under
+**Settings → Sync** on each device. The backend address can stay empty, because
+the app talks to the server it was loaded from.
 
-The database is a file in `./data`, bind-mounted rather than kept in a named
-volume, so backing it up is copying something you can see.
+[`deploy/README.md`](deploy/README.md) covers running it permanently on a home
+server: a systemd timer that pulls `main`, rebuilds, waits for the healthcheck,
+and rolls back if the new build does not come up.
 
-**[`deploy/README.md`](deploy/README.md) is the full runbook** — deploy key,
-first boot, and the systemd timer that makes `git push` the whole deployment
-procedure: the server checks every two minutes, pulls, rebuilds, waits for the
-container's healthcheck, and rolls back to the previous commit if it does not
-come up.
+### If the container will not start
+
+`docker compose logs` says why. The two likely causes:
+
+- **`CALCFLOW_TOKEN is missing a value`.** `.env` does not exist or has no
+  token in it.
+- **`… is not writable by uid 1000`.** The container runs as uid 1000 and
+  writes to `./data`. On Linux, if your own uid is different (check with
+  `id -u`), hand the folder over with `sudo chown -R 1000:1000 data`.
+
+## Developing
+
+Needs Node 24 (the version the image uses) and npm.
+
+```bash
+npm install
+npm run dev          # the web app on http://localhost:5173, also on your LAN
+npm run dev:server   # the API on http://localhost:8787; needs CALCFLOW_TOKEN set
+npm test             # engine tests, the generator fuzz harness, server tests
+npm run lint
+npm run typecheck
+npm run build        # the PWA; `npm run build:server` builds the API
+```
+
+The web app runs fine without the server; sync just stays off. The service
+worker is disabled in dev, so to try offline mode or installing, use
+`npm run build && npm run preview`.
+
+[`docs/adding-a-topic.md`](docs/adding-a-topic.md) walks through writing a new
+generator.
+
+### Layout
+
+```
+packages/
+  engine/       Parser, evaluator, numeric equivalence and form checks. No dependencies.
+  generators/   One file per topic, the registry, the rule cards and the fuzz harness.
+  shared/       Types used by both apps: Attempt, Settings, Tier, the chapter list.
+apps/
+  web/          React + Vite PWA.
+  server/       Fastify + SQLite: the attempt log, sync, and serving the built PWA.
+deploy/         Pull-and-restart script and systemd units for a home server.
+docs/           Writing a topic, and the original design plan and mockups.
+```
+
+`packages/shared` is the only package that compiles to JavaScript. The server is
+plain Node and needs it built. Everything else is read from TypeScript source
+by Vite and Vitest.
 
 ## How it works
 
-**Problems are solution trees, not `{prompt, answer}` pairs.** The generator
-picks the parameters, so it knows every intermediate expression and the name of
-the rule applied at each step. Hints are read off that tree — no handwriting
-recognition, no local vision model.
+**Problems are solution trees, not prompt and answer pairs.** A generator picks
+the numbers itself, so it knows every intermediate step and the rule applied at
+each one. The hints are read straight off that tree, so no handwriting
+recognition is needed.
 
-**Equivalence is decided numerically.** Two expressions are compared at 24
-sampled points, skipping poles and points outside the domain. That accepts any
-correct answer regardless of the route taken to it, needs no CAS, and runs
-entirely on-device. Antiderivatives are compared up to a constant difference,
-which is what makes `+C` work.
+**Answers are compared numerically.** Your expression and the reference are
+evaluated at 24 sampled points, skipping poles and points outside the domain.
+Any correct form is accepted, whatever route led to it, without a computer
+algebra system and entirely on the device. Antiderivatives are compared up to a
+constant, which is how `+C` works. Near misses get their own feedback, so a
+missing `+C`, a decimal where an exact value was asked for, or an answer left
+unsimplified is reported as exactly that, not just as wrong.
 
-**Three tiers, not a dial.** `easy` is one rule with kind numbers, `medium` is
-the book's own exercises, `hard` is the exam. A generator declares which of the
-three it has something to say at, so the easy pool cannot quietly fill with
-problems that are not. The tier replaced a 1–9 slider that every generator
-turned straight back into two or three branches — nine stops, six of them lying.
+**The fuzz harness is the safety net.** Every generator is run 500 times
+across each tier it supports. Every step of every solution is checked against
+the final answer, and an independent check re-derives the answer from the
+question. A generator that produces a wrong *hint* fails the test suite.
 
-**Hard sessions reach across chapters.** A generator can declare `spans`, the
-chapters it draws on beyond its own; those are offered only when every chapter
-they need is switched on, and they take about 40% of a hard session. A problem
-that needs a log law *before* the derivative rule is a different animal from
-either chapter alone.
+**Sync is an append-only log, so merging is a union.** Each attempt gets an id
+(a ULID) on the device that made it, and the server inserts batches with
+`INSERT OR IGNORE`. A device that was offline for a week pushes what it has and
+pulls what it missed, and there are no conflicts to resolve. Stats are always
+computed on the device from the merged log, so they work offline too. Settings
+sync as last-write-wins, except the ones that only make sense on one device.
 
-**The fuzz harness is the safety net.** Each generator is run 500 instances
-across every tier it declares, and every solution step is checked against the
-answer, plus an independent `verify` that re-derives the answer from the prompt.
-A generator that produces a wrong *hint* fails the build.
+**The stats screen stays one screen.** At the top is a single sentence, the most
+useful thing the log says right now, chosen from nine signals in a fixed order of
+how much they would change what to practise next. Each readout has a minimum
+sample size and only appears when it says something notable, so an empty fold
+means there is nothing worth saying yet.
 
-**Graph and vector questions are drawn, and he marks them.** Chapters 5 and 12
-turn the canvas into a real coordinate plane; the answer is drawn in amber over
-his sketch when he submits, and a Both / Mine / Answer toggle separates them.
-The typed fields still grade what can be graded; the drawing gets *Got it /
-Close / Missed*. Nothing is written to the log until he marks it, which is what
-keeps the log append-only.
+### Storage
 
-**Sync is an append-only log, so merging is a union.** Every attempt carries a
-ULID generated on the device that produced it, and the server takes a batch with
-`INSERT OR IGNORE`. A device that was offline for a week pushes what it has,
-pulls from the cursor it last saw, and both ends agree — there is no conflict
-resolution because there are no conflicts. Stats are always computed locally
-from the merged log, so the stats screen works offline too.
+The log lives in IndexedDB on each device (`apps/web/src/state/db.ts`) and in
+SQLite on the server (`apps/server/src/db.ts`). Both schemas are versioned and
+migrate forwards only. Each change is one numbered step in its own transaction,
+and no step may drop data. The server's copy is the one that survives a
+reinstalled phone.
 
-The exchange runs when the app comes to the front, when the network comes back,
-every minute it is being looked at, and on the sync button. A failed one changes
-nothing — the queue is intact and the cursor has not moved — so the next one
-picks up exactly where it stopped. Settings ride along on last-write-wins, minus
-the four fields that describe the device holding them.
-
-**The stats screen is one screen, three slots, and a metric has to earn its
-slot.** The standing page is capped and does not grow. Above it sits *the read*:
-one sentence, which the nine tracked signals compete for in a fixed order of how
-much the answer would change what he practises next. Everything else is behind
-one fold. Every readout has a minimum count and a "is this notable" gate, so the
-usual state is short and an empty fold is correct rather than broken.
-`docs/claudes_plan/additional_notes.md` §C has the reasoning.
-
-## Storage and migrations
-
-The attempt log lives in IndexedDB on each device (`apps/web/src/state/db.ts`)
-and in SQLite on the server (`apps/server/src/db.ts`). Both are at their
-baseline version: everything written before the first deploy was test data, so
-neither carries a migration for it. A store or a database file left over from
-before that baseline is rebuilt empty on the next open rather than upgraded,
-which is the one place either of them throws anything away.
-
-From the first deploy on they both do, and the rules are in the comment at the
-top of each `migrate`: forwards only, one numbered step per change, each in its
-own transaction, and no step ever drops something that still holds a row. The
-server's copy is the only one that survives a reinstalled phone.
-
-## What is not built yet
-
-- Chapter 1's set-membership questions (∈, ⊂). Every answer field today takes an
-  expression; the `set`, `interval`, `choice` and `boolean` answer kinds exist in
-  the types but nothing renders them yet.
-- An Android wrapper. The S Pen's side button is unreachable from a browser —
-  pressure and tilt come through, the button does not — so the eraser is a tool
-  on the rail rather than a flip of the pen.
+The original design plan and its reasoning are in [`docs/claudes_plan/`](docs/claudes_plan).
